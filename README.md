@@ -1,122 +1,111 @@
 # AnimFlow DSL
 
-**AnimFlow DSL**은 다이어그램 정의와 애니메이션을 위한 DSL(Domain-Specific Language)과 React 기반의 렌더링 SDK를 제공하는 프로젝트입니다.
+A DSL (Domain-Specific Language) for defining diagrams with step-by-step animations, built on React.
 
-## 📦 프로젝트 구조
+## Project Structure
 
-이 프로젝트는 모노레포로 구성되어 있습니다:
+Monorepo powered by **pnpm workspaces** + **Turborepo**:
 
 ```
 animflow-dsl/
 ├── packages/
-│   └── react/           # @animflow-dsl/react SDK 패키지
+│   └── react/              # @animflow-dsl/react SDK
 │       ├── src/
-│       │   ├── components/  # AnimflowPlayer, 렌더러, 컨트롤
-│       │   ├── core/       # DSL 파서, 레이아웃, 애니메이션 엔진
-│       │   ├── store/      # Zustand 상태 관리
-│       │   └── index.ts    # Public API
+│       │   ├── components/    # AnimflowPlayer, renderers, controls
+│       │   ├── core/          # DSL parser, layout engine, animation
+│       │   ├── store/         # Zustand state management
+│       │   └── index.ts       # Public API
 │       └── package.json
 └── apps/
-    └── web/             # 데모 웹 애플리케이션
+    └── web/                # Demo web app (Next.js)
         ├── app/
         ├── components/
         ├── data/
         └── package.json
 ```
 
-## 🚀 시작하기
-
-### 설치
+## Getting Started
 
 ```bash
-# pnpm 설치 (없는 경우)
-npm install -g pnpm
-
-# 의존성 설치
+# Install dependencies
 pnpm install
-```
 
-### 개발
-
-```bash
-# SDK 빌드
+# Build the SDK
 pnpm --filter @animflow-dsl/react build
 
-# 웹 앱 실행
+# Run the demo app
 pnpm --filter web dev
-
-# 또는 루트에서 모든 패키지 빌드
-pnpm build
 ```
 
-### SDK 사용하기
+## Usage
 
 ```tsx
 import { AnimflowPlayer } from '@animflow-dsl/react';
 
 function App() {
   const dsl = `
-    @diagram
-    A[시작]
-    B[처리]
-    C[종료]
-    
-    A -> B -> C
-    
-    @animation
-    show(A)
-    show(B, duration: 1s)
-    show(C)
-    flow(A -> B)
-    flow(B -> C)
-    
-    @narration
-    title: "프로세스 시작"
-    text: "시작 노드부터 처리 단계로 이동합니다."
-    ---
-    title: "처리 완료"
-    text: "최종 단계로 진행합니다."
+flowchart LR
+  A[Start]
+  B[Process]
+  C[End]
+
+  A --> B
+  B --> C
+
+@animation
+  step 1: show A
+    effect: fadeIn
+  step 2: connect A->B
+    flow: particles
+  step 3: show B
+    effect: slideInRight
+  step 4: connect B->C
+    flow: particles
+  step 5: show C
+    effect: fadeIn
+@end
+
+@narration
+  step 1:
+    title: "Start"
+    text: "The process begins here."
+  step 4:
+    title: "Complete"
+    text: "Moving to the final stage."
+@end
   `;
-  
+
   return <AnimflowPlayer dsl={dsl} />;
 }
 ```
 
-## 📚 DSL 문법
+## Documentation
 
-자세한 DSL 문법은 `DSL 전체 구조.md` 문서를 참조하세요.
+- **[DSL Guide](docs/dsl-guide.md)** - Full DSL syntax reference
+- **[SDK API](packages/react/README.md)** - React component props & imperative API
 
-### 주요 기능
+## Features
 
-- **다이어그램 정의**: 노드와 엣지를 간단한 문법으로 정의
-- **애니메이션**: 노드 표시/숨김, 흐름 애니메이션, 하이라이트 등
-- **나레이션**: 각 애니메이션 단계에 대한 설명 추가
-- **스타일링**: Clean/Sketchy 모드 지원
-- **Pan & Zoom**: 인터랙티브한 다이어그램 뷰어
-- **플레이백 컨트롤**: 재생/일시정지, 속도 조절, 진행 바 탐색
+- **Diagram definition** - Nodes and edges with a simple, readable syntax
+- **Step-by-step animation** - Show, hide, highlight, connect with various effects
+- **Narration** - Descriptive text for each animation chapter
+- **Styling** - Clean and sketchy (hand-drawn) render modes
+- **Pan & Zoom** - Scroll to pan, Cmd/Ctrl+scroll to zoom
+- **Playback controls** - Play/pause, chapter-based progress bar with tooltips
 
-## 🛠️ 기술 스택
+## Tech Stack
 
-- **React 18** - UI 프레임워크
-- **TypeScript** - 타입 안전성
-- **GSAP** - 애니메이션 엔진
-- **Dagre** - 그래프 레이아웃
-- **Rough.js** - 손그림 스타일 렌더링
-- **Zustand** - 상태 관리
-- **Next.js 14** - 웹 앱 프레임워크 (demo)
-- **Tailwind CSS** - 스타일링 (demo)
-- **Turborepo** - 모노레포 관리
-- **tsup** - SDK 번들링
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **GSAP** - Animation engine
+- **Dagre** - Graph layout
+- **Rough.js** - Hand-drawn style rendering
+- **Zustand** - State management
+- **Next.js 14** - Demo app framework
+- **Tailwind CSS** - Demo app styling
+- **Turborepo** - Monorepo orchestration
+- **tsup** - SDK bundling
 
-## 📄 라이선스
+## License
 
 MIT
-
-## 🔗 관련 링크
-
-- GitHub: https://github.com/your-org/animflow-dsl
-- NPM: https://www.npmjs.com/package/@animflow-dsl/react
-
----
-
-Made with ❤️ for animated diagrams
