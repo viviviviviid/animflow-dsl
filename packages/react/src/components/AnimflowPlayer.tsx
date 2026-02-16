@@ -203,6 +203,11 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         clearInterval(intervalRef.current);
       }
 
+      // 템플릿/DSL 변경 시 재생 상태 리셋 → 버튼이 다시 "재생"으로 표시
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setCurrentStep(0);
+
       if (!svgRef.current) return;
 
       const timeline = new AnimationTimeline(localDiagramData, {
