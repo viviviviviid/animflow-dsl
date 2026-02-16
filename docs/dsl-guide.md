@@ -62,9 +62,10 @@ flowchart [direction]
 
 | Syntax | Description |
 |--------|-------------|
-| `A --> B` | Arrow |
+| `A --> B` | Arrow (with arrowhead) |
+| `A --- B` | Line (no arrowhead) |
 | `A -->|text| B` | Arrow with label |
-| `A --> B --> C` | Chained |
+| `A ---|text| B` | Line with label |
 
 ### Multi-line Labels
 

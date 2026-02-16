@@ -11,7 +11,8 @@ interface RoughEdgeRendererProps {
 }
 
 export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
-  const { id, from, to, label, points, style: edgeStyle } = edge;
+  const { id, from, to, label, points, style: edgeStyle, arrow } = edge;
+  const showArrow = arrow !== "none";
 
   if (!points || points.length < 2) return null;
 
@@ -22,8 +23,12 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
   // Calculate label position
   const midPoint = points[Math.floor(points.length / 2)];
 
-  // Memoize arrow points calculation
+  // Memoize arrow points calculation (only when arrow is needed)
   const arrowData = useMemo(() => {
+    if (!showArrow) {
+      return { points: [] as [number, number][], valid: false };
+    }
+
     // Guard: need at least 2 valid points
     if (!points || points.length < 2) {
       return { points: [] as [number, number][], valid: false };
@@ -47,7 +52,7 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
     );
     const arrowLength = 10;
     const arrowWidth = 6;
-    
+
     const arrowPoints: [number, number][] = [
       [lastPoint.x, lastPoint.y],
       [
@@ -61,17 +66,17 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
     ];
 
     // Validate calculated points
-    const allValid = arrowPoints.every(pt => 
-      pt.length === 2 && 
+    const allValid = arrowPoints.every(pt =>
+      pt.length === 2 &&
       typeof pt[0] === 'number' && typeof pt[1] === 'number' &&
       !isNaN(pt[0]) && !isNaN(pt[1])
     );
 
-    return { 
-      points: allValid ? arrowPoints : [] as [number, number][], 
-      valid: allValid 
+    return {
+      points: allValid ? arrowPoints : [] as [number, number][],
+      valid: allValid
     };
-  }, [points]);
+  }, [points, showArrow]);
 
   // Generate rough paths at render time (NOT in useEffect!)
   const roughPaths = useMemo(() => {
@@ -80,14 +85,9 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
       return { pathOps: [], arrowOps: [] };
     }
 
-    // Guard: arrow data must be valid
-    if (!arrowData.valid || arrowData.points.length === 0) {
-      return { pathOps: [], arrowOps: [] };
-    }
-
     try {
       const generator = rough.generator();
-      
+
       const roughOptions = {
         roughness: 0.6,
         bowing: 0.3,
@@ -99,20 +99,24 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
 
       // Generate rough path drawable
       const roughPathDrawable = generator.path(path, roughOptions);
-      
-      // Generate rough arrow drawable
-      const roughArrowDrawable = generator.polygon(arrowData.points, {
-        roughness: 0.6,
-        bowing: 0.3,
-        stroke,
-        strokeWidth: 1,
-        fill: stroke,
-        fillStyle: "solid",
-      });
+
+      // Generate rough arrow drawable (only when arrow is needed)
+      let arrowOps: any[] = [];
+      if (arrowData.valid && arrowData.points.length > 0) {
+        const roughArrowDrawable = generator.polygon(arrowData.points, {
+          roughness: 0.6,
+          bowing: 0.3,
+          stroke,
+          strokeWidth: 1,
+          fill: stroke,
+          fillStyle: "solid",
+        });
+        arrowOps = roughArrowDrawable.sets || [];
+      }
 
       return {
         pathOps: roughPathDrawable.sets || [],
-        arrowOps: roughArrowDrawable.sets || [],
+        arrowOps,
       };
     } catch (error) {
       console.error("Error generating rough paths:", error, { path, arrowData });
@@ -139,7 +143,7 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
         pointerEvents="none"
       />
 
-      {/* Rough path - rendered directly in JSX */}
+      {/* Rough path (line only) */}
       {roughPaths.pathOps.length > 0 && (
         <g className="rough-path-container" style={{ opacity: 0 }}>
           {roughPaths.pathOps.map((set, i) => (
@@ -156,7 +160,7 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
         </g>
       )}
 
-      {/* Rough arrow - rendered directly in JSX */}
+      {/* Rough arrow (separate for animation timing) */}
       {roughPaths.arrowOps.length > 0 && (
         <g className="rough-arrow-overlay" style={{ opacity: 0 }}>
           {roughPaths.arrowOps.map((set, i) => (

@@ -10,7 +10,7 @@ interface EdgeRendererProps {
 }
 
 export function EdgeRenderer({ edge, style }: EdgeRendererProps) {
-  const { id, from, to, label, points, style: edgeStyle } = edge;
+  const { id, from, to, label, points, style: edgeStyle, arrow } = edge;
 
   if (!points || points.length < 2) return null;
 
@@ -41,16 +41,18 @@ export function EdgeRenderer({ edge, style }: EdgeRendererProps) {
         strokeDasharray={strokeDasharray}
       />
 
-      {/* Arrow marker - will be added during animation */}
-      <path
-        className="edge-arrow"
-        d={path}
-        fill="none"
-        stroke="none"
-        strokeWidth={strokeWidth}
-        markerEnd="url(#arrowhead)"
-        opacity="0"
-      />
+      {/* Arrow marker - will be added during animation (only for arrow edges) */}
+      {arrow !== "none" && (
+        <path
+          className="edge-arrow"
+          d={path}
+          fill="none"
+          stroke="none"
+          strokeWidth={strokeWidth}
+          markerEnd="url(#arrowhead)"
+          opacity="0"
+        />
+      )}
 
       {/* Label */}
       {label && (

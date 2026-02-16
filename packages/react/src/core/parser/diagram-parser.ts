@@ -4,6 +4,7 @@ import type {
   NodeShape,
   FlowchartDirection,
   EdgeStyle,
+  ArrowType,
 } from "../types";
 
 /**
@@ -31,8 +32,8 @@ export function parseFlowchart(diagramText: string): {
       continue;
     }
 
-    // Parse edge: nodeA --> nodeB
-    if (line.includes("-->") || line.includes("-.->") || line.includes("==>")) {
+    // Parse edge: nodeA --> nodeB or nodeA --- nodeB
+    if (line.includes("-->") || line.includes("---") || line.includes("-.->") || line.includes("==>")) {
       const edge = parseEdgeLine(line);
       if (edge) {
         edges.push(edge);
@@ -92,8 +93,9 @@ function parseNodeLine(line: string): DiagramNode | null {
  * Parse edge definition line
  */
 function parseEdgeLine(line: string): DiagramEdge | null {
-  // Match: nodeA -->|label| nodeB or nodeA --> nodeB
+  // Match: nodeA -->|label| nodeB or nodeA --- nodeB
   let edgeStyle: EdgeStyle = "solid";
+  let arrowType: ArrowType = "single";
   let arrowSymbol = "-->";
 
   if (line.includes("-.->")) {
@@ -102,6 +104,11 @@ function parseEdgeLine(line: string): DiagramEdge | null {
   } else if (line.includes("==>")) {
     edgeStyle = "thick";
     arrowSymbol = "==>";
+  } else if (line.includes("-->")) {
+    arrowSymbol = "-->";
+  } else if (line.includes("---")) {
+    arrowType = "none";
+    arrowSymbol = "---";
   }
 
   // Extract label if present
@@ -124,5 +131,6 @@ function parseEdgeLine(line: string): DiagramEdge | null {
     to,
     label,
     style: edgeStyle,
+    arrow: arrowType,
   };
 }

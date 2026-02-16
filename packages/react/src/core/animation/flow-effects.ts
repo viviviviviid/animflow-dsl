@@ -10,7 +10,7 @@ export function animateEdgeFlow(
   duration: number = 2
 ): gsap.core.Tween | gsap.core.Timeline {
   const pathElement = edgeElement.querySelector(".edge-path") as SVGPathElement;
-  
+
   if (!pathElement) {
     return gsap.to(edgeElement, { opacity: 1, duration: 0 });
   }
@@ -34,6 +34,25 @@ export function animateEdgeFlow(
 }
 
 /**
+ * Animate rough arrow overlay at the end of line drawing
+ */
+function animateRoughArrow(
+  edgeElement: Element,
+  tl: gsap.core.Timeline,
+  duration: number
+) {
+  const roughArrowEl = edgeElement.querySelector('.rough-arrow-overlay');
+  if (roughArrowEl) {
+    const arrowStart = Math.max(0, duration * 0.5);
+    tl.fromTo(roughArrowEl,
+      { opacity: 0 },
+      { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
+      arrowStart
+    );
+  }
+}
+
+/**
  * Animate path drawing + arrow reveal
  */
 function animateParticles(
@@ -42,31 +61,21 @@ function animateParticles(
   duration: number
 ): gsap.core.Timeline {
   const totalLength = pathElement.getTotalLength();
-  
-  // For sketchy mode, animate rough overlays
   const roughPathContainer = edgeElement.querySelector('.rough-path-container');
-  const roughArrowEl = edgeElement.querySelector('.rough-arrow-overlay');
 
   const tl = gsap.timeline();
 
   if (roughPathContainer) {
-    // Sketchy mode: fade in from 0 to 1
-    tl.fromTo(roughPathContainer, 
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration,
-        ease: "power1.inOut",
-      }
-    );
-
-    if (roughArrowEl) {
-      tl.fromTo(roughArrowEl,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.3 },
-        `-=0.3`
-      );
-    }
+    // Sketchy mode: progressive draw line
+    gsap.set(roughPathContainer, { opacity: 1 });
+    const roughPaths = roughPathContainer.querySelectorAll('path');
+    roughPaths.forEach((rp) => {
+      const len = rp.getTotalLength();
+      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
+      tl.to(rp, { strokeDashoffset: 0, duration, ease: "power1.inOut" }, 0);
+    });
+    // Arrow appears at 70%
+    animateRoughArrow(edgeElement, tl, duration);
   } else {
     // Clean mode: stroke dash animation
     const arrowEl = edgeElement.querySelector('.edge-arrow');
@@ -83,10 +92,11 @@ function animateParticles(
     });
 
     if (arrowEl) {
+      const arrowStart = Math.max(0, duration * 0.85);
       tl.fromTo(arrowEl,
         { opacity: 0 },
-        { opacity: 1, duration: 0.3 },
-        `-=0.3`
+        { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
+        arrowStart
       );
     }
   }
@@ -103,28 +113,20 @@ function animateDash(
   duration: number
 ): gsap.core.Timeline {
   const roughPathContainer = edgeElement.querySelector('.rough-path-container');
-  const roughArrowEl = edgeElement.querySelector('.rough-arrow-overlay');
 
   const tl = gsap.timeline();
 
   if (roughPathContainer) {
-    // Sketchy mode: fade in
-    tl.fromTo(roughPathContainer,
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration,
-        ease: "linear",
-      }
-    );
-
-    if (roughArrowEl) {
-      tl.fromTo(roughArrowEl,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.3 },
-        `-=0.3`
-      );
-    }
+    // Sketchy mode: progressive draw line
+    gsap.set(roughPathContainer, { opacity: 1 });
+    const roughPaths = roughPathContainer.querySelectorAll('path');
+    roughPaths.forEach((rp) => {
+      const len = rp.getTotalLength();
+      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
+      tl.to(rp, { strokeDashoffset: 0, duration, ease: "linear" }, 0);
+    });
+    // Arrow appears at 70%
+    animateRoughArrow(edgeElement, tl, duration);
   } else {
     // Clean mode: dash animation
     const arrowEl = edgeElement.querySelector('.edge-arrow');
@@ -145,10 +147,11 @@ function animateDash(
     );
 
     if (arrowEl) {
+      const arrowStart = Math.max(0, duration * 0.85);
       tl.fromTo(arrowEl,
         { opacity: 0 },
-        { opacity: 1, duration: 0.3 },
-        `-=0.3`
+        { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
+        arrowStart
       );
     }
   }
@@ -166,28 +169,20 @@ function animateArrow(
 ): gsap.core.Timeline {
   const totalLength = pathElement.getTotalLength();
   const roughPathContainer = edgeElement.querySelector('.rough-path-container');
-  const roughArrowEl = edgeElement.querySelector('.rough-arrow-overlay');
 
   const tl = gsap.timeline();
 
   if (roughPathContainer) {
-    // Sketchy mode: fade in
-    tl.fromTo(roughPathContainer,
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration,
-        ease: "power2.inOut",
-      }
-    );
-
-    if (roughArrowEl) {
-      tl.fromTo(roughArrowEl,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.3 },
-        `-=0.3`
-      );
-    }
+    // Sketchy mode: progressive draw line
+    gsap.set(roughPathContainer, { opacity: 1 });
+    const roughPaths = roughPathContainer.querySelectorAll('path');
+    roughPaths.forEach((rp) => {
+      const len = rp.getTotalLength();
+      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
+      tl.to(rp, { strokeDashoffset: 0, duration, ease: "power2.inOut" }, 0);
+    });
+    // Arrow appears at 70%
+    animateRoughArrow(edgeElement, tl, duration);
   } else {
     // Clean mode: stroke dash animation
     const arrowEl = edgeElement.querySelector('.edge-arrow');
@@ -204,10 +199,11 @@ function animateArrow(
     });
 
     if (arrowEl) {
+      const arrowStart = Math.max(0, duration * 0.85);
       tl.fromTo(arrowEl,
         { opacity: 0 },
-        { opacity: 1, duration: 0.3 },
-        `-=0.3`
+        { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
+        arrowStart
       );
     }
   }
