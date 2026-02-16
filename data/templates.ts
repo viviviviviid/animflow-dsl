@@ -25,48 +25,70 @@ export const TEMPLATES: Template[] = [
 
 @animation
   step 1: show genesis
+    name: "Genesis 표시"
+    description: "genesis 노드를 화면에 표시합니다."
     duration: 1.5s
     effect: fadeIn
 
   step 2: highlight genesis
+    name: "Genesis 강조"
+    description: "genesis 노드를 강조 표시합니다."
     color: #4CAF50
     glow: true
     duration: 1s
 
   step 3: connect genesis->block1
+    name: "Genesis에서 Block1 연결"
+    description: "genesis에서 block1으로 흐름을 연결합니다."
     flow: particles
     speed: 2s
 
   step 4: show block1
+    name: "Block1 표시"
+    description: "block1 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
 
   step 5: highlight block1
+    name: "Block1 강조"
+    description: "block1 노드를 강조 표시합니다."
     color: #FF9800
     pulse: true
     duration: 1s
 
   step 6: connect block1->block2
+    name: "Block1에서 Block2 연결"
+    description: "block1에서 block2로 흐름을 연결합니다."
     flow: particles
     speed: 2s
 
   step 7: show block2
+    name: "Block2 표시"
+    description: "block2 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
 
   step 8: connect block2->block3
+    name: "Block2에서 Block3 연결"
+    description: "block2에서 block3으로 흐름을 연결합니다."
     flow: particles
     speed: 2s
 
   step 9: show block3
+    name: "Block3 표시"
+    description: "block3 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
 
   step 10: camera fitAll
+    name: "카메라 전체 맞춤"
+    description: "전체 다이어그램이 보이도록 카메라를 조정합니다."
     padding: 50px
     duration: 1.5s
 
   step 11: highlight genesis, block1, block2, block3
+    name: "전체 블록 강조"
+    description: "genesis와 모든 블록을 한 번에 강조합니다."
     color: #4CAF50
     glow: true
     stagger: 0.3s
@@ -136,69 +158,99 @@ export const TEMPLATES: Template[] = [
 
 @animation
   step 1: show client, login
+    name: "로그인 시작 노드 표시"
+    description: "client와 login 노드를 화면에 표시합니다."
     effect: fadeIn
     stagger: 0.3s
     duration: 1s
 
   step 2: connect client->login, login->api, api->validate
+    name: "인증 요청 경로 연결"
+    description: "client에서 validate까지 인증 요청 경로를 연결합니다."
     flow: particles
     speed: 1s
 
   step 3: show api, validate
+    name: "인증 서버 노드 표시"
+    description: "api와 validate 노드를 화면에 표시합니다."
     effect: scaleIn
     stagger: 0.2s
     duration: 0.9s
 
   step 4: highlight validate
+    name: "비밀번호 검증 강조"
+    description: "validate 단계의 검증 동작을 강조합니다."
     color: #FF9800
     pulse: true
     duration: 1s
 
   step 5: connect validate->issue, issue->store
+    name: "토큰 발급 흐름 연결"
+    description: "validate에서 issue, store로 이어지는 성공 경로를 연결합니다."
     flow: arrow
     speed: 1s
 
   step 6: show issue, store
+    name: "발급 및 저장 노드 표시"
+    description: "issue와 store 노드를 화면에 표시합니다."
     effect: bounceIn
     stagger: 0.2s
     duration: 0.9s
 
   step 7: connect store->request, request->verify
+    name: "보호 API 요청 경로 연결"
+    description: "store에서 verify까지 보호 API 요청 경로를 연결합니다."
     flow: particles
     speed: 1s
 
   step 8: show request, verify
+    name: "요청/검증 노드 표시"
+    description: "request와 verify 노드를 화면에 표시합니다."
     effect: fadeIn
     stagger: 0.2s
     duration: 0.9s
 
   step 9: highlight verify
+    name: "토큰 검증 강조"
+    description: "verify 단계의 토큰 검증을 강조합니다."
     color: #2196F3
     pulse: true
     duration: 1s
 
   step 10: connect verify->success
+    name: "검증 성공 연결"
+    description: "verify에서 success로 이어지는 성공 경로를 연결합니다."
     flow: arrow
     speed: 1s
 
   step 11: show success
+    name: "성공 응답 표시"
+    description: "success 노드를 화면에 표시합니다."
     effect: scaleIn
     duration: 0.8s
 
   step 12: connect validate->fail, verify->fail
+    name: "실패 경로 연결"
+    description: "validate와 verify에서 fail로 이어지는 실패 경로를 연결합니다."
     flow: dash
     speed: 1s
 
   step 13: show fail
+    name: "실패 응답 표시"
+    description: "fail 노드를 화면에 표시합니다."
     effect: fadeIn
     duration: 0.8s
 
   step 14: highlight success, fail
+    name: "결과 노드 강조"
+    description: "success와 fail 결과 노드를 함께 강조합니다."
     color: #4CAF50
     stagger: 0.3s
     duration: 1s
 
   step 15: camera fitAll
+    name: "카메라 전체 맞춤"
+    description: "전체 인증 흐름이 보이도록 카메라를 조정합니다."
     padding: 50px
     duration: 1.5s
 @end
@@ -285,78 +337,114 @@ export const TEMPLATES: Template[] = [
 
 @animation
   step 1: show client
+    name: "클라이언트 표시"
+    description: "client 노드를 화면에 표시합니다."
     effect: fadeIn
     duration: 1s
   
   step 2: show dns
+    name: "DNS 표시"
+    description: "dns 노드를 화면에 표시합니다."
     effect: slideInTop
     duration: 1s
   
   step 3: connect client->dns
+    name: "DNS 조회 연결"
+    description: "client에서 dns로 조회 요청 흐름을 연결합니다."
     flow: particles
     speed: 1.5s
   
   step 4: highlight dns
+    name: "DNS 강조"
+    description: "dns 조회 단계를 강조합니다."
     color: #2196F3
     pulse: true
     duration: 1s
   
   step 5: connect dns->client
+    name: "DNS 응답 연결"
+    description: "dns에서 client로 응답 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 6: show server
+    name: "서버 표시"
+    description: "server 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 7: connect client->server
+    name: "HTTP 요청 연결"
+    description: "client에서 server로 HTTP 요청 흐름을 연결합니다."
     flow: particles
     speed: 2s
   
   step 8: highlight server
+    name: "서버 강조"
+    description: "server 처리 단계를 강조합니다."
     color: #4CAF50
     glow: true
     duration: 1s
   
   step 9: show app
+    name: "애플리케이션 표시"
+    description: "app 노드를 화면에 표시합니다."
     effect: scaleIn
     duration: 1s
   
   step 10: connect server->app
+    name: "서버-앱 연결"
+    description: "server에서 app으로 요청 전달 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 11: show db
+    name: "데이터베이스 표시"
+    description: "db 노드를 화면에 표시합니다."
     effect: bounceIn
     duration: 1s
   
   step 12: connect app->db
+    name: "DB 조회 연결"
+    description: "app에서 db로 조회 요청 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 13: highlight db
+    name: "DB 강조"
+    description: "db 조회 단계를 강조합니다."
     color: #9C27B0
     glow: true
     duration: 1s
   
   step 14: connect db->app
+    name: "DB 응답 연결"
+    description: "db에서 app으로 응답 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 15: connect app->server
+    name: "앱-서버 응답 연결"
+    description: "app에서 server로 응답 생성 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 16: connect server->client
+    name: "최종 응답 연결"
+    description: "server에서 client로 최종 응답 흐름을 연결합니다."
     flow: particles
     speed: 2s
   
   step 17: highlight client
+    name: "클라이언트 완료 강조"
+    description: "client에서 응답 완료 상태를 강조합니다."
     color: #4CAF50
     glow: true
     duration: 1.5s
   
   step 18: camera fitAll
+    name: "카메라 전체 맞춤"
+    description: "전체 요청-응답 흐름이 보이도록 카메라를 조정합니다."
     padding: 40px
     duration: 2s
 @end
@@ -442,102 +530,150 @@ export const TEMPLATES: Template[] = [
 
 @animation
   step 1: show init
+    name: "저장소 초기화 표시"
+    description: "init 노드를 화면에 표시합니다."
     effect: fadeIn
     duration: 1s
   
   step 2: connect init->c1
+    name: "초기 커밋 연결"
+    description: "init에서 c1으로 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 3: show c1
+    name: "Commit 1 표시"
+    description: "c1 노드를 화면에 표시합니다."
     effect: bounceIn
     duration: 1s
   
   step 4: highlight c1
+    name: "Commit 1 강조"
+    description: "c1 커밋을 강조합니다."
     color: #2196F3
     pulse: true
     duration: 1s
   
   step 5: connect c1->c2
+    name: "Commit 1에서 2 연결"
+    description: "c1에서 c2로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 6: show c2
+    name: "Commit 2 표시"
+    description: "c2 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 7: connect c2->c3
+    name: "Commit 2에서 3 연결"
+    description: "c2에서 c3로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 8: show c3
+    name: "Commit 3 표시"
+    description: "c3 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 9: connect c2->branch
+    name: "브랜치 분기 연결"
+    description: "c2에서 branch로 분기 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 10: show branch
+    name: "Feature 브랜치 표시"
+    description: "branch 노드를 화면에 표시합니다."
     effect: slideInTop
     duration: 1s
   
   step 11: highlight branch
+    name: "Feature 브랜치 강조"
+    description: "branch 노드를 강조합니다."
     color: #FF9800
     glow: true
     duration: 1s
   
   step 12: connect branch->f1
+    name: "Feature Commit1 연결"
+    description: "branch에서 f1으로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 13: show f1
+    name: "Feature Commit1 표시"
+    description: "f1 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 14: connect f1->f2
+    name: "Feature Commit2 연결"
+    description: "f1에서 f2로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 15: show f2
+    name: "Feature Commit2 표시"
+    description: "f2 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 16: show merge
+    name: "머지 노드 표시"
+    description: "merge 노드를 화면에 표시합니다."
     effect: scaleIn
     duration: 1s
   
   step 17: connect c3->merge, f2->merge
+    name: "머지 경로 연결"
+    description: "main과 feature 경로를 merge로 연결합니다."
     flow: particles
     speed: 1.5s
   
   step 18: highlight merge
+    name: "머지 강조"
+    description: "merge 단계를 강조합니다."
     color: #4CAF50
     flash: true
     duration: 1.5s
   
   step 19: connect merge->c4
+    name: "머지 후 커밋 연결"
+    description: "merge에서 c4로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 20: show c4
+    name: "Commit 4 표시"
+    description: "c4 노드를 화면에 표시합니다."
     effect: bounceIn
     duration: 1s
   
   step 21: connect c4->c5
+    name: "릴리스 전 연결"
+    description: "c4에서 c5로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 22: show c5
+    name: "릴리스 노드 표시"
+    description: "c5 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 23: highlight c5
+    name: "릴리스 강조"
+    description: "c5 노드를 강조합니다."
     color: #4CAF50
     glow: true
     duration: 1.5s
   
   step 24: camera fitAll
+    name: "카메라 전체 맞춤"
+    description: "전체 브랜치 흐름이 보이도록 카메라를 조정합니다."
     padding: 50px
     duration: 2s
 @end
@@ -621,97 +757,141 @@ export const TEMPLATES: Template[] = [
 
 @animation
   step 1: show start
+    name: "주문 접수 표시"
+    description: "start 노드를 화면에 표시합니다."
     effect: bounceIn
     duration: 1s
   
   step 2: highlight start
+    name: "주문 접수 강조"
+    description: "start 단계를 강조합니다."
     color: #4CAF50
     pulse: true
     duration: 1s
   
   step 3: connect start->validate
+    name: "재고 확인 연결"
+    description: "start에서 validate로 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 4: show validate
+    name: "재고 확인 표시"
+    description: "validate 노드를 화면에 표시합니다."
     effect: flipIn
     duration: 1s
   
   step 5: highlight validate
+    name: "재고 확인 강조"
+    description: "validate 단계를 강조합니다."
     color: #FF9800
     pulse: true
     duration: 1s
   
   step 6: connect validate->payment
+    name: "결제 단계 연결"
+    description: "validate에서 payment로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 7: show payment
+    name: "결제 처리 표시"
+    description: "payment 노드를 화면에 표시합니다."
     effect: scaleIn
     duration: 1s
   
   step 8: highlight payment
+    name: "결제 처리 강조"
+    description: "payment 단계를 강조합니다."
     color: #2196F3
     pulse: true
     duration: 1s
   
   step 9: connect payment->pack
+    name: "포장 준비 연결"
+    description: "payment에서 pack으로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 10: show pack
+    name: "포장 준비 표시"
+    description: "pack 노드를 화면에 표시합니다."
     effect: slideInDown
     duration: 1s
   
   step 11: highlight pack
+    name: "포장 준비 강조"
+    description: "pack 단계를 강조합니다."
     color: #9C27B0
     glow: true
     duration: 1s
   
   step 12: connect pack->ship
+    name: "배송 시작 연결"
+    description: "pack에서 ship으로 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 13: show ship
+    name: "배송 시작 표시"
+    description: "ship 노드를 화면에 표시합니다."
     effect: slideInDown
     duration: 1s
   
   step 14: highlight ship
+    name: "배송 시작 강조"
+    description: "ship 단계를 강조합니다."
     color: #FF5722
     pulse: true
     duration: 1s
   
   step 15: connect ship->notify
+    name: "고객 알림 연결"
+    description: "ship에서 notify로 흐름을 연결합니다."
     flow: particles
     speed: 1s
   
   step 16: show notify
+    name: "고객 알림 표시"
+    description: "notify 노드를 화면에 표시합니다."
     effect: bounceIn
     duration: 1s
   
   step 17: highlight notify
+    name: "고객 알림 강조"
+    description: "notify 단계를 강조합니다."
     color: #00BCD4
     glow: true
     duration: 1s
   
   step 18: connect notify->complete
+    name: "완료 단계 연결"
+    description: "notify에서 complete로 흐름을 연결합니다."
     flow: arrow
     speed: 1s
   
   step 19: show complete
+    name: "주문 완료 표시"
+    description: "complete 노드를 화면에 표시합니다."
     effect: fadeIn
     duration: 1s
   
   step 20: highlight complete
+    name: "주문 완료 강조"
+    description: "complete 단계를 강조합니다."
     color: #4CAF50
     glow: true
     duration: 2s
   
   step 21: show cancel, refund
+    name: "예외 노드 표시"
+    description: "cancel과 refund 노드를 화면에 표시합니다."
     effect: fadeIn
     stagger: 0.3s
   
   step 22: camera fitAll
+    name: "카메라 전체 맞춤"
+    description: "전체 주문 처리 흐름이 보이도록 카메라를 조정합니다."
     padding: 40px
     duration: 2s
 @end
@@ -781,26 +961,38 @@ export const TEMPLATES: Template[] = [
 
 @animation
   step 1: show A
+    name: "시작 노드 표시"
+    description: "A 노드를 화면에 표시합니다."
     effect: fadeIn
     duration: 1s
   
   step 2: connect A->B
+    name: "시작에서 처리 연결"
+    description: "A에서 B로 흐름을 연결합니다."
     flow: particles
     speed: 1.5s
   
   step 3: show B
+    name: "처리 노드 표시"
+    description: "B 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 4: connect B->C
+    name: "처리에서 종료 연결"
+    description: "B에서 C로 흐름을 연결합니다."
     flow: particles
     speed: 1.5s
   
   step 5: show C
+    name: "종료 노드 표시"
+    description: "C 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
   
   step 6: highlight A, B, C
+    name: "전체 단계 강조"
+    description: "A, B, C 전체 노드를 강조합니다."
     color: #4CAF50
     glow: true
     stagger: 0.3s

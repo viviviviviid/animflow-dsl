@@ -82,6 +82,13 @@ sequenceDiagram
 @end
 ```
 
+### 진행바/툴팁 기준 규칙
+
+- 진행바 분할(챕터)과 hover tooltip 텍스트는 `@animation`이 아니라 `@narration` 기준으로 처리합니다.
+- `@narration`의 `step`을 챕터 시작점으로 사용하고, 다음 `@narration step` 직전까지를 해당 챕터 구간으로 봅니다.
+- tooltip 제목/본문은 각각 `@narration`의 `title`, `text`를 사용합니다.
+- `@animation`에는 실행 동작만 정의하고, 설명 텍스트는 `@narration`에 작성하는 것을 권장합니다.
+
 ### Action 타입
 
 #### A. show / hide

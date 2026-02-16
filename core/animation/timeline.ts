@@ -21,6 +21,7 @@ export class AnimationTimeline {
   private svgElement: SVGSVGElement | null = null;
   private data: DiagramData;
   private onStepChange?: (step: number) => void;
+  private stepBoundaries: { step: number; start: number; end: number }[] = [];
 
   constructor(data: DiagramData, options?: AnimationTimelineOptions) {
     this.data = data;
@@ -37,6 +38,7 @@ export class AnimationTimeline {
   buildTimeline(svgElement: SVGSVGElement): void {
     this.svgElement = svgElement;
     this.timeline.clear();
+    this.stepBoundaries = [];
 
     // Show all nodes immediately (no animation)
     this.showAllNodesImmediately();
@@ -44,8 +46,9 @@ export class AnimationTimeline {
     // Group steps by step number
     const stepGroups = this.groupStepsByNumber(this.data.animations);
 
-    // Add each step group to timeline sequentially
+    // Add each step group to timeline sequentially and collect boundaries.
     for (const [stepNum, steps] of stepGroups) {
+      const stepStart = this.timeline.duration();
       // Notify active step when playback reaches this step boundary.
       this.timeline.call(() => {
         this.onStepChange?.(stepNum);
@@ -53,6 +56,8 @@ export class AnimationTimeline {
       for (const step of steps) {
         this.addStepToTimeline(step);
       }
+      const stepEnd = this.timeline.duration();
+      this.stepBoundaries.push({ step: stepNum, start: stepStart, end: stepEnd });
     }
   }
 
@@ -372,6 +377,10 @@ export class AnimationTimeline {
 
   getDuration(): number {
     return this.timeline.duration();
+  }
+
+  getStepBoundaries(): { step: number; start: number; end: number }[] {
+    return [...this.stepBoundaries];
   }
 
   isPlaying(): boolean {

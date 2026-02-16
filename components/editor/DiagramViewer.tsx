@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { parseDsl } from "@/core/parser/dsl-parser";
 import { calculateFlowchartLayout } from "@/core/layout/flowchart-layout";
 import { AnimationTimeline } from "@/core/animation/timeline";
@@ -16,17 +16,87 @@ interface DiagramViewerProps {
 
 export function DiagramViewer({ dslText }: DiagramViewerProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const panStartRef = useRef<{ x: number; y: number } | null>(null);
+  const panStartRef = useRef<{
+    clientX: number;
+    clientY: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
   const timelineRef = useRef<AnimationTimeline | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isDraggingRef = useRef(false);
+  const panRafRef = useRef<number | null>(null);
+  const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [localDiagramData, setLocalDiagramData] = useState<DiagramData | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [stepBoundaries, setStepBoundaries] = useState<
+    { step: number; start: number; end: number }[]
+  >([]);
+
+  const narrationStepDetails = useMemo(() => {
+    if (!localDiagramData) return {};
+    const details: Record<number, { title?: string; text?: string }> = {};
+
+    for (const narration of localDiagramData.narrations) {
+      const title =
+        typeof narration.title === "string" && narration.title.trim().length > 0
+          ? narration.title.trim()
+          : undefined;
+      const text =
+        typeof narration.text === "string" && narration.text.trim().length > 0
+          ? narration.text.trim()
+          : undefined;
+
+      if (title || text) {
+        details[narration.step] = { title, text };
+      }
+    }
+
+    return details;
+  }, [localDiagramData]);
+
+  const narrationBoundaries = useMemo(() => {
+    if (!localDiagramData || stepBoundaries.length === 0) return stepBoundaries;
+
+    const sortedNarrationSteps = Array.from(
+      new Set(localDiagramData.narrations.map((n) => n.step))
+    )
+      .sort((a, b) => a - b)
+      .filter((step) => stepBoundaries.some((b) => b.step === step));
+
+    if (sortedNarrationSteps.length === 0) {
+      return stepBoundaries;
+    }
+
+    const segments: { step: number; start: number; end: number }[] = [];
+    const lastTimelineEnd = stepBoundaries[stepBoundaries.length - 1]?.end ?? 0;
+
+    for (let i = 0; i < sortedNarrationSteps.length; i += 1) {
+      const step = sortedNarrationSteps[i];
+      const current = stepBoundaries.find((b) => b.step === step);
+      if (!current) continue;
+
+      const nextNarrationStep = sortedNarrationSteps[i + 1];
+      const next = nextNarrationStep
+        ? stepBoundaries.find((b) => b.step === nextNarrationStep)
+        : undefined;
+
+      const start = current.start;
+      const end = next?.start ?? lastTimelineEnd;
+      segments.push({
+        step,
+        start,
+        end: end > start ? end : current.end,
+      });
+    }
+
+    return segments.length > 0 ? segments : stepBoundaries;
+  }, [localDiagramData, stepBoundaries]);
 
   const {
-    isPlaying,
     setDuration,
     setCurrentTime,
     setCurrentStep,
@@ -104,6 +174,7 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
     });
     timeline.buildTimeline(svgRef.current);
     timelineRef.current = timeline;
+    setStepBoundaries(timeline.getStepBoundaries());
 
     setDuration(timeline.getDuration());
 
@@ -116,6 +187,8 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
     // Update current time periodically
     intervalRef.current = setInterval(() => {
       if (timelineRef.current) {
+        // Avoid frequent global store updates while dragging for smoother pan.
+        if (isDraggingRef.current) return;
         const time = timelineRef.current.getCurrentTime();
         const duration = timelineRef.current.getDuration();
         setCurrentTime(time);
@@ -125,7 +198,7 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
           setIsPlaying(false);
         }
       }
-    }, 100);
+    }, 33);
 
     // Set initial narration
     if (localDiagramData.narrations.length > 0) {
@@ -155,6 +228,13 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
   // Playback handlers
   const handlePlay = () => {
     if (timelineRef.current) {
+      const current = timelineRef.current.getCurrentTime();
+      const duration = timelineRef.current.getDuration();
+      const isAtEnd = duration > 0 && current >= duration - 0.01;
+
+      if (isAtEnd) {
+        timelineRef.current.restart();
+      }
       timelineRef.current.play();
       setIsPlaying(true);
     }
@@ -167,35 +247,29 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
     }
   };
 
-  const handleTogglePlayPause = () => {
-    if (!timelineRef.current) return;
-
-    if (isPlaying) {
-      handlePause();
-    } else {
-      const current = timelineRef.current.getCurrentTime();
-      const duration = timelineRef.current.getDuration();
-      const isAtEnd = duration > 0 && current >= duration - 0.01;
-
-      // If playback already finished, start again from the beginning.
-      if (isAtEnd) {
-        timelineRef.current.restart();
-      }
-      handlePlay();
-    }
-  };
-
-  const handleStop = () => {
-    if (timelineRef.current) {
-      timelineRef.current.stop();
-      setIsPlaying(false);
-      setCurrentTime(0);
-    }
-  };
-
   const handleSpeedChange = (speed: number) => {
     if (timelineRef.current) {
       timelineRef.current.setSpeed(speed);
+    }
+  };
+
+  const handleSeekToTime = (time: number) => {
+    if (!timelineRef.current || !localDiagramData) return;
+    timelineRef.current.seek(time);
+    setCurrentTime(time);
+
+    const matched =
+      stepBoundaries.find((b) => time >= b.start && time <= b.end) ||
+      stepBoundaries.find((b) => time < b.start) ||
+      null;
+
+    if (matched) {
+      setCurrentStep(matched.step);
+      const narrationForStep =
+        localDiagramData.narrations.find((n) => n.step === matched.step) || null;
+      if (narrationForStep) {
+        setCurrentNarration(narrationForStep);
+      }
     }
   };
 
@@ -213,28 +287,69 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
 
   const handleZoomReset = () => {
     setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
   };
 
   const handlePointerDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    isDraggingRef.current = true;
     setIsDragging(true);
     panStartRef.current = {
-      x: e.clientX - panOffset.x,
-      y: e.clientY - panOffset.y,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      panX: panOffset.x,
+      panY: panOffset.y,
     };
   };
 
   const handlePointerMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging || !panStartRef.current) return;
-    setPanOffset({
-      x: e.clientX - panStartRef.current.x,
-      y: e.clientY - panStartRef.current.y,
-    });
+    e.preventDefault();
+    const safeZoom = Math.max(0.5, Math.min(2, zoomLevel));
+    const dx = e.clientX - panStartRef.current.clientX;
+    const dy = e.clientY - panStartRef.current.clientY;
+    const nextPan = {
+      x: panStartRef.current.panX + dx / safeZoom,
+      y: panStartRef.current.panY + dy / safeZoom,
+    };
+
+    pendingPanRef.current = nextPan;
+    if (panRafRef.current === null) {
+      panRafRef.current = window.requestAnimationFrame(() => {
+        if (pendingPanRef.current) {
+          setPanOffset(pendingPanRef.current);
+        }
+        panRafRef.current = null;
+      });
+    }
   };
 
   const handlePointerUp = () => {
+    if (pendingPanRef.current) {
+      setPanOffset(pendingPanRef.current);
+      pendingPanRef.current = null;
+    }
+    if (panRafRef.current !== null) {
+      window.cancelAnimationFrame(panRafRef.current);
+      panRafRef.current = null;
+    }
+    isDraggingRef.current = false;
+    if (timelineRef.current) {
+      setCurrentTime(timelineRef.current.getCurrentTime());
+    }
     setIsDragging(false);
     panStartRef.current = null;
   };
+
+  useEffect(() => {
+    return () => {
+      if (panRafRef.current !== null) {
+        window.cancelAnimationFrame(panRafRef.current);
+        panRafRef.current = null;
+      }
+    };
+  }, []);
 
   if (error) {
     return (
@@ -254,6 +369,11 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
       </div>
     );
   }
+
+  const canvasBackground =
+    renderMode === "sketchy"
+      ? "#faf9f6"
+      : localDiagramData.config.background || "#ffffff";
 
   return (
     <div className="relative h-full flex flex-col">
@@ -280,39 +400,6 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
             title="원래 크기"
           >
             {Math.round(zoomLevel * 100)}%
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleTogglePlayPause}
-            className={`p-2 rounded-lg text-white border shadow-md ${
-              isPlaying
-                ? "bg-amber-500 hover:bg-amber-600 border-amber-600"
-                : "bg-emerald-500 hover:bg-emerald-600 border-emerald-600"
-            }`}
-            title={isPlaying ? "일시정지" : "시작"}
-            aria-label={isPlaying ? "일시정지" : "시작"}
-          >
-            {isPlaying ? (
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="5" width="4" height="14" rx="1" />
-                <rect x="14" y="5" width="4" height="14" rx="1" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            )}
-          </button>
-          <button
-            onClick={handleStop}
-            className="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 border border-red-600 shadow-md"
-            title="정지"
-            aria-label="정지"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="6" width="12" height="12" rx="2" />
-            </svg>
           </button>
         </div>
       </div>
@@ -352,29 +439,23 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
 
       {/* Diagram */}
       <div
-        className={`flex-1 overflow-hidden bg-white ${
+        className={`flex-1 overflow-hidden select-none ${
           isDragging ? "cursor-grabbing" : "cursor-grab"
         }`}
+        style={{ background: canvasBackground }}
         onMouseDown={handlePointerDown}
         onMouseMove={handlePointerMove}
         onMouseUp={handlePointerUp}
         onMouseLeave={handlePointerUp}
+        onDragStart={(e) => e.preventDefault()}
       >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
-            transition: isDragging ? "none" : "transform 120ms ease-out",
-          }}
-        >
-          <DiagramRenderer 
-            data={localDiagramData} 
-            onReady={handleSvgReady}
-            renderMode={renderMode}
-            zoom={zoomLevel}
-          />
-        </div>
+        <DiagramRenderer
+          data={localDiagramData}
+          onReady={handleSvgReady}
+          renderMode={renderMode}
+          zoom={zoomLevel}
+          pan={panOffset}
+        />
       </div>
 
       {/* Narration Overlay */}
@@ -387,8 +468,10 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
         <PlaybackControls
           onPlay={handlePlay}
           onPause={handlePause}
-          onStop={handleStop}
           onSpeedChange={handleSpeedChange}
+          onSeekToTime={handleSeekToTime}
+          stepBoundaries={narrationBoundaries}
+          stepDetails={narrationStepDetails}
         />
       )}
     </div>
