@@ -374,6 +374,19 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       }
     }, [zoomLevel]);
 
+    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setZoomLevel((prev) => Math.max(0.5, Math.min(2, Number((prev + delta).toFixed(1)))));
+      } else {
+        setPanOffset((prev) => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY,
+        }));
+      }
+    }, []);
+
     const handlePointerUp = useCallback(() => {
       if (pendingPanRef.current) {
         setPanOffset(pendingPanRef.current);
@@ -472,6 +485,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
           onMouseMove={handlePointerMove}
           onMouseUp={handlePointerUp}
           onMouseLeave={handlePointerUp}
+          onWheel={handleWheel}
           onDragStart={(e) => e.preventDefault()}
         >
           <DiagramRenderer

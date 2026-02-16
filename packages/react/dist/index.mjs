@@ -1875,21 +1875,6 @@ function PlaybackControls({
         /* @__PURE__ */ jsx("span", { children: formatTime(currentTime) }),
         /* @__PURE__ */ jsx("span", { children: formatTime(duration) })
       ] })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 ml-1", children: [
-      /* @__PURE__ */ jsx("span", { className: "text-xs text-gray-600", children: "\uC18D\uB3C4" }),
-      /* @__PURE__ */ jsx("div", { className: "flex gap-1", children: [0.5, 1, 1.5, 2].map((s) => /* @__PURE__ */ jsxs(
-        "button",
-        {
-          onClick: () => onSpeedChange(s),
-          className: `px-2.5 py-1 rounded-md text-xs transition-colors ${speed === s ? "bg-primary text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`,
-          children: [
-            s,
-            "x"
-          ]
-        },
-        s
-      )) })
     ] })
   ] }) }) });
 }
@@ -2158,6 +2143,18 @@ var AnimflowPlayer = forwardRef(
         });
       }
     }, [zoomLevel]);
+    const handleWheel = useCallback((e) => {
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setZoomLevel((prev) => Math.max(0.5, Math.min(2, Number((prev + delta).toFixed(1)))));
+      } else {
+        setPanOffset((prev) => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY
+        }));
+      }
+    }, []);
     const handlePointerUp = useCallback(() => {
       if (pendingPanRef.current) {
         setPanOffset(pendingPanRef.current);
@@ -2242,6 +2239,7 @@ var AnimflowPlayer = forwardRef(
           onMouseMove: handlePointerMove,
           onMouseUp: handlePointerUp,
           onMouseLeave: handlePointerUp,
+          onWheel: handleWheel,
           onDragStart: (e) => e.preventDefault(),
           children: /* @__PURE__ */ jsx(
             DiagramRenderer,

@@ -214,25 +214,6 @@ export function PlaybackControls({
             </div>
           </div>
 
-          {/* Speed Control */}
-          <div className="flex items-center gap-2 ml-1">
-            <span className="text-xs text-gray-600">속도</span>
-            <div className="flex gap-1">
-              {[0.5, 1.0, 1.5, 2.0].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onSpeedChange(s)}
-                  className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
-                    speed === s
-                      ? "bg-primary text-white"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {s}x
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
