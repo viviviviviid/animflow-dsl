@@ -16,14 +16,20 @@ interface DiagramViewerProps {
 
 export function DiagramViewer({ dslText }: DiagramViewerProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const timelineRef = useRef<AnimationTimeline | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [localDiagramData, setLocalDiagramData] = useState<DiagramData | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
   const {
+    isPlaying,
     setDuration,
     setCurrentTime,
+    setCurrentStep,
     setIsPlaying,
     currentNarration,
     setCurrentNarration,
@@ -86,7 +92,16 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
     if (!svgRef.current) return;
 
     // Create timeline - no delay needed, rough elements are in JSX!
-    const timeline = new AnimationTimeline(localDiagramData);
+    const timeline = new AnimationTimeline(localDiagramData, {
+      onStepChange: (step) => {
+        setCurrentStep(step);
+        const narrationForStep =
+          localDiagramData.narrations.find((n) => n.step === step) || null;
+        if (narrationForStep) {
+          setCurrentNarration(narrationForStep);
+        }
+      },
+    });
     timeline.buildTimeline(svgRef.current);
     timelineRef.current = timeline;
 
@@ -101,7 +116,14 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
     // Update current time periodically
     intervalRef.current = setInterval(() => {
       if (timelineRef.current) {
-        setCurrentTime(timelineRef.current.getCurrentTime());
+        const time = timelineRef.current.getCurrentTime();
+        const duration = timelineRef.current.getDuration();
+        setCurrentTime(time);
+
+        // Playback reached the end: switch UI back to "start".
+        if (duration > 0 && time >= duration - 0.01 && !timelineRef.current.isPlaying()) {
+          setIsPlaying(false);
+        }
       }
     }, 100);
 
@@ -115,7 +137,15 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [localDiagramData, renderMode, setDuration, setCurrentTime, setIsPlaying, setCurrentNarration]);
+  }, [
+    localDiagramData,
+    renderMode,
+    setDuration,
+    setCurrentTime,
+    setCurrentStep,
+    setIsPlaying,
+    setCurrentNarration,
+  ]);
 
   // Handle SVG ready callback
   const handleSvgReady = useCallback((svg: SVGSVGElement) => {
@@ -137,6 +167,24 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
     }
   };
 
+  const handleTogglePlayPause = () => {
+    if (!timelineRef.current) return;
+
+    if (isPlaying) {
+      handlePause();
+    } else {
+      const current = timelineRef.current.getCurrentTime();
+      const duration = timelineRef.current.getDuration();
+      const isAtEnd = duration > 0 && current >= duration - 0.01;
+
+      // If playback already finished, start again from the beginning.
+      if (isAtEnd) {
+        timelineRef.current.restart();
+      }
+      handlePlay();
+    }
+  };
+
   const handleStop = () => {
     if (timelineRef.current) {
       timelineRef.current.stop();
@@ -153,6 +201,39 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
 
   const handleToggleRenderMode = () => {
     setRenderMode(renderMode === "clean" ? "sketchy" : "clean");
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(2, Number((prev + 0.1).toFixed(1))));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(1))));
+  };
+
+  const handleZoomReset = () => {
+    setZoomLevel(1);
+  };
+
+  const handlePointerDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    panStartRef.current = {
+      x: e.clientX - panOffset.x,
+      y: e.clientY - panOffset.y,
+    };
+  };
+
+  const handlePointerMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !panStartRef.current) return;
+    setPanOffset({
+      x: e.clientX - panStartRef.current.x,
+      y: e.clientY - panStartRef.current.y,
+    });
+  };
+
+  const handlePointerUp = () => {
+    setIsDragging(false);
+    panStartRef.current = null;
   };
 
   if (error) {
@@ -176,6 +257,66 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
 
   return (
     <div className="relative h-full flex flex-col">
+      {/* Zoom Controls */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleZoomOut}
+            className="px-3 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md text-sm font-medium"
+            title="축소"
+          >
+            -
+          </button>
+          <button
+            onClick={handleZoomIn}
+            className="px-3 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md text-sm font-medium"
+            title="확대"
+          >
+            +
+          </button>
+          <button
+            onClick={handleZoomReset}
+            className="px-3 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md text-sm font-medium"
+            title="원래 크기"
+          >
+            {Math.round(zoomLevel * 100)}%
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleTogglePlayPause}
+            className={`p-2 rounded-lg text-white border shadow-md ${
+              isPlaying
+                ? "bg-amber-500 hover:bg-amber-600 border-amber-600"
+                : "bg-emerald-500 hover:bg-emerald-600 border-emerald-600"
+            }`}
+            title={isPlaying ? "일시정지" : "시작"}
+            aria-label={isPlaying ? "일시정지" : "시작"}
+          >
+            {isPlaying ? (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="5" width="4" height="14" rx="1" />
+                <rect x="14" y="5" width="4" height="14" rx="1" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={handleStop}
+            className="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 border border-red-600 shadow-md"
+            title="정지"
+            aria-label="정지"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       {/* Render Mode Toggle Button */}
       <div className="absolute top-4 right-4 z-10">
         <button
@@ -210,12 +351,30 @@ export function DiagramViewer({ dslText }: DiagramViewerProps) {
       </div>
 
       {/* Diagram */}
-      <div className="flex-1 overflow-hidden bg-white">
-        <DiagramRenderer 
-          data={localDiagramData} 
-          onReady={handleSvgReady}
-          renderMode={renderMode}
-        />
+      <div
+        className={`flex-1 overflow-hidden bg-white ${
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        }`}
+        onMouseDown={handlePointerDown}
+        onMouseMove={handlePointerMove}
+        onMouseUp={handlePointerUp}
+        onMouseLeave={handlePointerUp}
+      >
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+            transition: isDragging ? "none" : "transform 120ms ease-out",
+          }}
+        >
+          <DiagramRenderer 
+            data={localDiagramData} 
+            onReady={handleSvgReady}
+            renderMode={renderMode}
+            zoom={zoomLevel}
+          />
+        </div>
       </div>
 
       {/* Narration Overlay */}

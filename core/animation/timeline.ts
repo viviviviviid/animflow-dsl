@@ -9,6 +9,10 @@ import {
 import { animateEdgeFlow } from "./flow-effects";
 import { animateCamera } from "./camera";
 
+interface AnimationTimelineOptions {
+  onStepChange?: (step: number) => void;
+}
+
 /**
  * Animation Timeline Manager
  */
@@ -16,9 +20,11 @@ export class AnimationTimeline {
   private timeline: gsap.core.Timeline;
   private svgElement: SVGSVGElement | null = null;
   private data: DiagramData;
+  private onStepChange?: (step: number) => void;
 
-  constructor(data: DiagramData) {
+  constructor(data: DiagramData, options?: AnimationTimelineOptions) {
     this.data = data;
+    this.onStepChange = options?.onStepChange;
     this.timeline = gsap.timeline({
       paused: true,
       onUpdate: () => this.onTimelineUpdate(),
@@ -40,6 +46,10 @@ export class AnimationTimeline {
 
     // Add each step group to timeline sequentially
     for (const [stepNum, steps] of stepGroups) {
+      // Notify active step when playback reaches this step boundary.
+      this.timeline.call(() => {
+        this.onStepChange?.(stepNum);
+      });
       for (const step of steps) {
         this.addStepToTimeline(step);
       }

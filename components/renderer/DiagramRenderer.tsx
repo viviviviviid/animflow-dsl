@@ -11,9 +11,15 @@ interface DiagramRendererProps {
   data: DiagramData;
   onReady?: (svgElement: SVGSVGElement) => void;
   renderMode?: "clean" | "sketchy";
+  zoom?: number;
 }
 
-export function DiagramRenderer({ data, onReady, renderMode = "clean" }: DiagramRendererProps) {
+export function DiagramRenderer({
+  data,
+  onReady,
+  renderMode = "clean",
+  zoom = 1,
+}: DiagramRendererProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -23,7 +29,7 @@ export function DiagramRenderer({ data, onReady, renderMode = "clean" }: Diagram
   }, [data, onReady]);
 
   // Calculate viewBox based on node positions
-  const viewBox = calculateViewBox(data);
+  const viewBox = calculateViewBox(data, zoom);
 
   // Background color based on render mode
   const background = renderMode === "sketchy" 
@@ -64,7 +70,7 @@ export function DiagramRenderer({ data, onReady, renderMode = "clean" }: Diagram
 /**
  * Calculate SVG viewBox based on node positions
  */
-function calculateViewBox(data: DiagramData): string {
+function calculateViewBox(data: DiagramData, zoom: number = 1): string {
   const nodes = data.nodes;
   if (nodes.length === 0) return "0 0 800 600";
 
@@ -97,5 +103,14 @@ function calculateViewBox(data: DiagramData): string {
   const width = maxX - minX;
   const height = maxY - minY;
 
-  return `${minX} ${minY} ${width} ${height}`;
+  // Zoom by shrinking/expanding viewBox around center.
+  const safeZoom = Math.max(0.5, Math.min(2, zoom));
+  const centerX = minX + width / 2;
+  const centerY = minY + height / 2;
+  const zoomedWidth = width / safeZoom;
+  const zoomedHeight = height / safeZoom;
+  const zoomedMinX = centerX - zoomedWidth / 2;
+  const zoomedMinY = centerY - zoomedHeight / 2;
+
+  return `${zoomedMinX} ${zoomedMinY} ${zoomedWidth} ${zoomedHeight}`;
 }
