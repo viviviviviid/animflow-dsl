@@ -1,0 +1,54 @@
+{
+  "name": "@animflow-dsl/react",
+  "version": "0.1.0",
+  "description": "React component library for animated diagram visualization with DSL support",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "dagre": "^0.8.5",
+    "gsap": "^3.12.7",
+    "roughjs": "^4.6.6",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.52",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "react",
+    "diagram",
+    "animation",
+    "dsl",
+    "flowchart",
+    "visualization"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/animflow-dsl.git",
+    "directory": "packages/react"
+  }
+}
