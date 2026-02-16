@@ -1,148 +1,122 @@
-# AnimDiagram - 애니메이션 다이어그램 렌더링 엔진
+# AnimFlow DSL
 
-Mermaid 기반 DSL을 확장하여 애니메이션이 적용된 다이어그램을 생성하는 렌더링 엔진입니다.
+**AnimFlow DSL**은 다이어그램 정의와 애니메이션을 위한 DSL(Domain-Specific Language)과 React 기반의 렌더링 SDK를 제공하는 프로젝트입니다.
 
-## 🚀 기능
+## 📦 프로젝트 구조
 
-### ✅ 구현 완료된 기능 (Phase 1)
+이 프로젝트는 모노레포로 구성되어 있습니다:
 
-- **DSL 파서**: Mermaid 호환 flowchart 문법 + 커스텀 애니메이션 섹션
-- **자동 레이아웃**: dagre 기반 방향 그래프 자동 배치
-- **SVG 렌더링**: 6가지 노드 셰이프 (terminator, rectangle, diamond, parallelogram, database, document)
-- **애니메이션 엔진**: GSAP 기반 타임라인 시스템
-  - Show/Hide 효과 (fadeIn, slideIn, scaleIn, bounceIn 등)
-  - Highlight 효과 (색상 변경, glow, pulse)
-  - Connect 효과 (particles, dash, arrow)
-  - Camera 효과 (fitAll, focus)
-- **재생 컨트롤**: 재생/일시정지/정지, 속도 조절 (0.5x ~ 2x)
-- **내레이션 시스템**: 스텝별 설명 텍스트 오버레이
-- **템플릿 라이브러리**: 6개의 예제 템플릿
+```
+animflow-dsl/
+├── packages/
+│   └── react/           # @animflow-dsl/react SDK 패키지
+│       ├── src/
+│       │   ├── components/  # AnimflowPlayer, 렌더러, 컨트롤
+│       │   ├── core/       # DSL 파서, 레이아웃, 애니메이션 엔진
+│       │   ├── store/      # Zustand 상태 관리
+│       │   └── index.ts    # Public API
+│       └── package.json
+└── apps/
+    └── web/             # 데모 웹 애플리케이션
+        ├── app/
+        ├── components/
+        ├── data/
+        └── package.json
+```
 
-## 🛠 기술 스택
+## 🚀 시작하기
 
-- **Framework**: Next.js 14 + TypeScript
-- **스타일링**: Tailwind CSS
-- **애니메이션**: GSAP (GreenSock Animation Platform)
-- **레이아웃**: dagre (자동 그래프 레이아웃)
-- **에디터**: Monaco Editor
-- **상태 관리**: Zustand
-
-## 📦 설치 및 실행
+### 설치
 
 ```bash
+# pnpm 설치 (없는 경우)
+npm install -g pnpm
+
 # 의존성 설치
-npm install
-
-# 개발 서버 실행
-npm run dev
-
-# 브라우저에서 열기
-# http://localhost:3000
+pnpm install
 ```
 
-## 📝 DSL 문법
+### 개발
 
-### 기본 구조
+```bash
+# SDK 빌드
+pnpm --filter @animflow-dsl/react build
 
+# 웹 앱 실행
+pnpm --filter web dev
+
+# 또는 루트에서 모든 패키지 빌드
+pnpm build
 ```
-# 다이어그램 정의
-flowchart LR
-  nodeA[Label A]
-  nodeB[Label B]
-  nodeA --> nodeB
 
-# 애니메이션 정의
-@animation
-  step 1: show nodeA
-    duration: 1s
-    effect: fadeIn
+### SDK 사용하기
+
+```tsx
+import { AnimflowPlayer } from '@animflow-dsl/react';
+
+function App() {
+  const dsl = `
+    @diagram
+    A[시작]
+    B[처리]
+    C[종료]
+    
+    A -> B -> C
+    
+    @animation
+    show(A)
+    show(B, duration: 1s)
+    show(C)
+    flow(A -> B)
+    flow(B -> C)
+    
+    @narration
+    title: "프로세스 시작"
+    text: "시작 노드부터 처리 단계로 이동합니다."
+    ---
+    title: "처리 완료"
+    text: "최종 단계로 진행합니다."
+  `;
   
-  step 2: connect nodeA->nodeB
-    flow: particles
-    speed: 2s
-@end
-
-# 스타일 정의
-@style
-  nodeA:
-    fill: #e3f2fd
-    stroke: #2196F3
-@end
-
-# 내레이션
-@narration
-  step 1:
-    title: "제목"
-    text: "설명"
-@end
-
-# 설정
-@config
-  autoplay: true
-  speed: 1.0
-@end
+  return <AnimflowPlayer dsl={dsl} />;
+}
 ```
 
-## 🎨 지원하는 노드 셰이프
+## 📚 DSL 문법
 
-- `([text])` - Terminator (타원)
-- `[text]` - Rectangle (사각형)
-- `{text}` - Diamond (다이아몬드)
-- `[/text/]` - Parallelogram (평행사변형)
-- `[(text)]` - Database (원통)
-- `[[text]]` - Document (문서)
+자세한 DSL 문법은 `DSL 전체 구조.md` 문서를 참조하세요.
 
-## ✨ 애니메이션 액션
+### 주요 기능
 
-- `show` - 노드 표시 (fadeIn, slideIn, scaleIn, bounceIn)
-- `hide` - 노드 숨김 (fadeOut, slideOut, scaleOut)
-- `highlight` - 강조 (색상, glow, pulse)
-- `unhighlight` - 강조 해제
-- `connect` - 연결선 애니메이션 (particles, dash, arrow)
-- `camera` - 카메라 제어 (fitAll, focus)
+- **다이어그램 정의**: 노드와 엣지를 간단한 문법으로 정의
+- **애니메이션**: 노드 표시/숨김, 흐름 애니메이션, 하이라이트 등
+- **나레이션**: 각 애니메이션 단계에 대한 설명 추가
+- **스타일링**: Clean/Sketchy 모드 지원
+- **Pan & Zoom**: 인터랙티브한 다이어그램 뷰어
+- **플레이백 컨트롤**: 재생/일시정지, 속도 조절, 진행 바 탐색
 
-## 📚 템플릿
+## 🛠️ 기술 스택
 
-프로젝트에 포함된 템플릿:
-
-1. **블록체인 기본 구조** - 블록체인의 체인 연결 원리
-2. **버블 정렬 알고리즘** - 정렬 알고리즘 시각화
-3. **HTTP 요청-응답 사이클** - 웹 통신 흐름
-4. **Git 브랜치 전략** - Git 브랜치와 병합
-5. **주문 처리 프로세스** - 비즈니스 워크플로우
-6. **간단한 예제** - 시작하기 좋은 기본 예제
-
-## 🗂 프로젝트 구조
-
-```
-scratch-blockchain/
-├── app/                     # Next.js 페이지
-├── core/                    # DSL 엔진 코어
-│   ├── parser/              # DSL 파서
-│   ├── layout/              # 레이아웃 엔진
-│   ├── animation/           # 애니메이션 엔진
-│   └── types.ts             # 타입 정의
-├── components/              # React 컴포넌트
-│   ├── renderer/            # 다이어그램 렌더러
-│   ├── controls/            # 재생 컨트롤
-│   └── editor/              # 에디터 컴포넌트
-├── store/                   # Zustand 상태 관리
-└── data/                    # 템플릿 데이터
-```
-
-## 🎯 향후 계획 (Phase 2)
-
-- Mindmap 타입 다이어그램
-- 추가 애니메이션 효과 (flipIn, rotateIn, wave, lightning)
-- move, transform 액션
-- Sequence Diagram 지원
-- 비주얼 에디터 (드래그앤드롭)
-- 내보내기 기능 (MP4, GIF)
+- **React 18** - UI 프레임워크
+- **TypeScript** - 타입 안전성
+- **GSAP** - 애니메이션 엔진
+- **Dagre** - 그래프 레이아웃
+- **Rough.js** - 손그림 스타일 렌더링
+- **Zustand** - 상태 관리
+- **Next.js 14** - 웹 앱 프레임워크 (demo)
+- **Tailwind CSS** - 스타일링 (demo)
+- **Turborepo** - 모노레포 관리
+- **tsup** - SDK 번들링
 
 ## 📄 라이선스
 
 MIT
 
-## 🤝 기여
+## 🔗 관련 링크
 
-이슈와 PR을 환영합니다!
+- GitHub: https://github.com/your-org/animflow-dsl
+- NPM: https://www.npmjs.com/package/@animflow-dsl/react
+
+---
+
+Made with ❤️ for animated diagrams
