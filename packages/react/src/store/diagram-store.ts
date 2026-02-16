@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DiagramData, NarrationItem } from "@/core/types";
+import type { DiagramData, NarrationItem } from "../core/types";
 
 interface DiagramStore {
   // Diagram data

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useDiagramStore } from "@/store/diagram-store";
+import { useDiagramStore } from "../../store/diagram-store";
 
 interface PlaybackControlsProps {
   onPlay: () => void;

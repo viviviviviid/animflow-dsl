@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useMemo } from "react";
-import type { DiagramData } from "@/core/types";
+import type { DiagramData } from "../../core/types";
 import { NodeRenderer } from "./NodeRenderer";
 import { EdgeRenderer, ArrowMarkerDef } from "./EdgeRenderer";
 import { RoughNodeRenderer } from "./RoughNodeRenderer";

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { DiagramNode, NodeShape } from "@/core/types";
+import type { DiagramNode, NodeShape } from "../../core/types";
 
 interface NodeRendererProps {
   node: DiagramNode;

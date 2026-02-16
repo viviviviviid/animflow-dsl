@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { NarrationItem } from "@/core/types";
+import type { NarrationItem } from "../../core/types";
 
 interface NarrationOverlayProps {
   narration: NarrationItem | null;

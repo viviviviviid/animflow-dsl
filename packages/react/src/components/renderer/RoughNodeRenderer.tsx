@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from "react";
 import rough from "roughjs";
-import type { DiagramNode, NodeShape } from "@/core/types";
+import type { DiagramNode, NodeShape } from "../../core/types";
 
 interface RoughNodeRendererProps {
   node: DiagramNode;

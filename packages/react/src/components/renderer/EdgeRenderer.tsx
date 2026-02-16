@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import type { DiagramEdge } from "@/core/types";
-import { calculateEdgePath } from "@/core/layout/flowchart-layout";
+import type { DiagramEdge } from "../../core/types";
+import { calculateEdgePath } from "../../core/layout/flowchart-layout";
 
 interface EdgeRendererProps {
   edge: DiagramEdge;

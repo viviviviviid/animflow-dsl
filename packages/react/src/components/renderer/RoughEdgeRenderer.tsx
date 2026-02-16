@@ -2,8 +2,8 @@
 
 import React, { useMemo } from "react";
 import rough from "roughjs/bin/rough";
-import type { DiagramEdge } from "@/core/types";
-import { calculateEdgePath } from "@/core/layout/flowchart-layout";
+import type { DiagramEdge } from "../../core/types";
+import { calculateEdgePath } from "../../core/layout/flowchart-layout";
 
 interface RoughEdgeRendererProps {
   edge: DiagramEdge;
