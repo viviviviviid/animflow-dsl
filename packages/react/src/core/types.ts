@@ -155,7 +155,6 @@ export interface NarrationItem {
   step: number;
   title: string;
   text: string;
-  voice?: "none" | "male" | "female";
 }
 
 // ----- Config Types -----
@@ -163,20 +162,9 @@ export interface NarrationItem {
 export interface DiagramConfig {
   autoplay?: boolean;
   loop?: boolean;
-  speed?: number;
   controls?: boolean;
-  timeline?: boolean;
   narration?: boolean;
-  width?: number;
-  height?: number;
   background?: string;
-  padding?: string;
-  quality?: "low" | "medium" | "high" | "ultra";
-  fps?: number;
-  export?: {
-    format?: "mp4" | "gif" | "webm";
-    resolution?: "720p" | "1080p" | "4k";
-  };
 }
 
 // ----- Complete Diagram Data -----
@@ -193,7 +181,6 @@ export interface DiagramData {
   nodes: DiagramNode[];
   edges: DiagramEdge[];
   animations: AnimationStep[];
-  styles?: Record<string, NodeStyle>;
   narrations: NarrationItem[];
   config: DiagramConfig;
 }

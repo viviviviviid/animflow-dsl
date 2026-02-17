@@ -23,7 +23,7 @@ export function parseDsl(dslText: string): ParseResult {
       ? parseAnimation(sections.animation)
       : [];
 
-    // Parse styles
+    // Parse styles and merge into each node
     const styles = sections.style ? parseStyle(sections.style) : {};
 
     // Parse narrations
@@ -36,6 +36,13 @@ export function parseDsl(dslText: string): ParseResult {
       ? parseConfig(sections.config)
       : { autoplay: true, loop: false, controls: true };
 
+    // Merge @style into each node's inline style
+    const styledNodes = nodes.map((node) =>
+      styles[node.id]
+        ? { ...node, style: { ...styles[node.id], ...node.style } }
+        : node
+    );
+
     // Assemble complete diagram data
     const data: DiagramData = {
       metadata: {
@@ -44,10 +51,9 @@ export function parseDsl(dslText: string): ParseResult {
         direction,
         created: new Date().toISOString(),
       },
-      nodes,
+      nodes: styledNodes,
       edges,
       animations,
-      styles,
       narrations,
       config,
     };
