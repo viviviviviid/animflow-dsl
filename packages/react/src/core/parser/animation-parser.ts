@@ -24,7 +24,8 @@ export function parseAnimation(animationText: string): AnimationStep[] {
         steps.push(currentStep as AnimationStep);
       }
 
-      // Parse new step
+      // Parse new step: "step N: action target1, target2"
+      // The targets string (.+) accepts any characters including hyphens and dots in node IDs
       const match = trimmed.match(/step\s+(\d+):\s+(\w+)\s+(.+)/);
       if (match) {
         const stepNum = parseInt(match[1], 10);

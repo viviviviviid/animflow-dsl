@@ -53,18 +53,22 @@ export function parseFlowchart(diagramText: string): {
   return { direction, nodes, edges };
 }
 
+/** Node ID: word chars plus hyphens and dots (e.g. user-service, api.v2) */
+const NODE_ID = /[\w][\w\-.]*/;
+
 /**
  * Parse node definition line
  */
 function parseNodeLine(line: string): DiagramNode | null {
   // Match patterns: nodeId[label], nodeId{label}, nodeId([label]), etc.
+  const id = NODE_ID.source;
   const patterns = [
-    { regex: /(\w+)\(\[([^\]]+)\]\)/, shape: "terminator" as NodeShape },
-    { regex: /(\w+)\[([^\]]+)\]/, shape: "rectangle" as NodeShape },
-    { regex: /(\w+)\{([^}]+)\}/, shape: "diamond" as NodeShape },
-    { regex: /(\w+)\[\/([^\/]+)\/\]/, shape: "parallelogram" as NodeShape },
-    { regex: /(\w+)\[\(([^\)]+)\)\]/, shape: "database" as NodeShape },
-    { regex: /(\w+)\[\[([^\]]+)\]\]/, shape: "document" as NodeShape },
+    { regex: new RegExp(`(${id})\\(\\[([^\\]]+)\\]\\)`), shape: "terminator" as NodeShape },
+    { regex: new RegExp(`(${id})\\[([^\\]]+)\\]`),        shape: "rectangle" as NodeShape },
+    { regex: new RegExp(`(${id})\\{([^}]+)\\}`),           shape: "diamond" as NodeShape },
+    { regex: new RegExp(`(${id})\\[\\/([^\\/]+)\\/\\]`),   shape: "parallelogram" as NodeShape },
+    { regex: new RegExp(`(${id})\\[\\(([^\\)]+)\\)\\]`),  shape: "database" as NodeShape },
+    { regex: new RegExp(`(${id})\\[\\[([^\\]]+)\\]\\]`),  shape: "document" as NodeShape },
   ];
 
   for (const { regex, shape } of patterns) {
