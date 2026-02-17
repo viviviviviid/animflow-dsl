@@ -5,6 +5,9 @@ export type { AnimflowPlayerProps, AnimflowPlayerRef } from "./components/Animfl
 // Renderer Components
 export { DiagramRenderer } from "./components/renderer/DiagramRenderer";
 
+// Store / Hooks
+export { useDiagramStore } from "./store/diagram-store";
+
 // Core Functions
 export { parseDsl } from "./core/parser/dsl-parser";
 export { calculateFlowchartLayout } from "./core/layout/flowchart-layout";

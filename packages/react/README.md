@@ -79,7 +79,7 @@ The main component that renders and controls animated diagrams.
 <AnimflowPlayer
   dsl={string}                    // DSL string (required)
   className={string}              // CSS class for container
-  defaultMode={'clean'}           // 'clean' or 'sketchy'
+  mode={'sketchy'}                // 'clean' or 'sketchy'
 />
 ```
 
@@ -89,7 +89,12 @@ The main component that renders and controls animated diagrams.
 |------|------|---------|-------------|
 | `dsl` | `string` | **required** | Complete DSL diagram definition |
 | `className` | `string` | `undefined` | CSS class for the container div |
-| `defaultMode` | `'clean' \| 'sketchy'` | `'clean'` | Initial rendering style |
+| `mode` | `'clean' \| 'sketchy'` | `'sketchy'` | Rendering style — hand-drawn or clean vector |
+| `autoplay` | `boolean` | `false` | Start playback automatically on load |
+| `controls` | `boolean` | `true` | Show built-in playback controls |
+| `narration` | `boolean` | `true` | Show narration overlay |
+| `onError` | `(error: string) => void` | `undefined` | Called when DSL parsing fails |
+| `onReady` | `(data: DiagramData) => void` | `undefined` | Called when diagram is ready |
 
 #### Example with All Props
 
@@ -97,7 +102,7 @@ The main component that renders and controls animated diagrams.
 <AnimflowPlayer
   dsl={myDslString}
   className="w-full h-screen"
-  defaultMode="sketchy"
+  mode="clean"
 />
 ```
 
@@ -139,10 +144,13 @@ export default function ControlledDiagram() {
 |--------|-----------|-------------|
 | `play()` | `() => void` | Start playback from current position |
 | `pause()` | `() => void` | Pause playback |
+| `stop()` | `() => void` | Pause and seek back to 0 |
+| `restart()` | `() => void` | Restart from the beginning |
 | `seek(time)` | `(time: number) => void` | Jump to specific time (in seconds) |
-| `setSpeed(speed)` | `(speed: number) => void` | Set playback speed (0.25 to 2.0) |
-| `toggleMode()` | `() => void` | Toggle between clean and sketchy rendering |
-| `restart()` | `() => void` | Reset to beginning and stop |
+| `setSpeed(speed)` | `(speed: number) => void` | Set playback speed (0.25–2.0) |
+| `getCurrentTime()` | `() => number` | Current playback position in seconds |
+| `getDuration()` | `() => number` | Total timeline duration in seconds |
+| `isPlaying()` | `() => boolean` | Whether playback is currently active |
 
 ## Hooks
 
@@ -202,16 +210,21 @@ flowchart LR
   `;
 
   // Step 1: Parse DSL
-  const parsedData = parseDsl(dsl);
+  const result = parseDsl(dsl);
+  if (!result.success || !result.data) return null;
 
   // Step 2: Calculate layout
-  const layoutData = calculateFlowchartLayout(parsedData);
+  const layoutData = calculateFlowchartLayout(
+    result.data.nodes,
+    result.data.edges,
+    result.data.metadata.direction
+  );
 
   // Step 3: Render
   return (
     <DiagramRenderer
-      data={layoutData}
-      isSketchy={false}
+      data={{ ...result.data, ...layoutData }}
+      renderMode="clean"
       pan={{ x: 0, y: 0 }}
       zoom={1}
     />
@@ -355,7 +368,7 @@ flowchart TD
           Speed:
           <input
             type="range"
-            min="0.5"
+            min="0.25"
             max="2"
             step="0.25"
             value={speed}
@@ -373,7 +386,7 @@ flowchart TD
         <AnimflowPlayer
           ref={playerRef}
           dsl={dsl}
-          defaultMode="clean"
+          mode="clean"
         />
       </div>
     </div>
