@@ -40,8 +40,8 @@ export class AnimationTimeline {
     this.timeline.clear();
     this.stepBoundaries = [];
 
-    // Show all nodes immediately (no animation)
-    this.showAllNodesImmediately();
+    // Hide nodes that have explicit show actions; others remain visible
+    this.initNodeVisibility();
 
     // Group steps by step number
     const stepGroups = this.groupStepsByNumber(this.data.animations);
@@ -62,14 +62,34 @@ export class AnimationTimeline {
   }
 
   /**
-   * Show all nodes immediately without animation
+   * Nodes targeted by a `show` action start hidden; all others start visible.
    */
-  private showAllNodesImmediately(): void {
+  private initNodeVisibility(): void {
     if (!this.svgElement) return;
+
+    const showTargets = new Set<string>();
+    for (const step of this.data.animations) {
+      if (step.action === "show") {
+        for (const t of step.targets) showTargets.add(t);
+      }
+    }
 
     const allNodes = this.svgElement.querySelectorAll('[data-node-id]');
     allNodes.forEach((node) => {
-      gsap.set(node, { opacity: 1 });
+      const id = node.getAttribute('data-node-id') ?? '';
+      gsap.set(node, { opacity: showTargets.has(id) ? 0 : 1 });
+    });
+
+    // Also hide edges if their source or target node has a show action
+    const allEdges = this.svgElement.querySelectorAll('[data-edge-id], [data-from]');
+    allEdges.forEach((edge) => {
+      const from = edge.getAttribute('data-from') ?? '';
+      const to = edge.getAttribute('data-to') ?? '';
+      if (showTargets.has(from) || showTargets.has(to)) {
+        gsap.set(edge, { opacity: 0 });
+      } else {
+        gsap.set(edge, { opacity: 1 });
+      }
     });
   }
 
@@ -133,8 +153,7 @@ export class AnimationTimeline {
   }
 
   /**
-   * Add show animation
-   * Now nodes are already visible, so show action is skipped for nodes
+   * Add show animation with entrance effect
    */
   private addShowAnimation(
     targets: string[],
@@ -142,8 +161,33 @@ export class AnimationTimeline {
     duration: number,
     delay: number
   ): void {
-    // Nodes are already visible, skip show animation
-    // This keeps the step timing intact but doesn't animate nodes
+    if (!this.svgElement) return;
+
+    const effect = properties.effect || "fadeIn";
+    const stagger = this.parseDuration(properties.stagger || "0s");
+
+    targets.forEach((targetId, index) => {
+      const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
+      if (!element) return;
+
+      const offset = delay + index * stagger;
+      const tween = applyEntranceEffect(element, effect, duration);
+      this.timeline.add(tween, offset > 0 ? `+=${offset}` : "+=0");
+
+      // Also reveal connected edges whose both endpoints are now visible
+      const edges = this.svgElement!.querySelectorAll(`[data-from="${targetId}"], [data-to="${targetId}"]`);
+      edges.forEach((edge) => {
+        const from = edge.getAttribute('data-from') ?? '';
+        const to = edge.getAttribute('data-to') ?? '';
+        const otherNodeId = from === targetId ? to : from;
+        const otherNode = this.svgElement!.querySelector(`[data-node-id="${otherNodeId}"]`);
+        // Only show edge if the other endpoint is already visible
+        const otherVisible = otherNode ? parseFloat(gsap.getProperty(otherNode, "opacity") as string) > 0.5 : false;
+        if (otherVisible) {
+          this.timeline.to(edge, { opacity: 1, duration: duration * 0.5 }, `+=${offset}`);
+        }
+      });
+    });
   }
 
   /**
