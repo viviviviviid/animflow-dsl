@@ -16,11 +16,12 @@ export function parseFlowchart(diagramText: string): {
   edges: DiagramEdge[];
 } {
   const lines = diagramText.split("\n").map((l) => l.trim()).filter(Boolean);
-  
+
   let direction: FlowchartDirection = "LR";
   const nodes: DiagramNode[] = [];
   const edges: DiagramEdge[] = [];
   const nodeMap = new Map<string, DiagramNode>();
+  const edgeCounters = new Map<string, number>();
 
   for (const line of lines) {
     // Parse header: flowchart LR
@@ -34,7 +35,7 @@ export function parseFlowchart(diagramText: string): {
 
     // Parse edge: nodeA --> nodeB or nodeA --- nodeB
     if (line.includes("-->") || line.includes("---") || line.includes("-.->") || line.includes("==>")) {
-      const edge = parseEdgeLine(line);
+      const edge = parseEdgeLine(line, edgeCounters);
       if (edge) {
         edges.push(edge);
       }
@@ -92,24 +93,10 @@ function parseNodeLine(line: string): DiagramNode | null {
 /**
  * Parse edge definition line
  */
-function parseEdgeLine(line: string): DiagramEdge | null {
+function parseEdgeLine(line: string, edgeCounters: Map<string, number>): DiagramEdge | null {
   // Match: nodeA -->|label| nodeB or nodeA --- nodeB
   let edgeStyle: EdgeStyle = "solid";
   let arrowType: ArrowType = "single";
-  let arrowSymbol = "-->";
-
-  if (line.includes("-.->")) {
-    edgeStyle = "dashed";
-    arrowSymbol = ".->";
-  } else if (line.includes("==>")) {
-    edgeStyle = "thick";
-    arrowSymbol = "==>";
-  } else if (line.includes("-->")) {
-    arrowSymbol = "-->";
-  } else if (line.includes("---")) {
-    arrowType = "none";
-    arrowSymbol = "---";
-  }
 
   // Extract label if present
   const labelMatch = line.match(/\|([^|]+)\|/);
@@ -118,15 +105,37 @@ function parseEdgeLine(line: string): DiagramEdge | null {
   // Remove label for node extraction
   const cleanLine = line.replace(/\|[^|]+\|/g, "");
 
-  // Extract from and to nodes
-  const parts = cleanLine.split(arrowSymbol).map(p => p.trim());
+  // Determine arrow type and split — order matters (-.-> before -->)
+  let parts: string[];
+  if (cleanLine.includes("-.->")) {
+    edgeStyle = "dashed";
+    parts = cleanLine.split("-.->");
+  } else if (cleanLine.includes("==>")) {
+    edgeStyle = "thick";
+    parts = cleanLine.split("==>");
+  } else if (cleanLine.includes("-->")) {
+    parts = cleanLine.split("-->");
+  } else if (cleanLine.includes("---")) {
+    arrowType = "none";
+    parts = cleanLine.split("---");
+  } else {
+    return null;
+  }
+
   if (parts.length !== 2) return null;
 
-  const from = parts[0];
-  const to = parts[1];
+  const from = parts[0].trim();
+  const to = parts[1].trim();
+  if (!from || !to) return null;
+
+  // Deduplicate edge IDs with a counter suffix
+  const baseId = `${from}_to_${to}`;
+  const count = edgeCounters.get(baseId) ?? 0;
+  edgeCounters.set(baseId, count + 1);
+  const id = count === 0 ? baseId : `${baseId}_${count}`;
 
   return {
-    id: `${from}_to_${to}`,
+    id,
     from,
     to,
     label,
