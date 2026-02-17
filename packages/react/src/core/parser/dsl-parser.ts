@@ -15,7 +15,7 @@ export function parseDsl(dslText: string): ParseResult {
     // Split into sections
     const sections = splitDslSections(dslText);
 
-    // Parse diagram (flowchart or mindmap)
+    // Parse diagram
     const { direction, nodes, edges } = parseFlowchart(sections.diagram);
 
     // Parse animations

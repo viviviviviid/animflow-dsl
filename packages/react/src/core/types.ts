@@ -4,7 +4,7 @@
 
 // ----- Diagram Types -----
 
-export type DiagramType = "flowchart" | "mindmap";
+export type DiagramType = "flowchart";
 export type FlowchartDirection = "LR" | "RL" | "TD" | "BT";
 
 // ----- Node Types -----
