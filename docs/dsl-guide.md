@@ -199,19 +199,42 @@ step 1: annotate nodeA
 | Effect | Description |
 |--------|-------------|
 | `fadeOut` | Fade out |
-| `slideOutLeft` | Slide out left |
+| `slideOutLeft` | Slide out to the left |
+| `slideOutRight` | Slide out to the right |
 | `scaleOut` | Scale down |
+| `bounceOut` | Bounce scale down |
+
+### Emphasis Effects
+
+Apply on `highlight` via the `pulse`, `shake`, `bounce`, `flash` properties:
+
+```
+step 1: highlight nodeA
+  pulse: true      # Scale up and back (attention-grabbing)
+  duration: 1s
+
+step 2: highlight nodeB
+  flash: true      # Rapid opacity flicker
+  duration: 1s
+```
+
+| Property | Description |
+|----------|-------------|
+| `glow: true` | Drop-shadow glow (uses `color`) |
+| `pulse: true` | Scale 1→1.1→1 once |
+| `flash: true` | Rapid opacity flicker (3 cycles) |
+| `color: #hex` | Override fill/stroke color |
 
 ### Flow Effects (for `connect`)
 
 | Flow | Description |
 |------|-------------|
-| `particles` | Particles along the edge |
+| `particles` | Progressive path draw (default) |
 | `dash` | Dashed line animation |
-| `glow` | Glowing line |
-| `wave` | Wave effect |
-| `arrow` | Arrow movement |
-| `lightning` | Lightning effect |
+| `arrow` | Path draw with eased arrow reveal |
+| `glow` | _(reserved — falls back to `particles`)_ |
+| `wave` | _(reserved — falls back to `particles`)_ |
+| `lightning` | _(reserved — falls back to `particles`)_ |
 
 ### Timing
 
@@ -219,14 +242,14 @@ step 1: annotate nodeA
 
 ```
 step 1: show nodeA
-step 2: show nodeB    # runs after step 1
+step 2: show nodeB    # runs after step 1 completes
 ```
 
 **Parallel** - Same step number runs simultaneously:
 
 ```
 step 1: show nodeA
-step 1: show nodeB    # runs at the same time
+step 1: show nodeB    # runs at the same time as the first step 1
 ```
 
 **Delay** - Wait before executing:
@@ -240,7 +263,15 @@ step 1: show nodeA
 
 ```
 step 1: show nodeA, nodeB, nodeC
-  stagger: 0.3s
+  stagger: 0.3s    # nodeA at 0s, nodeB at 0.3s, nodeC at 0.6s
+```
+
+**Name** - Optional label for the step (used in UI tooltips):
+
+```
+step 1: show nodeA
+  name: "Genesis block appears"
+  duration: 1s
 ```
 
 ---

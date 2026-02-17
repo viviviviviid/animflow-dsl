@@ -109,10 +109,10 @@ Use `useRef` and the handle to control playback programmatically.
 
 ```tsx
 import { useRef } from 'react';
-import { AnimflowPlayer, AnimflowPlayerHandle } from '@animflow-dsl/react';
+import { AnimflowPlayer, AnimflowPlayerRef } from '@animflow-dsl/react';
 
 export default function ControlledDiagram() {
-  const playerRef = useRef<AnimflowPlayerHandle>(null);
+  const playerRef = useRef<AnimflowPlayerRef>(null);
 
   const handlePlay = () => playerRef.current?.play();
   const handlePause = () => playerRef.current?.pause();
@@ -140,7 +140,7 @@ export default function ControlledDiagram() {
 | `play()` | `() => void` | Start playback from current position |
 | `pause()` | `() => void` | Pause playback |
 | `seek(time)` | `(time: number) => void` | Jump to specific time (in seconds) |
-| `setSpeed(speed)` | `(speed: number) => void` | Set playback speed (0.5 to 2.0) |
+| `setSpeed(speed)` | `(speed: number) => void` | Set playback speed (0.25 to 2.0) |
 | `toggleMode()` | `() => void` | Toggle between clean and sketchy rendering |
 | `restart()` | `() => void` | Reset to beginning and stop |
 
@@ -149,17 +149,17 @@ export default function ControlledDiagram() {
 Access animation state with Zustand hooks.
 
 ```tsx
-import { useAnimationStore } from '@animflow-dsl/react';
+import { useDiagramStore } from '@animflow-dsl/react';
 
 export default function AnimationStatus() {
-  const playing = useAnimationStore(s => s.playing);
-  const currentTime = useAnimationStore(s => s.currentTime);
-  const duration = useAnimationStore(s => s.duration);
-  const currentStep = useAnimationStore(s => s.currentStep);
+  const isPlaying = useDiagramStore(s => s.isPlaying);
+  const currentTime = useDiagramStore(s => s.currentTime);
+  const duration = useDiagramStore(s => s.duration);
+  const currentStep = useDiagramStore(s => s.currentStep);
 
   return (
     <div>
-      <p>Status: {playing ? 'Playing' : 'Paused'}</p>
+      <p>Status: {isPlaying ? 'Playing' : 'Paused'}</p>
       <p>Progress: {currentTime.toFixed(1)}s / {duration.toFixed(1)}s</p>
       <p>Step: {currentStep}</p>
     </div>
@@ -171,17 +171,13 @@ export default function AnimationStatus() {
 
 ```typescript
 // Playback state
-playing: boolean
+isPlaying: boolean
 currentTime: number        // In seconds
 duration: number           // In seconds
-speed: number             // Playback speed multiplier
+speed: number              // Playback speed multiplier (0.25–2.0)
 
 // Animation state
 currentStep: number        // Current animation step
-totalSteps: number         // Total steps
-
-// Rendering state
-mode: 'clean' | 'sketchy'  // Current render mode
 ```
 
 ## Advanced: Low-Level API
@@ -231,19 +227,21 @@ import type {
   DiagramNode,
   DiagramEdge,
   AnimationStep,
-  NarrationStep,
+  NarrationItem,
   AnimationAction,
+  AnimationProperties,
+  ParseResult,
 } from '@animflow-dsl/react';
 ```
 
 ## Complete Real-World Example
 
 ```tsx
-import { AnimflowPlayer, AnimflowPlayerHandle } from '@animflow-dsl/react';
+import { AnimflowPlayer, AnimflowPlayerRef } from '@animflow-dsl/react';
 import { useRef, useState } from 'react';
 
 export default function ArchitectureDiagram() {
-  const playerRef = useRef<AnimflowPlayerHandle>(null);
+  const playerRef = useRef<AnimflowPlayerRef>(null);
   const [speed, setSpeed] = useState(1);
 
   const dsl = `

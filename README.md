@@ -102,7 +102,7 @@ flowchart LR
 
 ### Interactivity
 - **Pan & Zoom** - Scroll to pan, Cmd/Ctrl+Scroll to zoom
-- **Playback control** - Play, pause, speed adjustment (0.5x to 2x)
+- **Playback control** - Play, pause, speed adjustment (0.25x to 2x)
 - **Chapter navigation** - Jump to any step with progress bar + tooltips
 - **Keyboard shortcuts** - Space to play/pause, Arrow keys to navigate
 
@@ -110,7 +110,7 @@ flowchart LR
 - **Synchronized narration** - Text appears exactly when you need it
 - **Flexible timing** - Narration can lead or follow animation
 - **Educational focus** - Design for learning, not just visualization
-- **Template library** - 9 pre-built examples from blockchain to microservices
+- **Template library** - 10 pre-built examples from blockchain to algorithm visualizations
 
 ## 📦 Project Structure
 
@@ -175,6 +175,7 @@ pnpm test                                 # Run tests
   - **Network Topology** - Cloud architecture patterns
   - **Microservices** - Distributed system design
   - **zk-SNARK** - Zero-knowledge cryptography pipeline
+  - **Dijkstra** - Shortest path algorithm step-by-step
 
 ## 🧩 React API
 
@@ -184,19 +185,19 @@ pnpm test                                 # Run tests
 <AnimflowPlayer
   dsl={string}              // DSL string (required)
   className={string}        // CSS class for container
-  defaultMode={'clean'}     // 'clean' or 'sketchy'
+  defaultMode={'clean'}     // 'clean' or 'sketchy' (default: 'clean')
 />
 ```
 
 ### Imperative Control
 
 ```tsx
-const playerRef = useRef<AnimflowPlayerHandle>(null);
+const playerRef = useRef<AnimflowPlayerRef>(null);
 
 playerRef.current?.play();        // Start playback
 playerRef.current?.pause();       // Pause playback
 playerRef.current?.seek(5);       // Jump to 5 second mark
-playerRef.current?.setSpeed(1.5); // Set playback speed
+playerRef.current?.setSpeed(1.5); // Set playback speed (0.25–2.0)
 playerRef.current?.toggleMode();  // Switch clean ↔ sketchy
 ```
 
@@ -204,10 +205,10 @@ playerRef.current?.toggleMode();  // Switch clean ↔ sketchy
 
 ```tsx
 // Get current playback state
-const { playing, currentTime, duration } = useAnimationStore();
+const { isPlaying, currentTime, duration } = useDiagramStore();
 
 // Listen to step changes
-const currentStep = useAnimationStore(s => s.currentStep);
+const currentStep = useDiagramStore(s => s.currentStep);
 ```
 
 ## 🏗️ Architecture
