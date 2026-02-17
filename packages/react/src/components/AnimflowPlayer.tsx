@@ -12,7 +12,6 @@ import type { DiagramData } from "../core/types";
 
 export interface AnimflowPlayerProps {
   dsl: string;
-  mode?: "clean" | "sketchy";
   autoplay?: boolean;
   controls?: boolean;
   narration?: boolean;
@@ -37,7 +36,6 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
   function AnimflowPlayer(
     {
       dsl,
-      mode = "sketchy",
       autoplay = false,
       controls = true,
       narration = true,
@@ -135,14 +133,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       setIsPlaying,
       currentNarration,
       setCurrentNarration,
-      renderMode,
-      setRenderMode,
     } = useDiagramStore();
-
-    // Sync mode prop with store
-    useEffect(() => {
-      setRenderMode(mode);
-    }, [mode, setRenderMode]);
 
     // Parse DSL and create diagram
     useEffect(() => {
@@ -255,7 +246,6 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       };
     }, [
       localDiagramData,
-      renderMode,
       setDuration,
       setCurrentTime,
       setCurrentStep,
@@ -446,10 +436,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       );
     }
 
-    const canvasBackground =
-      renderMode === "sketchy"
-        ? "#faf9f6"
-        : localDiagramData.config.background || "#ffffff";
+    const canvasBackground = localDiagramData.config.background || "#faf9f6";
 
     return (
       <div className={`relative h-full flex flex-col ${className}`}>
@@ -496,7 +483,6 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
           <DiagramRenderer
             data={localDiagramData}
             onReady={handleSvgReady}
-            renderMode={renderMode}
             zoom={zoomLevel}
             pan={panOffset}
           />

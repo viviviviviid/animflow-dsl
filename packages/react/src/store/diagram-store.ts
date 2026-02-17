@@ -22,10 +22,6 @@ interface DiagramStore {
   // Narration
   currentNarration: NarrationItem | null;
   setCurrentNarration: (narration: NarrationItem | null) => void;
-
-  // Render mode
-  renderMode: "clean" | "sketchy";
-  setRenderMode: (mode: "clean" | "sketchy") => void;
 }
 
 export const useDiagramStore = create<DiagramStore>((set) => ({
@@ -37,7 +33,6 @@ export const useDiagramStore = create<DiagramStore>((set) => ({
   duration: 0,
   speed: 1.0,
   currentNarration: null,
-  renderMode: "sketchy", // 손그림 모드가 기본
 
   // Actions
   setDiagramData: (data) => set({ diagramData: data }),
@@ -47,5 +42,4 @@ export const useDiagramStore = create<DiagramStore>((set) => ({
   setDuration: (duration) => set({ duration }),
   setSpeed: (speed) => set({ speed }),
   setCurrentNarration: (narration) => set({ currentNarration: narration }),
-  setRenderMode: (mode) => set({ renderMode: mode }),
 }));

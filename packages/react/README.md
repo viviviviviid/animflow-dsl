@@ -77,9 +77,8 @@ The main component that renders and controls animated diagrams.
 
 ```tsx
 <AnimflowPlayer
-  dsl={string}                    // DSL string (required)
-  className={string}              // CSS class for container
-  mode={'sketchy'}                // 'clean' or 'sketchy'
+  dsl={string}       // DSL string (required)
+  className={string} // CSS class for container
 />
 ```
 
@@ -89,7 +88,6 @@ The main component that renders and controls animated diagrams.
 |------|------|---------|-------------|
 | `dsl` | `string` | **required** | Complete DSL diagram definition |
 | `className` | `string` | `undefined` | CSS class for the container div |
-| `mode` | `'clean' \| 'sketchy'` | `'sketchy'` | Rendering style — hand-drawn or clean vector |
 | `autoplay` | `boolean` | `false` | Start playback automatically on load |
 | `controls` | `boolean` | `true` | Show built-in playback controls |
 | `narration` | `boolean` | `true` | Show narration overlay |
@@ -102,7 +100,7 @@ The main component that renders and controls animated diagrams.
 <AnimflowPlayer
   dsl={myDslString}
   className="w-full h-screen"
-  mode="clean"
+  autoplay
 />
 ```
 
@@ -224,7 +222,6 @@ flowchart LR
   return (
     <DiagramRenderer
       data={{ ...result.data, ...layoutData }}
-      renderMode="clean"
       pan={{ x: 0, y: 0 }}
       zoom={1}
     />
@@ -386,7 +383,6 @@ flowchart TD
         <AnimflowPlayer
           ref={playerRef}
           dsl={dsl}
-          mode="clean"
         />
       </div>
     </div>

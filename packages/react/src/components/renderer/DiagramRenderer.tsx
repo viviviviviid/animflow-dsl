@@ -2,15 +2,12 @@
 
 import React, { useRef, useEffect, useMemo } from "react";
 import type { DiagramData } from "../../core/types";
-import { NodeRenderer } from "./NodeRenderer";
-import { EdgeRenderer, ArrowMarkerDef } from "./EdgeRenderer";
 import { RoughNodeRenderer } from "./RoughNodeRenderer";
 import { RoughEdgeRenderer } from "./RoughEdgeRenderer";
 
 interface DiagramRendererProps {
   data: DiagramData;
   onReady?: (svgElement: SVGSVGElement) => void;
-  renderMode?: "clean" | "sketchy";
   zoom?: number;
   pan?: { x: number; y: number };
 }
@@ -18,7 +15,6 @@ interface DiagramRendererProps {
 export function DiagramRenderer({
   data,
   onReady,
-  renderMode = "clean",
   zoom = 1,
   pan = { x: 0, y: 0 },
 }: DiagramRendererProps) {
@@ -36,33 +32,16 @@ export function DiagramRenderer({
     [bounds, zoom, pan]
   );
 
-  // Background color based on render mode
-  const background = renderMode === "sketchy" 
-    ? "#faf9f6" 
-    : (data.config.background || "#ffffff");
+  const background = data.config.background || "#faf9f6";
 
   const edgesLayer = useMemo(
-    () =>
-      data.edges.map((edge) =>
-        renderMode === "clean" ? (
-          <EdgeRenderer key={edge.id} edge={edge} />
-        ) : (
-          <RoughEdgeRenderer key={edge.id} edge={edge} />
-        )
-      ),
-    [data.edges, renderMode]
+    () => data.edges.map((edge) => <RoughEdgeRenderer key={edge.id} edge={edge} />),
+    [data.edges]
   );
 
   const nodesLayer = useMemo(
-    () =>
-      data.nodes.map((node) =>
-        renderMode === "clean" ? (
-          <NodeRenderer key={node.id} node={node} />
-        ) : (
-          <RoughNodeRenderer key={node.id} node={node} />
-        )
-      ),
-    [data.nodes, renderMode]
+    () => data.nodes.map((node) => <RoughNodeRenderer key={node.id} node={node} />),
+    [data.nodes]
   );
 
   return (
@@ -73,8 +52,6 @@ export function DiagramRenderer({
       xmlns="http://www.w3.org/2000/svg"
       style={{ background }}
     >
-      {renderMode === "clean" && <ArrowMarkerDef />}
-
       {/* Render edges first (behind nodes) */}
       <g className="edges-layer">{edgesLayer}</g>
 
