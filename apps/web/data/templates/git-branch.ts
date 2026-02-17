@@ -80,29 +80,29 @@ export const gitBranchTemplate: Template = {
     pulse: true
     duration: 1s
 
-  step 9: connect c2->c3
-    name: "Commit 2에서 3 연결"
-    description: "c2에서 c3로 흐름을 연결합니다."
-    flow: particles
-    speed: 1s
-
-  step 10: show c3
+  step 9: show c3
     name: "Commit 3 표시"
     description: "c3 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
 
-  step 11: connect c2->branch
-    name: "브랜치 분기 연결"
-    description: "c2에서 branch로 분기 흐름을 연결합니다."
-    flow: arrow
+  step 10: connect c2->c3
+    name: "Commit 2에서 3 연결"
+    description: "c2에서 c3로 흐름을 연결합니다."
+    flow: particles
     speed: 1s
 
-  step 12: show branch
+  step 11: show branch
     name: "Feature 브랜치 표시"
     description: "branch 노드를 화면에 표시합니다."
     effect: slideInTop
     duration: 1s
+
+  step 12: connect c2->branch
+    name: "브랜치 분기 연결"
+    description: "c2에서 branch로 분기 흐름을 연결합니다."
+    flow: arrow
+    speed: 1s
 
   step 13: highlight branch
     name: "Feature 브랜치 강조"
@@ -111,17 +111,17 @@ export const gitBranchTemplate: Template = {
     glow: true
     duration: 1s
 
-  step 14: connect branch->f1
-    name: "Feature Commit1 연결"
-    description: "branch에서 f1으로 흐름을 연결합니다."
-    flow: particles
-    speed: 1s
-
-  step 15: show f1
+  step 14: show f1
     name: "Feature Commit1 표시"
     description: "f1 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
+
+  step 15: connect branch->f1
+    name: "Feature Commit1 연결"
+    description: "branch에서 f1으로 흐름을 연결합니다."
+    flow: particles
+    speed: 1s
 
   step 16: highlight f1
     name: "Feature Commit1 강조"
@@ -130,17 +130,17 @@ export const gitBranchTemplate: Template = {
     pulse: true
     duration: 1s
 
-  step 17: connect f1->f2
-    name: "Feature Commit2 연결"
-    description: "f1에서 f2로 흐름을 연결합니다."
-    flow: particles
-    speed: 1s
-
-  step 18: show f2
+  step 17: show f2
     name: "Feature Commit2 표시"
     description: "f2 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
+
+  step 18: connect f1->f2
+    name: "Feature Commit2 연결"
+    description: "f1에서 f2로 흐름을 연결합니다."
+    flow: particles
+    speed: 1s
 
   step 19: show merge
     name: "머지 노드 표시"
@@ -161,29 +161,29 @@ export const gitBranchTemplate: Template = {
     flash: true
     duration: 1.5s
 
-  step 22: connect merge->c4
-    name: "머지 후 커밋 연결"
-    description: "merge에서 c4로 흐름을 연결합니다."
-    flow: particles
-    speed: 1s
-
-  step 23: show c4
+  step 22: show c4
     name: "Commit 4 표시"
     description: "c4 노드를 화면에 표시합니다."
     effect: bounceIn
     duration: 1s
 
-  step 24: connect c4->c5
-    name: "릴리스 전 연결"
-    description: "c4에서 c5로 흐름을 연결합니다."
+  step 23: connect merge->c4
+    name: "머지 후 커밋 연결"
+    description: "merge에서 c4로 흐름을 연결합니다."
     flow: particles
     speed: 1s
 
-  step 25: show c5
+  step 24: show c5
     name: "릴리스 노드 표시"
     description: "c5 노드를 화면에 표시합니다."
     effect: slideInRight
     duration: 1s
+
+  step 25: connect c4->c5
+    name: "릴리스 전 연결"
+    description: "c4에서 c5로 흐름을 연결합니다."
+    flow: particles
+    speed: 1s
 
   step 26: highlight c5
     name: "릴리스 강조"
@@ -238,7 +238,7 @@ export const gitBranchTemplate: Template = {
     title: "Main 브랜치 진행"
     text: "Main(또는 Master) 브랜치는 프로젝트의 '공식 버전'입니다. 여기에 직접 작업하지 않고, 별도의 브랜치에서 작업한 뒤 합칩니다."
 
-  step 12:
+  step 11:
     title: "Feature 브랜치 생성"
     text: "'git branch feature'로 새 브랜치를 만듭니다. 브랜치는 '평행 우주'와 같아서, Main의 코드를 복사해서 독립적으로 작업할 수 있습니다. 실패해도 Main에는 영향이 없죠."
 

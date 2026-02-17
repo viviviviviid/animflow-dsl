@@ -43,6 +43,16 @@ export function animateEdgeFlow(
 }
 
 /**
+ * Fade in the edge label (if any) at the end of the timeline
+ */
+function revealLabel(edgeElement: Element, tl: gsap.core.Timeline) {
+  const labelEl = edgeElement.querySelector('.edge-label');
+  if (labelEl) {
+    tl.to(labelEl, { opacity: 1, duration: 0.3, ease: "power1.in" });
+  }
+}
+
+/**
  * Animate rough arrow overlay at the end of line drawing
  */
 function animateRoughArrow(
@@ -110,6 +120,7 @@ function animateParticles(
     }
   }
 
+  revealLabel(edgeElement, tl);
   return tl;
 }
 
@@ -165,6 +176,7 @@ function animateDash(
     }
   }
 
+  revealLabel(edgeElement, tl);
   return tl;
 }
 
@@ -225,6 +237,7 @@ function animateGlow(
     tl.call(() => { (target as SVGElement).style.filter = ''; }, []);
   }
 
+  revealLabel(edgeElement, tl);
   return tl;
 }
 
@@ -264,6 +277,7 @@ function animateWave(
   });
   tl.to(targets, { opacity: 1, duration: 0.15 });
 
+  revealLabel(edgeElement, tl);
   return tl;
 }
 
@@ -300,6 +314,7 @@ function animateLightning(
   // Settle
   tl.to(targets, { opacity: 1, duration: 0.1 });
 
+  revealLabel(edgeElement, tl);
   return tl;
 }
 
@@ -352,5 +367,6 @@ function animateArrow(
     }
   }
 
+  revealLabel(edgeElement, tl);
   return tl;
 }

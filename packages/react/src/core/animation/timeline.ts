@@ -82,16 +82,10 @@ export class AnimationTimeline {
       gsap.set(node, { opacity: showTargets.has(id) ? 0 : 1 });
     });
 
-    // Also hide edges if their source or target node has a show action
-    const allEdges = this.svgElement.querySelectorAll('[data-edge-id], [data-from]');
+    // All edges start hidden; they are revealed only by connect actions
+    const allEdges = this.svgElement.querySelectorAll('[data-edge-id]');
     allEdges.forEach((edge) => {
-      const from = edge.getAttribute('data-from') ?? '';
-      const to = edge.getAttribute('data-to') ?? '';
-      if (showTargets.has(from) || showTargets.has(to)) {
-        gsap.set(edge, { opacity: 0 });
-      } else {
-        gsap.set(edge, { opacity: 1 });
-      }
+      gsap.set(edge, { opacity: 0 });
     });
   }
 
@@ -183,20 +177,6 @@ export class AnimationTimeline {
       const offset = delay + index * stagger;
       const tween = applyEntranceEffect(element, effect, duration);
       this.timeline.add(tween, offset > 0 ? `+=${offset}` : "+=0");
-
-      // Also reveal connected edges whose both endpoints are now visible
-      const edges = this.svgElement!.querySelectorAll(`[data-from="${targetId}"], [data-to="${targetId}"]`);
-      edges.forEach((edge) => {
-        const from = edge.getAttribute('data-from') ?? '';
-        const to = edge.getAttribute('data-to') ?? '';
-        const otherNodeId = from === targetId ? to : from;
-        const otherNode = this.svgElement!.querySelector(`[data-node-id="${otherNodeId}"]`);
-        // Only show edge if the other endpoint is already visible
-        const otherVisible = otherNode ? parseFloat(gsap.getProperty(otherNode, "opacity") as string) > 0.5 : false;
-        if (otherVisible) {
-          this.timeline.to(edge, { opacity: 1, duration: duration * 0.5 }, `+=${offset}`);
-        }
-      });
     });
   }
 

@@ -177,9 +177,9 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
         </g>
       )}
 
-      {/* Label */}
+      {/* Label — hidden initially, revealed after connect animation */}
       {label && (
-        <g>
+        <g className="edge-label" style={{ opacity: 0 }}>
           <rect
             x={midPoint.x - 30}
             y={midPoint.y - 12}

@@ -194,10 +194,12 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         clearInterval(intervalRef.current);
       }
 
-      // 템플릿/DSL 변경 시 재생 상태 리셋 → 버튼이 다시 "재생"으로 표시
+      // 템플릿/DSL 변경 시 재생 상태 및 뷰포트 리셋
       setIsPlaying(false);
       setCurrentTime(0);
       setCurrentStep(0);
+      setZoomLevel(1);
+      setPanOffset({ x: 0, y: 0 });
 
       if (!svgRef.current) return;
 
@@ -436,7 +438,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       );
     }
 
-    const canvasBackground = localDiagramData.config.background || "#faf9f6";
+    const canvasBackground = localDiagramData.config.background ?? "#faf9f6";
 
     return (
       <div className={`relative h-full flex flex-col ${className}`}>
@@ -469,10 +471,10 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
 
         {/* Diagram */}
         <div
-          className={`flex-1 overflow-hidden select-none ${
+          className={`relative flex-1 overflow-hidden select-none ${
             isDragging ? "cursor-grabbing" : "cursor-grab"
           }`}
-          style={{ background: canvasBackground }}
+          style={canvasBackground !== "transparent" ? { background: canvasBackground } : undefined}
           onMouseDown={handlePointerDown}
           onMouseMove={handlePointerMove}
           onMouseUp={handlePointerUp}
@@ -486,12 +488,14 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
             zoom={zoomLevel}
             pan={panOffset}
           />
-        </div>
 
-        {/* Narration Overlay */}
-        {localDiagramData.config.narration !== false && narration && (
-          <NarrationOverlay narration={currentNarration} />
-        )}
+          {/* Narration Overlay — absolutely positioned so it doesn't shift the diagram */}
+          {localDiagramData.config.narration !== false && narration && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
+              <NarrationOverlay narration={currentNarration} />
+            </div>
+          )}
+        </div>
 
         {/* Playback Controls */}
         {localDiagramData.config.controls !== false && controls && (

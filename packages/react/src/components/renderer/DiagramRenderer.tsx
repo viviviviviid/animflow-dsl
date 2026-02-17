@@ -32,7 +32,7 @@ export function DiagramRenderer({
     [bounds, zoom, pan]
   );
 
-  const background = data.config.background || "#faf9f6";
+  const background = data.config.background ?? null;
 
   const edgesLayer = useMemo(
     () => data.edges.map((edge) => <RoughEdgeRenderer key={edge.id} edge={edge} />),
@@ -50,8 +50,18 @@ export function DiagramRenderer({
       className="diagram-svg w-full h-full"
       viewBox={viewBox}
       xmlns="http://www.w3.org/2000/svg"
-      style={{ background }}
     >
+      {/* Background fill — omit rect entirely when transparent/unset */}
+      {background && background !== "transparent" && (
+        <rect
+          x={bounds.minX - 2000}
+          y={bounds.minY - 2000}
+          width={bounds.width + 4000}
+          height={bounds.height + 4000}
+          fill={background}
+        />
+      )}
+
       {/* Render edges first (behind nodes) */}
       <g className="edges-layer">{edgesLayer}</g>
 

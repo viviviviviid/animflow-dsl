@@ -14,11 +14,13 @@ export function parseStyle(styleText: string): Record<string, NodeStyle> {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Node ID line: "nodeId:" or ".className:"
+    // Node ID line: "nodeId:" or "nodeA, nodeB, nodeC:"
     if (trimmed.endsWith(":") && !line.startsWith("  ")) {
       // Save previous style
       if (currentNodeId) {
-        styles[currentNodeId] = currentStyle as NodeStyle;
+        for (const id of currentNodeId.split(",").map((s) => s.trim())) {
+          styles[id] = currentStyle as NodeStyle;
+        }
       }
 
       currentNodeId = trimmed.slice(0, -1);
@@ -46,7 +48,9 @@ export function parseStyle(styleText: string): Record<string, NodeStyle> {
 
   // Save last style
   if (currentNodeId) {
-    styles[currentNodeId] = currentStyle as NodeStyle;
+    for (const id of currentNodeId.split(",").map((s) => s.trim())) {
+      styles[id] = currentStyle as NodeStyle;
+    }
   }
 
   return styles;
