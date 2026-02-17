@@ -22,6 +22,8 @@ export class AnimationTimeline {
   private data: DiagramData;
   private onStepChange?: (step: number) => void;
   private stepBoundaries: { step: number; start: number; end: number }[] = [];
+  /** Original fill colors per node, saved before highlight overwrites them */
+  private originalFills = new Map<string, string>();
 
   constructor(data: DiagramData, options?: AnimationTimelineOptions) {
     this.data = data;
@@ -232,8 +234,15 @@ export class AnimationTimeline {
       const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
       if (!element) return;
 
-      // Change fill color
+      // Save original fill before overwriting
       const rect = element.querySelector("rect, ellipse, polygon, path");
+      if (rect && !this.originalFills.has(targetId)) {
+        const currentFill = rect.getAttribute("fill") ||
+          (gsap.getProperty(rect, "fill") as string) || "";
+        this.originalFills.set(targetId, currentFill);
+      }
+
+      // Change fill color
       if (rect) {
         this.timeline.to(
           rect,
@@ -270,7 +279,7 @@ export class AnimationTimeline {
   }
 
   /**
-   * Add unhighlight animation
+   * Add unhighlight animation — restores original fill, removes glow, resets scale
    */
   private addUnhighlightAnimation(
     targets: string[],
@@ -283,19 +292,23 @@ export class AnimationTimeline {
       const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
       if (!element) return;
 
+      // Restore original fill color if we saved one
+      const rect = element.querySelector("rect, ellipse, polygon, path");
+      const originalFill = this.originalFills.get(targetId);
+      if (rect && originalFill !== undefined) {
+        this.timeline.to(
+          rect,
+          { fill: originalFill, duration: duration / 2, ease: "power2.out" },
+          delay
+        );
+      }
+
       // Remove glow
       const removeGlow = removeGlowEffect(element, duration / 2);
       this.timeline.add(removeGlow, delay);
 
       // Reset scale
-      this.timeline.to(
-        element,
-        {
-          scale: 1,
-          duration: duration / 2,
-        },
-        delay
-      );
+      this.timeline.to(element, { scale: 1, duration: duration / 2 }, delay);
     });
   }
 
