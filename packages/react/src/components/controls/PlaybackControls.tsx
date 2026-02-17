@@ -25,6 +25,21 @@ export function PlaybackControls({
   const [hoverPercent, setHoverPercent] = React.useState<number | null>(null);
   const [hoverSegmentStep, setHoverSegmentStep] = React.useState<number | null>(null);
   const [hoverTooltipX, setHoverTooltipX] = React.useState<number | null>(null);
+  const [speedOpen, setSpeedOpen] = React.useState(false);
+  const speedDropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const speedOptions = [0.25, 0.5, 0.75, 1, 1.5, 2];
+  const currentSpeed = speed ?? 1;
+
+  React.useEffect(() => {
+    if (!speedOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (speedDropdownRef.current && !speedDropdownRef.current.contains(e.target as Node)) {
+        setSpeedOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [speedOpen]);
 
   const formatTime = (time: number): string => {
     const minutes = Math.floor(time / 60);
@@ -212,6 +227,29 @@ export function PlaybackControls({
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
+          </div>
+
+          {/* Speed Dropdown */}
+          <div ref={speedDropdownRef} className="relative shrink-0">
+            <button
+              onClick={() => setSpeedOpen((o) => !o)}
+              className="px-2 py-1 rounded text-xs font-medium text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors min-w-[46px] text-center"
+            >
+              {currentSpeed === 1 ? "x1" : `x${currentSpeed}`}
+            </button>
+            {speedOpen && (
+              <div className="absolute bottom-full mb-1 right-0 bg-white border border-gray-200 rounded shadow-lg z-50 py-1 min-w-[56px]">
+                {speedOptions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { onSpeedChange(s); setSpeedOpen(false); }}
+                    className={`w-full px-3 py-1 text-xs text-left hover:bg-gray-100 transition-colors ${currentSpeed === s ? "font-semibold text-primary" : "text-gray-700"}`}
+                  >
+                    {s === 1 ? "x1" : `x${s}`}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>

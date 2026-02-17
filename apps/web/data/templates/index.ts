@@ -7,6 +7,7 @@ import { networkTopologyTemplate } from "./network-topology";
 import { microservicesTemplate } from "./microservices";
 import { zkSnarkTemplate } from "./zk-snark";
 import { simpleTemplate } from "./simple";
+import { dijkstraTemplate } from "./dijkstra";
 
 export interface Template {
   name: string;
@@ -24,4 +25,5 @@ export const TEMPLATES: Template[] = [
   microservicesTemplate,
   zkSnarkTemplate,
   simpleTemplate,
+  dijkstraTemplate,
 ];
