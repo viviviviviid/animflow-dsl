@@ -151,6 +151,14 @@ export class AnimationTimeline {
       case "annotate":
         this.addAnnotateAnimation(targets, properties, duration, delay);
         break;
+
+      case "move":
+        this.addMoveAnimation(targets, properties, duration, delay);
+        break;
+
+      case "transform":
+        this.addTransformAnimation(targets, properties, duration, delay);
+        break;
     }
   }
 
@@ -374,6 +382,67 @@ export class AnimationTimeline {
     delay: number
   ): void {
     // TODO: Implement annotation overlay
+  }
+
+  /**
+   * Move nodes by a relative or absolute offset
+   * DSL: step N: move nodeA
+   *        by: [50, 0]   or   to: [200, 100]
+   */
+  private addMoveAnimation(
+    targets: string[],
+    properties: any,
+    duration: number,
+    delay: number
+  ): void {
+    if (!this.svgElement) return;
+
+    targets.forEach((targetId) => {
+      const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
+      if (!element) return;
+
+      const tweenProps: gsap.TweenVars = { duration, ease: "power2.inOut" };
+
+      if (Array.isArray(properties.by) && properties.by.length === 2) {
+        tweenProps.x = `+=${properties.by[0]}`;
+        tweenProps.y = `+=${properties.by[1]}`;
+      } else if (Array.isArray(properties.to) && properties.to.length === 2) {
+        tweenProps.x = properties.to[0];
+        tweenProps.y = properties.to[1];
+      }
+
+      this.timeline.to(element, tweenProps, delay > 0 ? `+=${delay}` : "+=0");
+    });
+  }
+
+  /**
+   * Scale / rotate transform on nodes
+   * DSL: step N: transform nodeA
+   *        scale: 1.5
+   *        rotate: 45deg
+   */
+  private addTransformAnimation(
+    targets: string[],
+    properties: any,
+    duration: number,
+    delay: number
+  ): void {
+    if (!this.svgElement) return;
+
+    targets.forEach((targetId) => {
+      const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
+      if (!element) return;
+
+      const tweenProps: gsap.TweenVars = { duration, ease: "power2.inOut" };
+
+      if (properties.scale !== undefined) tweenProps.scale = properties.scale;
+      if (properties.rotate !== undefined) {
+        const deg = parseFloat(String(properties.rotate));
+        if (!isNaN(deg)) tweenProps.rotation = deg;
+      }
+
+      this.timeline.to(element, tweenProps, delay > 0 ? `+=${delay}` : "+=0");
+    });
   }
 
   /**
