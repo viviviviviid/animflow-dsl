@@ -1,88 +1,194 @@
 # @animflow-dsl/react
 
-React 컴포넌트 라이브러리로, DSL 기반의 애니메이션 다이어그램을 시각화합니다.
+**The React SDK for AnimFlow DSL** - Create step-by-step animated diagrams with professional animations and narration.
 
-## 설치
+This is the core React component library that powers AnimFlow. Whether you're embedding diagrams in documentation, building educational content, or creating interactive presentations, this SDK provides everything you need.
+
+## Installation
 
 ```bash
 npm install @animflow-dsl/react
-# 또는
+# or
 pnpm add @animflow-dsl/react
-# 또는
+# or
 yarn add @animflow-dsl/react
 ```
 
-## 기본 사용법
+### Peer Dependencies
+
+This package requires:
+- `react ^18.0.0`
+- `react-dom ^18.0.0`
+
+## Quick Start
+
+### Simplest Example
 
 ```tsx
 import { AnimflowPlayer } from '@animflow-dsl/react';
 
-function MyDiagram() {
+export default function MyDiagram() {
   const dsl = `
-    @diagram
-    A[시작]
-    B[처리]
-    C[종료]
-    
-    A -> B -> C
-    
-    @animation
-    show(A)
-    show(B)
-    show(C)
-    flow(A -> B)
-    flow(B -> C)
+flowchart LR
+  A[Start]
+  B[Process]
+  C[End]
+
+  A --> B
+  B --> C
+
+@animation
+  step 1: show A
+    effect: fadeIn
+  step 2: connect A->B
+    flow: particles
+  step 3: show B
+    effect: slideInRight
+  step 4: connect B->C
+    flow: particles
+  step 5: show C
+    effect: fadeIn
+@end
+
+@narration
+  step 1:
+    title: "Start"
+    text: "The journey begins here."
+  step 5:
+    title: "Complete"
+    text: "We've reached the end."
+@end
+
+@config
+  autoplay: true
+  controls: true
+@end
   `;
 
   return <AnimflowPlayer dsl={dsl} />;
 }
 ```
 
-## Props
+## Component API
 
-### AnimflowPlayer
+### `<AnimflowPlayer>` Component
 
-| Prop | 타입 | 기본값 | 설명 |
-|------|------|--------|------|
-| `dsl` | `string` | **required** | 다이어그램을 정의하는 DSL 문자열 |
-| `className` | `string` | `undefined` | 컨테이너에 추가할 CSS 클래스 |
+The main component that renders and controls animated diagrams.
 
-### AnimflowPlayerHandle (Imperative API)
+```tsx
+<AnimflowPlayer
+  dsl={string}                    // DSL string (required)
+  className={string}              // CSS class for container
+  defaultMode={'clean'}           // 'clean' or 'sketchy'
+/>
+```
 
-`useImperativeHandle`을 통해 노출되는 명령형 API:
+#### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `dsl` | `string` | **required** | Complete DSL diagram definition |
+| `className` | `string` | `undefined` | CSS class for the container div |
+| `defaultMode` | `'clean' \| 'sketchy'` | `'clean'` | Initial rendering style |
+
+#### Example with All Props
+
+```tsx
+<AnimflowPlayer
+  dsl={myDslString}
+  className="w-full h-screen"
+  defaultMode="sketchy"
+/>
+```
+
+## Imperative Control
+
+Use `useRef` and the handle to control playback programmatically.
+
+### Setup
 
 ```tsx
 import { useRef } from 'react';
 import { AnimflowPlayer, AnimflowPlayerHandle } from '@animflow-dsl/react';
 
-function MyComponent() {
+export default function ControlledDiagram() {
   const playerRef = useRef<AnimflowPlayerHandle>(null);
 
-  const handlePlay = () => {
-    playerRef.current?.play();
-  };
+  const handlePlay = () => playerRef.current?.play();
+  const handlePause = () => playerRef.current?.pause();
+  const handleSpeedUp = () => playerRef.current?.setSpeed(1.5);
+  const handleSkip = () => playerRef.current?.seek(10); // Jump to 10 seconds
 
   return (
     <div>
-      <button onClick={handlePlay}>재생</button>
-      <AnimflowPlayer ref={playerRef} dsl={myDsl} />
+      <div className="flex gap-2 mb-4">
+        <button onClick={handlePlay}>Play</button>
+        <button onClick={handlePause}>Pause</button>
+        <button onClick={handleSpeedUp}>Speed 1.5x</button>
+        <button onClick={handleSkip}>Skip to 10s</button>
+      </div>
+      <AnimflowPlayer ref={playerRef} dsl={dslString} />
     </div>
   );
 }
 ```
 
-#### 메서드
+### Methods
 
-- `play()`: 애니메이션 재생
-- `pause()`: 애니메이션 일시정지
-- `seek(time: number)`: 특정 시간으로 이동
-- `setSpeed(speed: number)`: 재생 속도 설정
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `play()` | `() => void` | Start playback from current position |
+| `pause()` | `() => void` | Pause playback |
+| `seek(time)` | `(time: number) => void` | Jump to specific time (in seconds) |
+| `setSpeed(speed)` | `(speed: number) => void` | Set playback speed (0.5 to 2.0) |
+| `toggleMode()` | `() => void` | Toggle between clean and sketchy rendering |
+| `restart()` | `() => void` | Reset to beginning and stop |
 
-## 저수준 API
+## Hooks
 
-### 개별 렌더러 사용
+Access animation state with Zustand hooks.
 
-더 세밀한 제어가 필요한 경우 개별 컴포넌트와 함수를 사용할 수 있습니다:
+```tsx
+import { useAnimationStore } from '@animflow-dsl/react';
+
+export default function AnimationStatus() {
+  const playing = useAnimationStore(s => s.playing);
+  const currentTime = useAnimationStore(s => s.currentTime);
+  const duration = useAnimationStore(s => s.duration);
+  const currentStep = useAnimationStore(s => s.currentStep);
+
+  return (
+    <div>
+      <p>Status: {playing ? 'Playing' : 'Paused'}</p>
+      <p>Progress: {currentTime.toFixed(1)}s / {duration.toFixed(1)}s</p>
+      <p>Step: {currentStep}</p>
+    </div>
+  );
+}
+```
+
+### Available Store Selectors
+
+```typescript
+// Playback state
+playing: boolean
+currentTime: number        // In seconds
+duration: number           // In seconds
+speed: number             // Playback speed multiplier
+
+// Animation state
+currentStep: number        // Current animation step
+totalSteps: number         // Total steps
+
+// Rendering state
+mode: 'clean' | 'sketchy'  // Current render mode
+```
+
+## Advanced: Low-Level API
+
+For advanced use cases, you can access individual renderers and utilities.
+
+### Manual Diagram Rendering
 
 ```tsx
 import {
@@ -91,84 +197,263 @@ import {
   calculateFlowchartLayout
 } from '@animflow-dsl/react';
 
-function CustomDiagram() {
-  const dsl = `...`;
+export default function CustomDiagram() {
+  const dsl = `
+flowchart LR
+  A[Node A]
+  B[Node B]
+  A --> B
+  `;
+
+  // Step 1: Parse DSL
   const parsedData = parseDsl(dsl);
+
+  // Step 2: Calculate layout
   const layoutData = calculateFlowchartLayout(parsedData);
 
+  // Step 3: Render
   return (
     <DiagramRenderer
       data={layoutData}
       isSketchy={false}
       pan={{ x: 0, y: 0 }}
       zoom={1}
-      animationRefs={[]}
     />
   );
 }
 ```
 
-### 내보내기 타입
+### Type Definitions
 
 ```typescript
 import type {
   DiagramData,
-  Node,
-  Edge,
+  DiagramNode,
+  DiagramEdge,
   AnimationStep,
-  NarrationStep
+  NarrationStep,
+  AnimationAction,
 } from '@animflow-dsl/react';
 ```
 
-## DSL 문법
+## Complete Real-World Example
 
-자세한 DSL 문법은 [메인 레포지토리](https://github.com/your-org/animflow-dsl)를 참조하세요.
+```tsx
+import { AnimflowPlayer, AnimflowPlayerHandle } from '@animflow-dsl/react';
+import { useRef, useState } from 'react';
 
-### 간단한 예시
+export default function ArchitectureDiagram() {
+  const playerRef = useRef<AnimflowPlayerHandle>(null);
+  const [speed, setSpeed] = useState(1);
 
-```
-@diagram
-Start[프로세스 시작]
-Process[데이터 처리]
-End[완료]
+  const dsl = `
+flowchart TD
+  User([User])
+  Gateway[API Gateway]
+  Auth[Auth Service]
+  DB[(Database)]
 
-Start -> Process: "입력"
-Process -> End: "출력"
-
-@style
-mode: sketchy
-font: "Comic Neue"
+  User --> Gateway
+  Gateway --> Auth
+  Auth --> DB
 
 @animation
-show(Start)
-show(Process, duration: 1s)
-flow(Start -> Process, duration: 2s)
-highlight(Process, duration: 0.5s)
-show(End)
-flow(Process -> End)
+  step 1: show User
+    effect: fadeIn
+    duration: 1s
+
+  step 2: show Gateway
+    effect: scaleIn
+    duration: 1s
+
+  step 3: connect User->Gateway
+    flow: particles
+    speed: 1.5s
+
+  step 4: show Auth
+    effect: slideInRight
+    duration: 1s
+
+  step 5: connect Gateway->Auth
+    flow: particles
+    speed: 1s
+
+  step 6: show DB
+    effect: bounceIn
+    duration: 1s
+
+  step 7: connect Auth->DB
+    flow: arrow
+    speed: 1.5s
+
+  step 8: camera fitAll
+    padding: 50px
+    duration: 1s
+@end
 
 @narration
-title: "시작"
-text: "프로세스가 시작됩니다."
----
-title: "처리"
-text: "데이터를 처리하고 있습니다."
----
-title: "완료"
-text: "모든 작업이 완료되었습니다."
+  step 1:
+    title: "Users"
+    text: "All requests come from users."
+
+  step 3:
+    title: "Gateway Entry"
+    text: "The API Gateway is the single entry point."
+
+  step 5:
+    title: "Authentication"
+    text: "Every request goes through authentication first."
+
+  step 7:
+    title: "Data Access"
+    text: "Authenticated requests query the database."
+@end
+
+@style
+  User:
+    fill: #e3f2fd
+    stroke: #2196F3
+    stroke-width: 3px
+
+  Gateway:
+    fill: #fff3e0
+    stroke: #FF9800
+    stroke-width: 2px
+
+  Auth:
+    fill: #e8f5e9
+    stroke: #4CAF50
+    stroke-width: 2px
+
+  DB:
+    fill: #f3e5f5
+    stroke: #9C27B0
+    stroke-width: 2px
+@end
+
+@config
+  autoplay: false
+  controls: true
+  speed: 1.0
+@end
+  `;
+
+  return (
+    <div className="w-full h-screen flex flex-col">
+      <div className="bg-white shadow p-4 flex gap-4">
+        <button
+          onClick={() => playerRef.current?.play()}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Play
+        </button>
+        <button
+          onClick={() => playerRef.current?.pause()}
+          className="px-4 py-2 bg-gray-500 text-white rounded"
+        >
+          Pause
+        </button>
+        <label className="flex items-center gap-2">
+          Speed:
+          <input
+            type="range"
+            min="0.5"
+            max="2"
+            step="0.25"
+            value={speed}
+            onChange={(e) => {
+              const newSpeed = parseFloat(e.target.value);
+              setSpeed(newSpeed);
+              playerRef.current?.setSpeed(newSpeed);
+            }}
+            className="w-24"
+          />
+          <span>{speed.toFixed(2)}x</span>
+        </label>
+      </div>
+      <div className="flex-1">
+        <AnimflowPlayer
+          ref={playerRef}
+          dsl={dsl}
+          defaultMode="clean"
+        />
+      </div>
+    </div>
+  );
+}
 ```
 
-## Peer Dependencies
+## Best Practices
 
-이 패키지는 다음 패키지를 peer dependency로 요구합니다:
+### 1. **Keep DSL in Separate Files**
+```tsx
+// dsl/blockchain.ts
+export const BLOCKCHAIN_DSL = `...`;
 
-- `react ^18.0.0`
-- `react-dom ^18.0.0`
+// Component
+import { BLOCKCHAIN_DSL } from './dsl/blockchain';
+<AnimflowPlayer dsl={BLOCKCHAIN_DSL} />
+```
 
-## 라이선스
+### 2. **Use Constants for Timing**
+```tsx
+const TIMING = {
+  short: '0.8s',
+  normal: '1.5s',
+  long: '2.5s'
+};
 
-MIT
+// In DSL:
+// step 1: show node
+//   duration: TIMING.normal
+```
 
-## 기여
+### 3. **Memoize DSL for Performance**
+```tsx
+import { useMemo } from 'react';
 
-기여는 언제나 환영합니다! 이슈를 열거나 PR을 보내주세요.
+export default function App() {
+  const dsl = useMemo(() => `...`, []);
+  return <AnimflowPlayer dsl={dsl} />;
+}
+```
+
+### 4. **Responsive Container**
+```tsx
+<div className="w-full h-screen md:h-96">
+  <AnimflowPlayer dsl={dsl} className="w-full h-full" />
+</div>
+```
+
+## Troubleshooting
+
+### Animation doesn't play
+- Check that `@animation` section syntax is correct
+- Ensure step numbers are sequential (1, 2, 3, ...)
+- Verify node IDs in animation match diagram definition
+
+### Poor performance
+- Reduce number of nodes/edges
+- Use cleaner animation effects (fewer particles)
+- Try the sketchy mode as it's more GPU-friendly
+
+### Styling not applied
+- Verify node/edge IDs in `@style` match diagram
+- Use proper hex color format (`#FF9800`)
+- Check stroke-width units (`2px`, not `2`)
+
+## Contributing
+
+Found a bug? Have a feature idea? We'd love your contribution!
+
+- **Report issues** → GitHub Issues
+- **Suggest features** → GitHub Discussions
+- **Submit PRs** → Follow the contribution guide
+
+## License
+
+MIT - Free for personal and commercial use
+
+---
+
+**Need help? Check the [main DSL Guide](../../docs/dsl-guide.md) for complete syntax reference.**

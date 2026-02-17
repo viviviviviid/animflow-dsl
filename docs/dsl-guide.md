@@ -1,32 +1,42 @@
-# AnimFlow DSL Guide
+# AnimFlow DSL Comprehensive Guide
 
-AnimFlow DSL is composed of five sections. Only the diagram section is required; all others are optional.
+This guide covers the complete syntax for AnimFlow DSL. Master this, and you can create any animated diagram you can imagine.
+
+## Overview
+
+AnimFlow DSL is composed of **five sections**. Only the diagram section is **required**; all others are optional.
 
 ```
-# 1. Diagram definition (required)
+# 1. Diagram definition (REQUIRED)
 flowchart LR
-  ...
+  nodeId[Label]
+  nodeId --> otherId
 
-# 2. Animation
+# 2. Animation (optional)
 @animation
-  ...
+  step 1: show nodeId
 @end
 
-# 3. Style
+# 3. Style (optional)
 @style
-  ...
+  nodeId:
+    fill: #e8f5e9
 @end
 
-# 4. Narration
+# 4. Narration (optional)
 @narration
-  ...
+  step 1:
+    title: "Title"
+    text: "Description"
 @end
 
-# 5. Config
+# 5. Config (optional)
 @config
-  ...
+  autoplay: true
 @end
 ```
+
+**Pro Tip**: Start with just the diagram section, then add animation, narration, and styling as needed.
 
 ---
 
