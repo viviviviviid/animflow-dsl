@@ -86,6 +86,12 @@ export class AnimationTimeline {
     const allEdges = this.svgElement.querySelectorAll('[data-edge-id]');
     allEdges.forEach((edge) => {
       gsap.set(edge, { opacity: 0 });
+      // Also hide rough-path-container and rough-arrow-overlay via visibility
+      // so their individual paths don't flash before strokeDashoffset is set
+      const roughContainer = edge.querySelector('.rough-path-container');
+      const roughArrow = edge.querySelector('.rough-arrow-overlay');
+      if (roughContainer) (roughContainer as SVGElement).style.visibility = 'hidden';
+      if (roughArrow) (roughArrow as SVGElement).style.visibility = 'hidden';
     });
   }
 
@@ -461,11 +467,13 @@ export class AnimationTimeline {
   }
 
   restart(): void {
+    this.initNodeVisibility();
     this.timeline.restart();
   }
 
   stop(): void {
     this.timeline.pause();
+    this.initNodeVisibility();
     this.timeline.seek(0);
   }
 

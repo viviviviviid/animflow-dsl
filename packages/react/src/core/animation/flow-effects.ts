@@ -15,28 +15,24 @@ export function animateEdgeFlow(
     return gsap.to(edgeElement, { opacity: 1, duration: 0 });
   }
 
-  // Make edge visible
-  gsap.set(edgeElement, { opacity: 1 });
+  // Do NOT gsap.set(edgeElement, { opacity: 1 }) here — that runs immediately
+  // during buildTimeline(), overriding initNodeVisibility() and making edges
+  // visible before animation starts. Edge-group opacity is set inside the
+  // returned timeline so it only applies when the timeline actually plays.
 
   switch (effect) {
     case "particles":
       return animateParticles(edgeElement, pathElement, duration);
-
     case "dash":
       return animateDash(edgeElement, pathElement, duration);
-
     case "arrow":
       return animateArrow(edgeElement, pathElement, duration);
-
     case "glow":
       return animateGlow(edgeElement, pathElement, duration);
-
     case "wave":
       return animateWave(edgeElement, pathElement, duration);
-
     case "lightning":
       return animateLightning(edgeElement, pathElement, duration);
-
     default:
       return animateParticles(edgeElement, pathElement, duration);
   }
@@ -53,6 +49,35 @@ function revealLabel(edgeElement: Element, tl: gsap.core.Timeline) {
 }
 
 /**
+ * Prepare rough edge for animation:
+ * - Set strokeDashoffset on all rough paths (immediately — safe because
+ *   container has visibility:hidden, so nothing shows)
+ * - Add a timeline callback at time=0 to reveal the edge-group and container
+ *   only when the timeline actually plays
+ */
+function prepareRoughEdge(
+  tl: gsap.core.Timeline,
+  edgeElement: Element,
+  roughPathContainer: Element,
+): NodeListOf<SVGPathElement> {
+  const roughPaths = roughPathContainer.querySelectorAll('path') as NodeListOf<SVGPathElement>;
+
+  // Safe to run immediately — container is visibility:hidden so nothing paints
+  roughPaths.forEach((rp) => {
+    const len = rp.getTotalLength();
+    gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
+  });
+
+  // Make edge-group & container visible only when timeline plays
+  tl.call(() => {
+    gsap.set(edgeElement, { opacity: 1 });
+    (roughPathContainer as SVGElement).style.visibility = 'visible';
+  }, [], 0);
+
+  return roughPaths;
+}
+
+/**
  * Animate rough arrow overlay at the end of line drawing
  */
 function animateRoughArrow(
@@ -63,6 +88,9 @@ function animateRoughArrow(
   const roughArrowEl = edgeElement.querySelector('.rough-arrow-overlay');
   if (roughArrowEl) {
     const arrowStart = Math.max(0, duration * 0.5);
+    tl.call(() => {
+      (roughArrowEl as SVGElement).style.visibility = 'visible';
+    }, [], arrowStart);
     tl.fromTo(roughArrowEl,
       { opacity: 0 },
       { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
@@ -85,38 +113,20 @@ function animateParticles(
   const tl = gsap.timeline();
 
   if (roughPathContainer) {
-    // Sketchy mode: progressive draw line
-    gsap.set(roughPathContainer, { opacity: 1 });
-    const roughPaths = roughPathContainer.querySelectorAll('path');
+    const roughPaths = prepareRoughEdge(tl, edgeElement, roughPathContainer);
     roughPaths.forEach((rp) => {
-      const len = rp.getTotalLength();
-      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
       tl.to(rp, { strokeDashoffset: 0, duration, ease: "power1.inOut" }, 0);
     });
-    // Arrow appears at 70%
     animateRoughArrow(edgeElement, tl, duration);
   } else {
-    // Clean mode: stroke dash animation
+    gsap.set(pathElement, { strokeDasharray: totalLength, strokeDashoffset: totalLength });
+    tl.call(() => { gsap.set(edgeElement, { opacity: 1 }); }, [], 0);
+    tl.to(pathElement, { strokeDashoffset: 0, duration, ease: "power1.inOut" }, 0);
+
     const arrowEl = edgeElement.querySelector('.edge-arrow');
-
-    gsap.set(pathElement, {
-      strokeDasharray: totalLength,
-      strokeDashoffset: totalLength,
-    });
-
-    tl.to(pathElement, {
-      strokeDashoffset: 0,
-      duration,
-      ease: "power1.inOut",
-    });
-
     if (arrowEl) {
       const arrowStart = Math.max(0, duration * 0.85);
-      tl.fromTo(arrowEl,
-        { opacity: 0 },
-        { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
-        arrowStart
-      );
+      tl.fromTo(arrowEl, { opacity: 0 }, { opacity: 1, duration: duration * 0.15, ease: "power1.in" }, arrowStart);
     }
   }
 
@@ -137,42 +147,23 @@ function animateDash(
   const tl = gsap.timeline();
 
   if (roughPathContainer) {
-    // Sketchy mode: progressive draw line
-    gsap.set(roughPathContainer, { opacity: 1 });
-    const roughPaths = roughPathContainer.querySelectorAll('path');
+    const roughPaths = prepareRoughEdge(tl, edgeElement, roughPathContainer);
     roughPaths.forEach((rp) => {
-      const len = rp.getTotalLength();
-      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
       tl.to(rp, { strokeDashoffset: 0, duration, ease: "linear" }, 0);
     });
-    // Arrow appears at 70%
     animateRoughArrow(edgeElement, tl, duration);
   } else {
-    // Clean mode: dash animation
-    const arrowEl = edgeElement.querySelector('.edge-arrow');
-
-    gsap.set(pathElement, {
-      strokeDasharray: "10, 5",
-    });
-
-    tl.fromTo(
-      pathElement,
+    gsap.set(pathElement, { strokeDasharray: "10, 5" });
+    tl.call(() => { gsap.set(edgeElement, { opacity: 1 }); }, [], 0);
+    tl.fromTo(pathElement,
       { strokeDashoffset: 0 },
-      {
-        strokeDashoffset: 15,
-        duration: 1,
-        repeat: Math.ceil(duration) - 1,
-        ease: "linear",
-      }
+      { strokeDashoffset: 15, duration: 1, repeat: Math.ceil(duration) - 1, ease: "linear" }
     );
 
+    const arrowEl = edgeElement.querySelector('.edge-arrow');
     if (arrowEl) {
       const arrowStart = Math.max(0, duration * 0.85);
-      tl.fromTo(arrowEl,
-        { opacity: 0 },
-        { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
-        arrowStart
-      );
+      tl.fromTo(arrowEl, { opacity: 0 }, { opacity: 1, duration: duration * 0.15, ease: "power1.in" }, arrowStart);
     }
   }
 
@@ -191,19 +182,16 @@ function animateGlow(
   const tl = gsap.timeline();
   const roughPathContainer = edgeElement.querySelector('.rough-path-container');
 
-  // Draw line first
   if (roughPathContainer) {
-    gsap.set(roughPathContainer, { opacity: 1 });
-    const roughPaths = roughPathContainer.querySelectorAll('path');
+    const roughPaths = prepareRoughEdge(tl, edgeElement, roughPathContainer);
     roughPaths.forEach((rp) => {
-      const len = rp.getTotalLength();
-      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
       tl.to(rp, { strokeDashoffset: 0, duration: duration * 0.6, ease: "power1.inOut" }, 0);
     });
     animateRoughArrow(edgeElement, tl, duration * 0.6);
   } else {
     const len = pathElement.getTotalLength();
     gsap.set(pathElement, { strokeDasharray: len, strokeDashoffset: len });
+    tl.call(() => { gsap.set(edgeElement, { opacity: 1 }); }, [], 0);
     tl.to(pathElement, { strokeDashoffset: 0, duration: duration * 0.6, ease: "power1.inOut" }, 0);
   }
 
@@ -255,10 +243,15 @@ function animateWave(
     ? Array.from(roughPathContainer.querySelectorAll('path'))
     : [pathElement];
 
-  // Draw line
+  if (roughPathContainer) {
+    prepareRoughEdge(tl, edgeElement, roughPathContainer);
+  } else {
+    const len = pathElement.getTotalLength();
+    gsap.set(pathElement, { strokeDasharray: len, strokeDashoffset: len });
+    tl.call(() => { gsap.set(edgeElement, { opacity: 1 }); }, [], 0);
+  }
+
   targets.forEach((rp) => {
-    const len = (rp as SVGPathElement).getTotalLength();
-    gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
     tl.to(rp, { strokeDashoffset: 0, duration: duration * 0.5, ease: "power1.inOut" }, 0);
   });
   animateRoughArrow(edgeElement, tl, duration * 0.5);
@@ -295,12 +288,20 @@ function animateLightning(
     ? Array.from(roughPathContainer.querySelectorAll('path'))
     : [pathElement];
 
-  // Instant reveal
-  gsap.set(roughPathContainer ?? pathElement, { opacity: 1 });
-  targets.forEach((rp) => {
-    const len = (rp as SVGPathElement).getTotalLength();
-    gsap.set(rp, { strokeDasharray: len, strokeDashoffset: 0 });
-  });
+  if (roughPathContainer) {
+    // For lightning, set dashoffset to 0 (instant reveal)
+    const roughPaths = roughPathContainer.querySelectorAll('path') as NodeListOf<SVGPathElement>;
+    roughPaths.forEach((rp) => {
+      const len = rp.getTotalLength();
+      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: 0 });
+    });
+    tl.call(() => {
+      gsap.set(edgeElement, { opacity: 1 });
+      (roughPathContainer as SVGElement).style.visibility = 'visible';
+    }, [], 0);
+  } else {
+    tl.call(() => { gsap.set(edgeElement, { opacity: 1 }); }, [], 0);
+  }
   animateRoughArrow(edgeElement, tl, 0);
 
   // Fast strobe flicker
@@ -332,38 +333,20 @@ function animateArrow(
   const tl = gsap.timeline();
 
   if (roughPathContainer) {
-    // Sketchy mode: progressive draw line
-    gsap.set(roughPathContainer, { opacity: 1 });
-    const roughPaths = roughPathContainer.querySelectorAll('path');
+    const roughPaths = prepareRoughEdge(tl, edgeElement, roughPathContainer);
     roughPaths.forEach((rp) => {
-      const len = rp.getTotalLength();
-      gsap.set(rp, { strokeDasharray: len, strokeDashoffset: len });
       tl.to(rp, { strokeDashoffset: 0, duration, ease: "power2.inOut" }, 0);
     });
-    // Arrow appears at 70%
     animateRoughArrow(edgeElement, tl, duration);
   } else {
-    // Clean mode: stroke dash animation
+    gsap.set(pathElement, { strokeDasharray: `${totalLength} ${totalLength}`, strokeDashoffset: totalLength });
+    tl.call(() => { gsap.set(edgeElement, { opacity: 1 }); }, [], 0);
+    tl.to(pathElement, { strokeDashoffset: 0, duration, ease: "power2.inOut" }, 0);
+
     const arrowEl = edgeElement.querySelector('.edge-arrow');
-
-    gsap.set(pathElement, {
-      strokeDasharray: `${totalLength} ${totalLength}`,
-      strokeDashoffset: totalLength,
-    });
-
-    tl.to(pathElement, {
-      strokeDashoffset: 0,
-      duration,
-      ease: "power2.inOut",
-    });
-
     if (arrowEl) {
       const arrowStart = Math.max(0, duration * 0.85);
-      tl.fromTo(arrowEl,
-        { opacity: 0 },
-        { opacity: 1, duration: duration * 0.15, ease: "power1.in" },
-        arrowStart
-      );
+      tl.fromTo(arrowEl, { opacity: 0 }, { opacity: 1, duration: duration * 0.15, ease: "power1.in" }, arrowStart);
     }
   }
 

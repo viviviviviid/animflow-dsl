@@ -217,7 +217,7 @@ function renderText(
       dominantBaseline="middle"
       fill={color}
       fontSize="15"
-      fontFamily="Comic Neue, Comic Sans MS, cursive"
+      fontFamily="Comic Neue, Comic Sans MS, sans-serif"
       fontWeight="400"
     >
       {lines.map((line, i) => (

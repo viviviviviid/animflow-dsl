@@ -143,37 +143,45 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
         pointerEvents="none"
       />
 
-      {/* Rough path (line only) */}
+      {/* Rough path (line only) — visibility: hidden so it's layout-present but never paints dots */}
       {roughPaths.pathOps.length > 0 && (
-        <g className="rough-path-container" style={{ opacity: 0 }}>
-          {roughPaths.pathOps.map((set, i) => (
-            <path
-              key={`path-${i}`}
-              d={opsToPath(set)}
-              stroke={stroke}
-              strokeWidth={strokeWidth}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
+        <g className="rough-path-container" style={{ visibility: "hidden" }}>
+          {roughPaths.pathOps.map((set, i) => {
+            const d = opsToPath(set);
+            if (!d) return null;
+            return (
+              <path
+                key={`path-${i}`}
+                d={d}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            );
+          })}
         </g>
       )}
 
       {/* Rough arrow (separate for animation timing) */}
       {roughPaths.arrowOps.length > 0 && (
-        <g className="rough-arrow-overlay" style={{ opacity: 0 }}>
-          {roughPaths.arrowOps.map((set, i) => (
-            <path
-              key={`arrow-${i}`}
-              d={opsToPath(set)}
-              stroke={set.type === "fillPath" ? "none" : stroke}
-              fill={set.type === "fillPath" ? stroke : "none"}
-              strokeWidth={1}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
+        <g className="rough-arrow-overlay" style={{ visibility: "hidden" }}>
+          {roughPaths.arrowOps.map((set, i) => {
+            const d = opsToPath(set);
+            if (!d) return null;
+            return (
+              <path
+                key={`arrow-${i}`}
+                d={d}
+                stroke={set.type === "fillPath" ? "none" : stroke}
+                fill={set.type === "fillPath" ? stroke : "none"}
+                strokeWidth={1}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            );
+          })}
         </g>
       )}
 
@@ -198,7 +206,7 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
             dominantBaseline="middle"
             fill="#424242"
             fontSize="13"
-            fontFamily="Comic Neue, Comic Sans MS, cursive"
+            fontFamily="Comic Neue, Comic Sans MS, sans-serif"
             fontWeight="400"
           >
             {label}
@@ -210,12 +218,17 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
 }
 
 /**
- * Convert rough.js ops to SVG path data
+ * Convert rough.js ops to SVG path data.
+ * Returns empty string for sets that contain only "move" ops (no actual drawing),
+ * which prevents tiny dot artifacts from strokeLinecap="round".
  */
 function opsToPath(set: any): string {
   const ops = set.ops;
+  const hasDrawOp = ops.some((op: any) => op.op === "bcurveTo" || op.op === "lineTo");
+  if (!hasDrawOp) return "";
+
   let pathData = "";
-  
+
   for (const op of ops) {
     const data = op.data;
     switch (op.op) {
@@ -230,6 +243,6 @@ function opsToPath(set: any): string {
         break;
     }
   }
-  
+
   return pathData;
 }

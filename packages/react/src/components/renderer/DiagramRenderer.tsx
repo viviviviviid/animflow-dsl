@@ -51,6 +51,11 @@ export function DiagramRenderer({
       viewBox={viewBox}
       xmlns="http://www.w3.org/2000/svg"
     >
+      {/* Load Comic Neue font for cross-platform consistency */}
+      <defs>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&display=swap');`}</style>
+      </defs>
+
       {/* Background fill — omit rect entirely when transparent/unset */}
       {background && background !== "transparent" && (
         <rect
