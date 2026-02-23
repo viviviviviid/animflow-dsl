@@ -335,7 +335,8 @@ export class AnimationTimeline {
     const speed = this.parseDuration(properties.speed || "2s");
 
     // targets format: ["nodeA->nodeB", "nodeC->nodeD"]
-    targets.forEach((connection) => {
+    const startPosition = "+=0";
+    targets.forEach((connection, index) => {
       const [from, to] = connection.split("->").map((s) => s.trim());
       const edgeElement = this.svgElement!.querySelector(
         `[data-from="${from}"][data-to="${to}"]`
@@ -344,8 +345,8 @@ export class AnimationTimeline {
       if (!edgeElement) return;
 
       const tween = animateEdgeFlow(edgeElement, flow, speed);
-      // Add to end of timeline for sequential execution
-      this.timeline.add(tween, "+=0");
+      // First connection advances timeline; rest start at same position (simultaneous)
+      this.timeline.add(tween, index === 0 ? startPosition : "<");
     });
   }
 
