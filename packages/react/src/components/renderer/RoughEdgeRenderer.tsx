@@ -188,17 +188,6 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
       {/* Label — hidden initially, revealed after connect animation */}
       {label && (
         <g className="edge-label" style={{ opacity: 0 }}>
-          <rect
-            x={midPoint.x - 30}
-            y={midPoint.y - 12}
-            width={60}
-            height={24}
-            fill="white"
-            stroke="#e0e0e0"
-            strokeWidth={1}
-            rx={4}
-            opacity={0.9}
-          />
           <text
             x={midPoint.x}
             y={midPoint.y}
@@ -208,6 +197,10 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
             fontSize="13"
             fontFamily="Comic Neue, Comic Sans MS, sans-serif"
             fontWeight="400"
+            stroke="white"
+            strokeWidth={4}
+            strokeLinejoin="round"
+            paintOrder="stroke"
           >
             {label}
           </text>

@@ -145,7 +145,7 @@ export class AnimationTimeline {
         break;
 
       case "camera":
-        this.addCameraAnimation(properties, duration, delay);
+        this.addCameraAnimation(targets, properties, duration, delay);
         break;
 
       case "annotate":
@@ -199,12 +199,26 @@ export class AnimationTimeline {
 
     const effect = properties.effect || "fadeOut";
 
-    targets.forEach((targetId) => {
-      const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
-      if (!element) return;
+    const elements: Element[] = [];
 
+    for (const targetId of targets) {
+      if (targetId === "all") {
+        this.svgElement.querySelectorAll("[data-node-id], [data-edge-id]").forEach((el) => elements.push(el));
+      } else if (targetId === "edges") {
+        this.svgElement.querySelectorAll("[data-edge-id]").forEach((el) => elements.push(el));
+      } else if (targetId === "nodes") {
+        this.svgElement.querySelectorAll("[data-node-id]").forEach((el) => elements.push(el));
+      } else {
+        const node = this.svgElement.querySelector(`[data-node-id="${targetId}"]`);
+        const edge = this.svgElement.querySelector(`[data-edge-id="${targetId}"]`);
+        if (node) elements.push(node);
+        if (edge) elements.push(edge);
+      }
+    }
+
+    elements.forEach((element) => {
       const tween = applyExitEffect(element, effect, duration);
-      this.timeline.add(tween, delay);
+      this.timeline.add(tween, delay > 0 ? `+=${delay}` : "+=0");
     });
   }
 
@@ -339,6 +353,7 @@ export class AnimationTimeline {
    * Add camera animation
    */
   private addCameraAnimation(
+    targets: string[],
     properties: any,
     duration: number,
     delay: number
@@ -347,8 +362,8 @@ export class AnimationTimeline {
 
     const action = properties.cameraAction || "fitAll";
     const tween = animateCamera(this.svgElement, action, {
-      target: properties.target,
-      targets: properties.targets,
+      target: targets[0],
+      targets,
       zoom: properties.zoom,
       padding: this.parsePadding(properties.padding),
       duration,
