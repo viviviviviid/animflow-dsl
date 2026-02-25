@@ -15,5 +15,11 @@ export function parseConfig(configText: string): DiagramConfig {
   if (props.narration !== undefined) config.narration = props.narration;
   if (props.background) config.background = props.background;
 
+  // TTS
+  if (props.tts !== undefined) config.tts = props.tts as boolean;
+  if (props['tts-voice']) config.ttsVoice = props['tts-voice'] as string;
+  if (props['tts-rate'] !== undefined) config.ttsRate = props['tts-rate'] as number;
+  if (props['tts-pitch'] !== undefined) config.ttsPitch = props['tts-pitch'] as number;
+
   return config;
 }

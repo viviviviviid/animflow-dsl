@@ -186,6 +186,71 @@ speed: number              // Playback speed multiplier (0.25–2.0)
 currentStep: number        // Current animation step
 ```
 
+### `useTTS` Hook
+
+Standalone Text-to-Speech hook using the Web Speech API. The `AnimflowPlayer` uses this internally for its built-in 🔊/🔇 toggle button, but you can also use it directly for custom UI.
+
+```tsx
+import { useTTS } from '@animflow-dsl/react';
+
+export default function CustomTTS() {
+  const tts = useTTS({
+    enabled: true,
+    voiceName: 'Kyunghoon, InJoon, ko-KR', // comma-separated, tried in order
+    rate: 1.1,    // speech rate 0.1–10
+    pitch: 1.0,   // pitch 0–2
+    volume: 0.8,  // volume 0–1
+    onEnd: () => console.log('done'),  // fires on natural end only
+  });
+
+  return (
+    <div>
+      <button onClick={() => tts.speak('Hello, world!')}>Speak</button>
+      <button onClick={tts.pause}>Pause</button>
+      <button onClick={tts.resume}>Resume</button>
+      <button onClick={tts.cancel}>Stop</button>
+      <p>{tts.isSpeaking ? 'Speaking...' : 'Idle'}</p>
+    </div>
+  );
+}
+```
+
+| Option / Return | Type | Description |
+|-----------------|------|-------------|
+| `enabled` | `boolean` | Whether `speak()` does anything |
+| `voiceName` | `string` | Comma-separated voice names/BCP-47 tags, tried in order |
+| `rate` | `number` | Speech rate (0.1–10) |
+| `pitch` | `number` | Pitch (0–2) |
+| `volume` | `number` | Volume (0–1) |
+| `onEnd` | `() => void` | Called when speech ends naturally (not on cancel/error) |
+| `speak(text)` | method | Cancel current speech and speak new text |
+| `pause()` | method | Pause mid-sentence |
+| `resume()` | method | Resume paused speech |
+| `cancel()` | method | Stop and discard current speech |
+| `isSpeaking` | `boolean` | React state — `true` while speaking |
+| `isSpeakingRef` | `MutableRefObject<boolean>` | Sync ref for use inside callbacks |
+
+**Voice selection** — `voiceName` is tried left-to-right, each entry matched by:
+1. Voice name substring (e.g. `"Kyunghoon"` → macOS Korean male)
+2. BCP-47 language prefix (e.g. `"ko-KR"` → any Korean voice)
+3. Browser default voice (if nothing matches)
+
+**DSL usage** (handled automatically by `AnimflowPlayer`):
+
+```
+@config
+  tts: true                           # initial state of the 🔊/🔇 button
+  tts-voice: Kyunghoon, InJoon, ko-KR # multi-voice fallback
+  tts-rate: 1.0
+  tts-pitch: 1.0
+@end
+```
+
+**Built-in player UI:**
+- 🔊/🔇 toggle button lives in the playback controls bar (bottom)
+- Volume slider appears to the right of the toggle when voice is ON
+- Toggle is disabled while the animation is playing; switching always resets to the beginning
+
 ## Advanced: Low-Level API
 
 For advanced use cases, you can access individual renderers and utilities.

@@ -123,6 +123,20 @@ step 3: hide nodeA
   effect: fadeOut
 ```
 
+**Bulk targets** — special keywords that match groups of elements:
+
+| Target | Description |
+|--------|-------------|
+| `all` | All nodes and edges |
+| `nodes` | All nodes only |
+| `edges` | All edges only |
+
+```
+step 1: hide all          # hides every node and edge
+step 2: hide edges        # hides all edges only
+step 3: show nodes        # reveals all nodes
+```
+
 #### highlight / unhighlight
 
 Emphasize nodes visually.
@@ -150,6 +164,15 @@ step 1: connect nodeA->nodeB
 step 2: connect nodeB->nodeC, nodeC->nodeD
   flow: dash
   speed: 1.5s
+```
+
+**Multiple connections in one step animate simultaneously** — all arrows draw at the same time:
+
+```
+step 1: connect A->B, C->D, E->F
+  flow: particles
+  speed: 1.5s
+  # A→B, C→D, E→F all start drawing together
 ```
 
 #### camera
@@ -232,9 +255,9 @@ step 2: highlight nodeB
 | `particles` | Progressive path draw (default) |
 | `dash` | Dashed line animation |
 | `arrow` | Path draw with eased arrow reveal |
-| `glow` | _(reserved — falls back to `particles`)_ |
-| `wave` | _(reserved — falls back to `particles`)_ |
-| `lightning` | _(reserved — falls back to `particles`)_ |
+| `glow` | Path draw + pulsing SVG blur filter for a glowing look |
+| `wave` | Path draw + sinusoidal opacity ripple |
+| `lightning` | Instant reveal + rapid strobe flicker |
 
 ### Timing
 
@@ -349,6 +372,10 @@ Global settings for playback and rendering.
   controls: true
   narration: true
   background: #f5f5f5
+  tts: true
+  tts-voice: Kyunghoon, InJoon, ko-KR
+  tts-rate: 1.0
+  tts-pitch: 1.0
 @end
 ```
 
@@ -360,6 +387,36 @@ Global settings for playback and rendering.
 | `controls` | boolean | `true` | Show playback controls |
 | `narration` | boolean | `true` | Show narration overlay |
 | `background` | string | `#ffffff` | Canvas background color |
+| `tts` | boolean | `false` | Sets initial state of the 🔊/🔇 toggle button |
+| `tts-voice` | string | `""` | Comma-separated voice name substrings or BCP-47 tags, tried in order |
+| `tts-rate` | number | `1.0` | Speech rate (0.1–10) |
+| `tts-pitch` | number | `1.0` | Speech pitch (0–2) |
+
+### TTS Behavior
+
+When the 🔊 toggle is **ON**, the narration `text` of each step is spoken aloud in sync with animation. The toggle button lives in the playback controls bar and can only be changed while the animation is **stopped**.
+
+- **play** → resumes paused speech
+- **pause** → pauses speech mid-sentence
+- **stop / toggle** → cancels speech and resets to the beginning
+- **seek** → cancels speech (resumes naturally on next step change)
+- **Volume slider** appears next to the toggle when voice is ON; adjusts loudness (0–100%)
+
+Voice pacing mode (when 🔊 is ON):
+- Each step's animation plays normally
+- At the end of each step, if speech is still in progress the timeline **waits** for it to finish before advancing
+- Toggling the button mid-way always resets to the beginning to avoid desync
+
+Voice selection — `tts-voice` is tried left-to-right:
+1. Voice name substring match (e.g. `Kyunghoon` → macOS Korean male)
+2. BCP-47 language prefix match (e.g. `ko-KR` → any Korean voice)
+3. Browser default voice
+
+**Multi-voice fallback example:**
+```
+tts-voice: Kyunghoon, InJoon, ko-KR
+# 1st: macOS Korean male  2nd: Windows Korean male  3rd: any Korean
+```
 
 ---
 

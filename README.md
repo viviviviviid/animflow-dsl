@@ -89,13 +89,14 @@ flowchart LR
 ### Animation System
 - **Rich actions**: show, hide, highlight, unhighlight, connect, camera, annotate
 - **Entrance effects**: fadeIn, slideIn*, scaleIn, bounceIn, flipIn, and more
-- **Flow effects**: particles, dash, arrow - smooth edge animations
+- **Flow effects**: particles, dash, arrow, glow, wave, lightning — smooth edge animations
+- **Bulk targets**: `show/hide all`, `show/hide nodes`, `show/hide edges`
+- **Simultaneous connect**: multiple edges in one step animate in parallel
 - **Precise timing**: Duration, delay, easing, stagger for perfect choreography
 - **Flexible sequencing**: Absolute or relative timing with GSAP timeline
 
 ### Visual Design
-- **Clean mode** - Professional, polished appearance for production docs
-- **Sketchy mode** - Hand-drawn aesthetic using rough.js for creative/educational content
+- **Hand-drawn aesthetic** - Sketchy style powered by rough.js for professional yet expressive diagrams
 - **Automatic layout** - Dagre-powered intelligent graph positioning
 - **Custom styling** - Per-node/edge colors, strokes, and styles
 - **Responsive SVG** - Scales perfectly at any resolution
@@ -108,6 +109,7 @@ flowchart LR
 
 ### Education & Narration
 - **Synchronized narration** - Text appears exactly when you need it
+- **Text-to-Speech** - Web Speech API narration, synced with play/pause/stop
 - **Flexible timing** - Narration can lead or follow animation
 - **Educational focus** - Design for learning, not just visualization
 - **Template library** - 10 pre-built examples from blockchain to algorithm visualizations
@@ -120,6 +122,7 @@ animflow-dsl/
 │   ├── src/
 │   │   ├── components/       # AnimflowPlayer, renderers, controls
 │   │   ├── core/             # Parser, layout, animation engine
+│   │   ├── hooks/            # useTTS and other hooks
 │   │   ├── store/            # Zustand state management
 │   │   └── index.ts          # Public API
 │   └── package.json
@@ -185,7 +188,9 @@ pnpm test                                 # Run tests
 <AnimflowPlayer
   dsl={string}              // DSL string (required)
   className={string}        // CSS class for container
-  defaultMode={'clean'}     // 'clean' or 'sketchy' (default: 'clean')
+  autoplay={boolean}        // Auto-play on load (default: false)
+  controls={boolean}        // Show playback controls (default: true)
+  narration={boolean}       // Show narration overlay (default: true)
 />
 ```
 
@@ -198,7 +203,7 @@ playerRef.current?.play();        // Start playback
 playerRef.current?.pause();       // Pause playback
 playerRef.current?.seek(5);       // Jump to 5 second mark
 playerRef.current?.setSpeed(1.5); // Set playback speed (0.25–2.0)
-playerRef.current?.toggleMode();  // Switch clean ↔ sketchy
+playerRef.current?.restart();     // Restart from beginning
 ```
 
 ### Hooks
@@ -209,6 +214,29 @@ const { isPlaying, currentTime, duration } = useDiagramStore();
 
 // Listen to step changes
 const currentStep = useDiagramStore(s => s.currentStep);
+```
+
+#### `useTTS` — standalone TTS hook
+
+For custom TTS integration outside of DSL config:
+
+```tsx
+import { useTTS } from '@animflow-dsl/react';
+
+const tts = useTTS({
+  enabled: true,
+  voiceName: 'Kyunghoon, InJoon, ko-KR', // comma-separated, tried in order
+  rate: 1.1,    // 0.1–10
+  pitch: 1.0,   // 0–2
+  volume: 0.8,  // 0–1
+  onEnd: () => console.log('finished'), // fires on natural end only
+});
+
+tts.speak('Hello, world!');
+tts.pause();
+tts.resume();
+tts.cancel();
+console.log(tts.isSpeakingRef.current); // sync ref safe inside callbacks
 ```
 
 ## 🏗️ Architecture
@@ -305,6 +333,9 @@ flowchart LR
   loop: false
   controls: true
   speed: 1.0
+  tts: true
+  tts-voice: en-US
+  tts-rate: 1.0
 @end
 ```
 

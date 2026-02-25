@@ -356,5 +356,7 @@ export const dijkstraTemplate: Template = {
   loop: false
   speed: 1.0
   controls: true
+  tts: true
+  tts-voice: Kyunghoon, InJoon, ko-KR
 @end`,
 };

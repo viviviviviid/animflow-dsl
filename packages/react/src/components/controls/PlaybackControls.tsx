@@ -10,6 +10,10 @@ interface PlaybackControlsProps {
   onSeekToTime: (time: number) => void;
   stepBoundaries: { step: number; start: number; end: number }[];
   stepDetails?: Record<number, { title?: string; text?: string }>;
+  ttsMode?: boolean;
+  onTtsModeToggle?: () => void;
+  ttsVolume?: number;
+  onTtsVolumeChange?: (volume: number) => void;
 }
 
 export function PlaybackControls({
@@ -19,6 +23,10 @@ export function PlaybackControls({
   onSeekToTime,
   stepBoundaries,
   stepDetails = {},
+  ttsMode,
+  onTtsModeToggle,
+  ttsVolume = 1,
+  onTtsVolumeChange,
 }: PlaybackControlsProps) {
   const { isPlaying, currentTime, duration, speed } = useDiagramStore();
   const progressBarRef = React.useRef<HTMLDivElement | null>(null);
@@ -251,6 +259,38 @@ export function PlaybackControls({
               </div>
             )}
           </div>
+
+          {/* TTS Toggle + Volume */}
+          {onTtsModeToggle !== undefined && (
+            <div className="shrink-0 flex items-center gap-1.5">
+              <button
+                onClick={onTtsModeToggle}
+                disabled={isPlaying}
+                className={[
+                  "px-2 py-1 rounded text-xs font-medium border shadow-sm transition-colors",
+                  ttsMode
+                    ? "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                    : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50",
+                  isPlaying ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
+                ].join(" ")}
+                title={isPlaying ? "재생 중에는 변경할 수 없습니다" : ttsMode ? "음성 끄기 (처음부터 재시작)" : "음성 켜기 (처음부터 재시작)"}
+              >
+                {ttsMode ? "🔊" : "🔇"}
+              </button>
+              {ttsMode && onTtsVolumeChange && (
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={ttsVolume}
+                  onChange={(e) => onTtsVolumeChange(parseFloat(e.target.value))}
+                  className="w-16 h-1 accent-blue-500 cursor-pointer"
+                  title={`볼륨 ${Math.round(ttsVolume * 100)}%`}
+                />
+              )}
+            </div>
+          )}
 
         </div>
       </div>

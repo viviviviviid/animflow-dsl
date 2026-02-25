@@ -7,6 +7,7 @@ export { DiagramRenderer } from "./components/renderer/DiagramRenderer";
 
 // Store / Hooks
 export { useDiagramStore } from "./store/diagram-store";
+export { useTTS } from "./hooks/useTTS";
 
 // Core Functions
 export { parseDsl } from "./core/parser/dsl-parser";

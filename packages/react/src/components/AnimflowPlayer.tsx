@@ -8,6 +8,7 @@ import { DiagramRenderer } from "./renderer/DiagramRenderer";
 import { NarrationOverlay } from "./renderer/NarrationOverlay";
 import { PlaybackControls } from "./controls/PlaybackControls";
 import { useDiagramStore } from "../store/diagram-store";
+import { useTTS } from "../hooks/useTTS";
 import type { DiagramData } from "../core/types";
 
 export interface AnimflowPlayerProps {
@@ -53,7 +54,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       panY: number;
     } | null>(null);
     const timelineRef = useRef<AnimationTimeline | null>(null);
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isDraggingRef = useRef(false);
     const panRafRef = useRef<number | null>(null);
     const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
@@ -127,13 +128,44 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
     }, [localDiagramData, stepBoundaries]);
 
     const {
+      isPlaying,
       setDuration,
       setCurrentTime,
       setCurrentStep,
       setIsPlaying,
+      setSpeed,
       currentNarration,
       setCurrentNarration,
     } = useDiagramStore();
+
+    // TTS mode — initialised from DSL config, toggled by the user (disabled while playing)
+    const [ttsMode, setTtsMode] = useState(false);
+    const ttsModeRef = useRef(ttsMode);
+    ttsModeRef.current = ttsMode;
+
+    const [ttsVolume, setTtsVolume] = useState(1.0);
+
+    // True when the timeline was paused mid-animation to wait for TTS to finish
+    const pausedForTTSRef = useRef(false);
+
+    const tts = useTTS({
+      enabled: ttsMode,
+      voiceName: localDiagramData?.config.ttsVoice,
+      rate: localDiagramData?.config.ttsRate,
+      pitch: localDiagramData?.config.ttsPitch,
+      volume: ttsVolume,
+      onEnd: () => {
+        // Speech finished naturally — resume timeline only if WE paused it for TTS
+        if (pausedForTTSRef.current) {
+          pausedForTTSRef.current = false;
+          timelineRef.current?.play();
+          setIsPlaying(true);
+        }
+      },
+    });
+    // Stable ref so tts methods can be used in effects/callbacks without causing re-runs
+    const ttsRef = useRef(tts);
+    ttsRef.current = tts;
 
     // Parse DSL and create diagram
     useEffect(() => {
@@ -200,6 +232,10 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       setCurrentStep(0);
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
+      pausedForTTSRef.current = false;
+
+      // Sync ttsMode from new DSL config
+      setTtsMode(localDiagramData.config.tts ?? false);
 
       if (!svgRef.current) return;
 
@@ -210,6 +246,19 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
             localDiagramData.narrations.find((n) => n.step === step) || null;
           if (narrationForStep) {
             setCurrentNarration(narrationForStep);
+            // Only speak when TTS mode is on
+            if (ttsModeRef.current) {
+              ttsRef.current.speak(narrationForStep.text);
+            }
+          }
+        },
+        onStepComplete: () => {
+          // If TTS mode is on and speech is still in progress, pause the timeline
+          // and wait for the onEnd callback to resume it.
+          if (ttsModeRef.current && ttsRef.current.isSpeakingRef.current) {
+            pausedForTTSRef.current = true;
+            timelineRef.current?.pause();
+            setIsPlaying(false);
           }
         },
       });
@@ -245,6 +294,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
         }
+        ttsRef.current.cancel();
       };
     }, [
       localDiagramData,
@@ -270,12 +320,16 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
 
     const handlePlay = useCallback(() => {
       if (timelineRef.current) {
+        pausedForTTSRef.current = false; // user explicitly resumed — clear TTS-pause flag
         const current = timelineRef.current.getCurrentTime();
         const duration = timelineRef.current.getDuration();
         const isAtEnd = duration > 0 && current >= duration - 0.01;
 
         if (isAtEnd) {
           timelineRef.current.restart();
+          ttsRef.current.cancel();
+        } else {
+          ttsRef.current.resume();
         }
         timelineRef.current.play();
         setIsPlaying(true);
@@ -284,28 +338,47 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
 
     const handlePause = useCallback(() => {
       if (timelineRef.current) {
+        pausedForTTSRef.current = false; // user-initiated pause — don't auto-resume on TTS end
         timelineRef.current.pause();
+        ttsRef.current.pause();
         setIsPlaying(false);
       }
     }, [setIsPlaying]);
 
     const handleStop = useCallback(() => {
       if (timelineRef.current) {
+        pausedForTTSRef.current = false;
         timelineRef.current.stop();
+        ttsRef.current.cancel();
         setIsPlaying(false);
         setCurrentTime(0);
       }
     }, [setIsPlaying, setCurrentTime]);
 
+    // Reset animation to start when toggling TTS mode to avoid pacing state inconsistencies
+    const handleTtsModeToggle = useCallback(() => {
+      if (timelineRef.current) {
+        timelineRef.current.stop();
+        setCurrentTime(0);
+      }
+      ttsRef.current.cancel();
+      pausedForTTSRef.current = false;
+      setIsPlaying(false);
+      setTtsMode((prev) => !prev);
+    }, [setIsPlaying, setCurrentTime]);
+
     const handleSpeedChange = useCallback((speed: number) => {
       if (timelineRef.current) {
         timelineRef.current.setSpeed(speed);
+        setSpeed(speed); // sync store so PlaybackControls re-renders with new value
       }
-    }, []);
+    }, [setSpeed]);
 
     const handleSeekToTime = useCallback((time: number) => {
       if (!timelineRef.current || !localDiagramData) return;
+      pausedForTTSRef.current = false; // seek breaks TTS pacing — don't auto-resume
       timelineRef.current.seek(time);
+      ttsRef.current.cancel();
       setCurrentTime(time);
 
       const matched =
@@ -506,6 +579,10 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
             onSeekToTime={handleSeekToTime}
             stepBoundaries={narrationBoundaries}
             stepDetails={narrationStepDetails}
+            ttsMode={ttsMode}
+            onTtsModeToggle={handleTtsModeToggle}
+            ttsVolume={ttsVolume}
+            onTtsVolumeChange={setTtsVolume}
           />
         )}
       </div>

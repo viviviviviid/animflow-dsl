@@ -302,5 +302,7 @@ export const microservicesTemplate: Template = {
   loop: false
   controls: true
   speed: 1.0
+  tts: true
+  tts-voice: Kyunghoon, InJoon, ko-KR
 @end`,
 };

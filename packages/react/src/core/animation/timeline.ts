@@ -11,6 +11,8 @@ import { animateCamera } from "./camera";
 
 interface AnimationTimelineOptions {
   onStepChange?: (step: number) => void;
+  /** Fires once all tweens in a step have finished (just before the next step starts). */
+  onStepComplete?: (step: number) => void;
 }
 
 /**
@@ -21,6 +23,7 @@ export class AnimationTimeline {
   private svgElement: SVGSVGElement | null = null;
   private data: DiagramData;
   private onStepChange?: (step: number) => void;
+  private onStepComplete?: (step: number) => void;
   private stepBoundaries: { step: number; start: number; end: number }[] = [];
   /** Original fill colors per node, saved before highlight overwrites them */
   private originalFills = new Map<string, string>();
@@ -28,6 +31,7 @@ export class AnimationTimeline {
   constructor(data: DiagramData, options?: AnimationTimelineOptions) {
     this.data = data;
     this.onStepChange = options?.onStepChange;
+    this.onStepComplete = options?.onStepComplete;
     this.timeline = gsap.timeline({
       paused: true,
       onUpdate: () => this.onTimelineUpdate(),
@@ -60,6 +64,9 @@ export class AnimationTimeline {
       }
       const stepEnd = this.timeline.duration();
       this.stepBoundaries.push({ step: stepNum, start: stepStart, end: stepEnd });
+      // Fire after all animations in this step finish (position = stepEnd, zero-duration)
+      const capturedStep = stepNum;
+      this.timeline.call(() => { this.onStepComplete?.(capturedStep); }, undefined, stepEnd);
     }
   }
 

@@ -109,5 +109,7 @@ export const simpleTemplate: Template = {
   autoplay: true
   loop: false
   speed: 1.0
+  tts: true
+  tts-voice: Kyunghoon, InJoon, ko-KR
 @end`,
 };

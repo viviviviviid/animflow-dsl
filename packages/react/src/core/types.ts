@@ -165,6 +165,11 @@ export interface DiagramConfig {
   controls?: boolean;
   narration?: boolean;
   background?: string;
+  // TTS
+  tts?: boolean;
+  ttsVoice?: string;  // BCP-47 lang tag (e.g. "en-US") or voice name substring
+  ttsRate?: number;   // 0.1–10
+  ttsPitch?: number;  // 0–2
 }
 
 // ----- Complete Diagram Data -----
