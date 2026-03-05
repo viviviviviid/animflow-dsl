@@ -8,6 +8,12 @@ import { microservicesTemplate } from "./microservices";
 import { zkSnarkTemplate } from "./zk-snark";
 import { simpleTemplate } from "./simple";
 import { dijkstraTemplate } from "./dijkstra";
+import { redisStreamTemplate } from "./redis-stream";
+import { tcpTlsTemplate } from "./tcp-tls";
+import { oauthTemplate } from "./oauth";
+import { cicdTemplate } from "./cicd";
+import { immuneResponseTemplate } from "./immune-response";
+import { legislationTemplate } from "./legislation";
 
 export interface Template {
   name: string;
@@ -26,4 +32,10 @@ export const TEMPLATES: Template[] = [
   zkSnarkTemplate,
   simpleTemplate,
   dijkstraTemplate,
+  redisStreamTemplate,
+  tcpTlsTemplate,
+  oauthTemplate,
+  cicdTemplate,
+  immuneResponseTemplate,
+  legislationTemplate,
 ];

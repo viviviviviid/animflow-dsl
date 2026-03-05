@@ -108,128 +108,127 @@ export function PlaybackControls({
 
           {/* Step Progress Bar (clickable chapters) */}
           <div className="relative flex-1">
-          {hoverSegmentStep !== null &&
-            hoverTooltipX !== null &&
-            (stepDetails[hoverSegmentStep]?.title ||
-              stepDetails[hoverSegmentStep]?.text) && (
-            <div
-              className="pointer-events-none absolute -top-16 z-40 max-w-xs -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg"
-              style={{ left: `${hoverTooltipX}px` }}
-            >
-              {stepDetails[hoverSegmentStep]?.title && (
-                <div className="font-semibold">
-                  {stepDetails[hoverSegmentStep]?.title}
+            {hoverSegmentStep !== null &&
+              hoverTooltipX !== null &&
+              (stepDetails[hoverSegmentStep]?.title ||
+                stepDetails[hoverSegmentStep]?.text) && (
+                <div
+                  className="pointer-events-none absolute -top-16 z-40 max-w-xs -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg"
+                  style={{ left: `${hoverTooltipX}px` }}
+                >
+                  {stepDetails[hoverSegmentStep]?.title && (
+                    <div className="font-semibold">
+                      {stepDetails[hoverSegmentStep]?.title}
+                    </div>
+                  )}
+                  {stepDetails[hoverSegmentStep]?.text && (
+                    <div className="mt-1 line-clamp-2 text-gray-200">
+                      {stepDetails[hoverSegmentStep]?.text}
+                    </div>
+                  )}
                 </div>
               )}
-              {stepDetails[hoverSegmentStep]?.text && (
-                <div className="mt-1 line-clamp-2 text-gray-200">
-                  {stepDetails[hoverSegmentStep]?.text}
-                </div>
-              )}
-            </div>
-          )}
             {stepBoundaries.length > 0 ? (
-            <div
-              ref={progressBarRef}
-              className="relative h-3 rounded-full bg-gray-200 p-[1px] transition-all duration-150 hover:h-4"
-              onMouseMove={handleBarMouseMove}
-              onMouseLeave={handleBarMouseLeave}
-            >
-              {/* Hover preview range: current dot <-> hover point */}
-              {isHoveringBar && previewWidth > 0 && (
-                <div
-                  className="pointer-events-none absolute top-[1px] bottom-[1px] rounded bg-gray-400/50 z-20"
-                  style={{
-                    left: `${previewStart}%`,
-                    width: `${previewWidth}%`,
-                  }}
-                />
-              )}
-
-              <div className="h-full w-full flex gap-[2px]">
-              {stepBoundaries.map((segment, index) => {
-                const segmentDuration = Math.max(
-                  0.001,
-                  segment.end - segment.start
-                );
-                const playedRatio = Math.max(
-                  0,
-                  Math.min(
-                    1,
-                    (currentTime - segment.start) / Math.max(0.001, segmentDuration)
-                  )
-                );
-                return (
-                  <button
-                    key={`${segment.step}-${index}`}
-                    onClick={() => onSeekToTime(segment.start)}
-                    onMouseEnter={(e) => {
-                      setHoverSegmentStep(segment.step);
-                      if (progressBarRef.current) {
-                        const barRect = progressBarRef.current.getBoundingClientRect();
-                        const targetRect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                        setHoverTooltipX(targetRect.left - barRect.left + targetRect.width / 2);
-                      }
+              <div
+                ref={progressBarRef}
+                className="relative h-3 rounded-full bg-gray-200 p-[1px] transition-all duration-150 hover:h-4"
+                onMouseMove={handleBarMouseMove}
+                onMouseLeave={handleBarMouseLeave}
+              >
+                {/* Hover preview range: current dot <-> hover point */}
+                {isHoveringBar && previewWidth > 0 && (
+                  <div
+                    className="pointer-events-none absolute top-[1px] bottom-[1px] rounded bg-gray-400/50 z-20"
+                    style={{
+                      left: `${previewStart}%`,
+                      width: `${previewWidth}%`,
                     }}
-                    className={`relative h-full min-w-[10px] rounded-[2px] bg-gray-300/90 transition-all duration-150 origin-center overflow-hidden border border-white/90 ${
-                      hoverSegmentStep === segment.step ? "scale-y-125" : ""
-                    }`}
-                    style={{ flexGrow: segmentDuration }}
-                    title={
-                      stepDetails[segment.step]?.title
-                        ? `${stepDetails[segment.step]?.title}로 이동`
-                        : `step ${segment.step}로 이동`
-                    }
-                    aria-label={
-                      stepDetails[segment.step]?.title
-                        ? `${stepDetails[segment.step]?.title}로 이동`
-                        : `step ${segment.step}로 이동`
-                    }
-                  >
-                    <div
-                      className="h-full bg-primary transition-[width] duration-100 ease-linear"
-                      style={{ width: `${playedRatio * 100}%` }}
-                    />
-                  </button>
-                );
-              })}
-              </div>
+                  />
+                )}
 
-              {/* Current playhead */}
-              <div
-                className="pointer-events-none absolute top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-white border-2 border-primary shadow transition-all duration-100 ease-linear"
-                style={{
-                  left: `calc(${clampedProgress}% - 7px)`,
-                }}
-              />
-            </div>
-            ) : (
-            <div
-              ref={progressBarRef}
-              className="relative h-3 rounded-full bg-gray-200 overflow-hidden transition-all duration-150 hover:h-4"
-              onMouseMove={handleBarMouseMove}
-              onMouseLeave={handleBarMouseLeave}
-            >
-              <div
-                className="h-full bg-primary transition-all duration-200"
-                style={{ width: `${clampedProgress}%` }}
-              />
-              {isHoveringBar && previewWidth > 0 && (
+                <div className="h-full w-full flex gap-[2px]">
+                  {stepBoundaries.map((segment, index) => {
+                    const segmentDuration = Math.max(
+                      0.001,
+                      segment.end - segment.start
+                    );
+                    const playedRatio = Math.max(
+                      0,
+                      Math.min(
+                        1,
+                        (currentTime - segment.start) / Math.max(0.001, segmentDuration)
+                      )
+                    );
+                    return (
+                      <button
+                        key={`${segment.step}-${index}`}
+                        onClick={() => onSeekToTime(segment.start)}
+                        onMouseEnter={(e) => {
+                          setHoverSegmentStep(segment.step);
+                          if (progressBarRef.current) {
+                            const barRect = progressBarRef.current.getBoundingClientRect();
+                            const targetRect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                            setHoverTooltipX(targetRect.left - barRect.left + targetRect.width / 2);
+                          }
+                        }}
+                        className={`relative h-full min-w-[10px] rounded-[2px] bg-gray-300/90 transition-all duration-150 origin-center overflow-hidden border border-white/90 ${hoverSegmentStep === segment.step ? "scale-y-125" : ""
+                          }`}
+                        style={{ flexGrow: segmentDuration }}
+                        title={
+                          stepDetails[segment.step]?.title
+                            ? `${stepDetails[segment.step]?.title}로 이동`
+                            : `step ${segment.step}로 이동`
+                        }
+                        aria-label={
+                          stepDetails[segment.step]?.title
+                            ? `${stepDetails[segment.step]?.title}로 이동`
+                            : `step ${segment.step}로 이동`
+                        }
+                      >
+                        <div
+                          className="h-full bg-primary transition-[width] duration-100 ease-linear"
+                          style={{ width: `${playedRatio * 100}%` }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Current playhead */}
                 <div
-                  className="pointer-events-none absolute top-0 bottom-0 rounded bg-gray-400/50 z-20"
+                  className="pointer-events-none absolute top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-white border-2 border-primary shadow transition-all duration-100 ease-linear"
                   style={{
-                    left: `${previewStart}%`,
-                    width: `${previewWidth}%`,
+                    left: `calc(${clampedProgress}% - 7px)`,
                   }}
                 />
-              )}
+              </div>
+            ) : (
               <div
-                className="pointer-events-none absolute top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-white border-2 border-primary shadow transition-all duration-100 ease-linear"
-                style={{
-                  left: `calc(${clampedProgress}% - 7px)`,
-                }}
-              />
-            </div>
+                ref={progressBarRef}
+                className="relative h-3 rounded-full bg-gray-200 overflow-hidden transition-all duration-150 hover:h-4"
+                onMouseMove={handleBarMouseMove}
+                onMouseLeave={handleBarMouseLeave}
+              >
+                <div
+                  className="h-full bg-primary transition-all duration-200"
+                  style={{ width: `${clampedProgress}%` }}
+                />
+                {isHoveringBar && previewWidth > 0 && (
+                  <div
+                    className="pointer-events-none absolute top-0 bottom-0 rounded bg-gray-400/50 z-20"
+                    style={{
+                      left: `${previewStart}%`,
+                      width: `${previewWidth}%`,
+                    }}
+                  />
+                )}
+                <div
+                  className="pointer-events-none absolute top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-white border-2 border-primary shadow transition-all duration-100 ease-linear"
+                  style={{
+                    left: `calc(${clampedProgress}% - 7px)`,
+                  }}
+                />
+              </div>
             )}
             <div className="flex justify-between text-[11px] text-gray-500 mt-1">
               <span>{formatTime(currentTime)}</span>
