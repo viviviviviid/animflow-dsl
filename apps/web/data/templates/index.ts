@@ -1,3 +1,4 @@
+import { awsTransitGatewayTemplate } from "./aws-transit-gateway";
 import { blockchainTemplate } from "./blockchain";
 import { jwtAuthTemplate } from "./jwt-auth";
 import { httpCycleTemplate } from "./http-cycle";
@@ -22,6 +23,7 @@ export interface Template {
 }
 
 export const TEMPLATES: Template[] = [
+  awsTransitGatewayTemplate,
   blockchainTemplate,
   jwtAuthTemplate,
   httpCycleTemplate,

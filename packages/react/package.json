@@ -20,7 +20,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
     "react": "^18.0.0",
@@ -50,7 +51,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/viviviviviid/scratch-blockchain.git",
+    "url": "https://github.com/viviviviviid/animflow-dsl.git",
     "directory": "packages/react"
   }
 }
