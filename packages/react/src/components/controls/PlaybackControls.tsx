@@ -1,9 +1,13 @@
 "use client";
 
 import React from "react";
-import { useDiagramStore } from "../../store/diagram-store";
+import { useStore } from "zustand";
+import type { DiagramStoreApi } from "../../store/diagram-store";
+import type { AnimflowI18n } from "../AnimflowPlayer";
 
 interface PlaybackControlsProps {
+  store: DiagramStoreApi;
+  i18n: Required<Omit<AnimflowI18n, "seekTo">> & Pick<AnimflowI18n, "seekTo">;
   onPlay: () => void;
   onPause: () => void;
   onSpeedChange: (speed: number) => void;
@@ -17,6 +21,8 @@ interface PlaybackControlsProps {
 }
 
 export function PlaybackControls({
+  store,
+  i18n,
   onPlay,
   onPause,
   onSpeedChange,
@@ -28,7 +34,7 @@ export function PlaybackControls({
   ttsVolume = 1,
   onTtsVolumeChange,
 }: PlaybackControlsProps) {
-  const { isPlaying, currentTime, duration, speed } = useDiagramStore();
+  const { isPlaying, currentTime, duration, speed } = useStore(store);
   const progressBarRef = React.useRef<HTMLDivElement | null>(null);
   const [hoverPercent, setHoverPercent] = React.useState<number | null>(null);
   const [hoverSegmentStep, setHoverSegmentStep] = React.useState<number | null>(null);
@@ -86,8 +92,8 @@ export function PlaybackControls({
             <button
               onClick={onPlay}
               className="shrink-0 p-2 rounded-full text-gray-900 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
-              title="재생"
-              aria-label="재생"
+              title={i18n.play}
+              aria-label={i18n.play}
             >
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
@@ -97,8 +103,8 @@ export function PlaybackControls({
             <button
               onClick={onPause}
               className="shrink-0 p-2 rounded-full text-gray-900 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
-              title="일시정지"
-              aria-label="일시정지"
+              title={i18n.pause}
+              aria-label={i18n.pause}
             >
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
@@ -175,14 +181,14 @@ export function PlaybackControls({
                           }`}
                         style={{ flexGrow: segmentDuration }}
                         title={
-                          stepDetails[segment.step]?.title
-                            ? `${stepDetails[segment.step]?.title}로 이동`
-                            : `step ${segment.step}로 이동`
+                          i18n.seekTo
+                            ? i18n.seekTo(segment.step, stepDetails[segment.step]?.title)
+                            : `Go to step ${segment.step}`
                         }
                         aria-label={
-                          stepDetails[segment.step]?.title
-                            ? `${stepDetails[segment.step]?.title}로 이동`
-                            : `step ${segment.step}로 이동`
+                          i18n.seekTo
+                            ? i18n.seekTo(segment.step, stepDetails[segment.step]?.title)
+                            : `Go to step ${segment.step}`
                         }
                       >
                         <div
@@ -272,7 +278,7 @@ export function PlaybackControls({
                     : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50",
                   isPlaying ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
                 ].join(" ")}
-                title={isPlaying ? "재생 중에는 변경할 수 없습니다" : ttsMode ? "음성 끄기 (처음부터 재시작)" : "음성 켜기 (처음부터 재시작)"}
+                title={isPlaying ? "Cannot change while playing" : ttsMode ? "Disable voice (restarts from beginning)" : "Enable voice (restarts from beginning)"}
               >
                 {ttsMode ? "🔊" : "🔇"}
               </button>
@@ -285,7 +291,7 @@ export function PlaybackControls({
                   value={ttsVolume}
                   onChange={(e) => onTtsVolumeChange(parseFloat(e.target.value))}
                   className="w-16 h-1 accent-blue-500 cursor-pointer"
-                  title={`볼륨 ${Math.round(ttsVolume * 100)}%`}
+                  title={`Volume ${Math.round(ttsVolume * 100)}%`}
                 />
               )}
             </div>

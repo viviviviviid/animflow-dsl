@@ -7,9 +7,35 @@ import { AnimationTimeline } from "../core/animation/timeline";
 import { DiagramRenderer } from "./renderer/DiagramRenderer";
 import { NarrationOverlay } from "./renderer/NarrationOverlay";
 import { PlaybackControls } from "./controls/PlaybackControls";
-import { useDiagramStore } from "../store/diagram-store";
+import { useStore } from "zustand";
+import { createDiagramStore } from "../store/diagram-store";
+import type { DiagramStoreApi } from "../store/diagram-store";
 import { useTTS } from "../hooks/useTTS";
 import type { DiagramData } from "../core/types";
+
+export interface AnimflowI18n {
+  errorTitle?: string;
+  loadingText?: string;
+  zoomIn?: string;
+  zoomOut?: string;
+  zoomReset?: string;
+  play?: string;
+  pause?: string;
+  unknownError?: string;
+  seekTo?: (step: number, title?: string) => string;
+}
+
+const defaultI18n: Required<Omit<AnimflowI18n, "seekTo">> & Pick<AnimflowI18n, "seekTo"> = {
+  errorTitle: "Error",
+  loadingText: "Loading...",
+  zoomIn: "Zoom in",
+  zoomOut: "Zoom out",
+  zoomReset: "Reset zoom",
+  play: "Play",
+  pause: "Pause",
+  unknownError: "Unknown error",
+  seekTo: (step, title) => title ? `Go to ${title}` : `Go to step ${step}`,
+};
 
 export interface AnimflowPlayerProps {
   dsl: string;
@@ -17,6 +43,7 @@ export interface AnimflowPlayerProps {
   controls?: boolean;
   narration?: boolean;
   className?: string;
+  i18n?: AnimflowI18n;
   onError?: (error: string) => void;
   onReady?: (data: DiagramData) => void;
 }
@@ -41,12 +68,19 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       controls = true,
       narration = true,
       className = "",
+      i18n,
       onError,
       onReady,
     },
     ref
   ) {
+    const effectiveI18n = { ...defaultI18n, ...i18n };
     const svgRef = useRef<SVGSVGElement | null>(null);
+    const storeRef = useRef<DiagramStoreApi | null>(null);
+    if (storeRef.current === null) {
+      storeRef.current = createDiagramStore();
+    }
+    const store = storeRef.current;
     const panStartRef = useRef<{
       clientX: number;
       clientY: number;
@@ -136,7 +170,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       setSpeed,
       currentNarration,
       setCurrentNarration,
-    } = useDiagramStore();
+    } = useStore(store);
 
     // TTS mode — initialised from DSL config, toggled by the user (disabled while playing)
     const [ttsMode, setTtsMode] = useState(false);
@@ -179,7 +213,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         const parseResult = parseDsl(dsl);
         
         if (!parseResult.success || !parseResult.data) {
-          const errorMsg = "DSL 파싱 실패";
+          const errorMsg = parseResult.errors?.[0]?.message ?? effectiveI18n.unknownError;
           setError(errorMsg);
           onError?.(errorMsg);
           return;
@@ -209,7 +243,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         setError(null);
         onReady?.(data);
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : "알 수 없는 오류";
+        const errorMsg = err instanceof Error ? err.message : effectiveI18n.unknownError;
         setError(errorMsg);
         onError?.(errorMsg);
       }
@@ -496,7 +530,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       return (
         <div className={`flex items-center justify-center h-full bg-red-50 ${className}`}>
           <div className="text-center">
-            <p className="text-red-600 font-semibold mb-2">오류 발생</p>
+            <p className="text-red-600 font-semibold mb-2">{effectiveI18n.errorTitle}</p>
             <p className="text-gray-600">{error}</p>
           </div>
         </div>
@@ -506,7 +540,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
     if (!localDiagramData) {
       return (
         <div className={`flex items-center justify-center h-full bg-gray-50 ${className}`}>
-          <p className="text-gray-400">로딩 중...</p>
+          <p className="text-gray-400">{effectiveI18n.loadingText}</p>
         </div>
       );
     }
@@ -521,21 +555,21 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
             <button
               onClick={handleZoomOut}
               className="px-3 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md text-sm font-medium"
-              title="축소"
+              title={effectiveI18n.zoomOut}
             >
               -
             </button>
             <button
               onClick={handleZoomIn}
               className="px-3 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md text-sm font-medium"
-              title="확대"
+              title={effectiveI18n.zoomIn}
             >
               +
             </button>
             <button
               onClick={handleZoomReset}
               className="px-3 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md text-sm font-medium"
-              title="원래 크기"
+              title={effectiveI18n.zoomReset}
             >
               {Math.round(zoomLevel * 100)}%
             </button>
@@ -573,6 +607,8 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         {/* Playback Controls */}
         {localDiagramData.config.controls !== false && controls && (
           <PlaybackControls
+            store={store}
+            i18n={effectiveI18n}
             onPlay={handlePlay}
             onPause={handlePause}
             onSpeedChange={handleSpeedChange}

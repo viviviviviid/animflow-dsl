@@ -1,7 +1,7 @@
-import { create } from "zustand";
+import { createStore } from "zustand/vanilla";
 import type { DiagramData, NarrationItem } from "../core/types";
 
-interface DiagramStore {
+export interface DiagramStore {
   // Diagram data
   diagramData: DiagramData | null;
   setDiagramData: (data: DiagramData | null) => void;
@@ -24,22 +24,26 @@ interface DiagramStore {
   setCurrentNarration: (narration: NarrationItem | null) => void;
 }
 
-export const useDiagramStore = create<DiagramStore>((set) => ({
-  // Initial state
-  diagramData: null,
-  isPlaying: false,
-  currentStep: 0,
-  currentTime: 0,
-  duration: 0,
-  speed: 1.0,
-  currentNarration: null,
+export function createDiagramStore() {
+  return createStore<DiagramStore>((set) => ({
+    // Initial state
+    diagramData: null,
+    isPlaying: false,
+    currentStep: 0,
+    currentTime: 0,
+    duration: 0,
+    speed: 1.0,
+    currentNarration: null,
 
-  // Actions
-  setDiagramData: (data) => set({ diagramData: data }),
-  setIsPlaying: (playing) => set({ isPlaying: playing }),
-  setCurrentStep: (step) => set({ currentStep: step }),
-  setCurrentTime: (time) => set({ currentTime: time }),
-  setDuration: (duration) => set({ duration }),
-  setSpeed: (speed) => set({ speed }),
-  setCurrentNarration: (narration) => set({ currentNarration: narration }),
-}));
+    // Actions
+    setDiagramData: (data) => set({ diagramData: data }),
+    setIsPlaying: (playing) => set({ isPlaying: playing }),
+    setCurrentStep: (step) => set({ currentStep: step }),
+    setCurrentTime: (time) => set({ currentTime: time }),
+    setDuration: (duration) => set({ duration }),
+    setSpeed: (speed) => set({ speed }),
+    setCurrentNarration: (narration) => set({ currentNarration: narration }),
+  }));
+}
+
+export type DiagramStoreApi = ReturnType<typeof createDiagramStore>;

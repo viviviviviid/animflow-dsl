@@ -1,12 +1,13 @@
 // Main Component
 export { AnimflowPlayer } from "./components/AnimflowPlayer";
-export type { AnimflowPlayerProps, AnimflowPlayerRef } from "./components/AnimflowPlayer";
+export type { AnimflowPlayerProps, AnimflowPlayerRef, AnimflowI18n } from "./components/AnimflowPlayer";
 
 // Renderer Components
 export { DiagramRenderer } from "./components/renderer/DiagramRenderer";
 
 // Store / Hooks
-export { useDiagramStore } from "./store/diagram-store";
+export { createDiagramStore } from "./store/diagram-store";
+export type { DiagramStore, DiagramStoreApi } from "./store/diagram-store";
 export { useTTS } from "./hooks/useTTS";
 
 // Core Functions
