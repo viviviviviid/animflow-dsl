@@ -1,224 +1,224 @@
 import type { Template } from "./index";
 
 export const redisStreamTemplate: Template = {
-  name: "Redis Stream 이벤트 흐름",
-  description: "Fan-out, Consumer Group, XCLAIM 복구까지 Redis Stream 핵심 흐름",
+  name: "Redis Stream Event Flow",
+  description: "Complete Redis Stream flow from Fan-out, Consumer Group, to XCLAIM recovery",
   dsl: `flowchart LR
-  producer[Producer<br/>주문 서비스]
+  producer[Producer<br/>Order Service]
   stream[("Redis Stream<br/>order-events<br/>─────────────<br/>1699001-0: order_created<br/>1699002-0: order_paid<br/>1699003-0: order_shipped")]
 
   cg1[Consumer Group<br/>order-processors<br/>last-id: 1699002-0]
   cg2[Consumer Group<br/>analytics<br/>last-id: 1699001-0]
 
-  c1[Consumer 1<br/>재고 서비스]
-  c2[Consumer 2<br/>알림 서비스]
-  c3[Consumer 3<br/>분석 서비스]
+  c1[Consumer 1<br/>Inventory Service]
+  c2[Consumer 2<br/>Notification Service]
+  c3[Consumer 3<br/>Analytics Service]
 
-  pel[PEL<br/>미확인 메시지<br/>1699002-0 → c2<br/>경과: 32s]
-  xclaim[XCLAIM<br/>c1이 메시지 인수]
-  dead[Dead Letter<br/>my-stream-dead<br/>재시도 3회 초과]
+  pel[PEL<br/>Unconfirmed Messages<br/>1699002-0 → c2<br/>Elapsed: 32s]
+  xclaim[XCLAIM<br/>c1 takes message]
+  dead[Dead Letter<br/>my-stream-dead<br/>Retries exceeded 3 times]
 
   producer -->|XADD *| stream
   stream -->|XREADGROUP >| cg1
   stream -->|XREADGROUP >| cg2
-  cg1 -->|메시지 전달| c1
-  cg1 -->|메시지 전달| c2
-  cg2 -->|메시지 전달| c3
+  cg1 -->|Message Delivery| c1
+  cg1 -->|Message Delivery| c2
+  cg2 -->|Message Delivery| c3
   c1 -->|XACK| cg1
   c3 -->|XACK| cg2
-  c2 -.->|타임아웃 / 처리 실패| pel
+  c2 -.->|Timeout / Processing Failure| pel
   pel -->|XCLAIM --min-idle-time 30000| xclaim
-  xclaim -->|재처리| c1
-  c1 -->|재처리 성공 시 XACK| cg1
-  pel -->|재시도 횟수 초과| dead
+  xclaim -->|Reprocessing| c1
+  c1 -->|XACK on Success| cg1
+  pel -->|Retry Count Exceeded| dead
 
 @animation
   step 1: show producer
-    name: "Producer 표시"
-    description: "주문 서비스 Producer를 화면에 표시합니다."
+    name: "Show Producer"
+    description: "Display the Producer node on screen."
     effect: slideInLeft
     duration: 1s
 
   step 2: highlight producer
-    name: "Producer 강조"
-    description: "producer를 강조합니다."
+    name: "Highlight Producer"
+    description: "Highlight the producer."
     color: #2196F3
     glow: true
     duration: 1s
 
   step 3: show stream
-    name: "Redis Stream 표시"
-    description: "Redis Stream 노드를 화면에 표시합니다."
+    name: "Show Redis Stream"
+    description: "Display the Redis Stream node on screen."
     effect: scaleIn
     duration: 1s
 
   step 4: connect producer->stream
-    name: "XADD 이벤트 발행"
-    description: "producer에서 stream으로 메시지를 추가합니다."
+    name: "Publish XADD Event"
+    description: "Add message from producer to stream."
     flow: particles
     speed: 1.5s
 
   step 5: highlight stream
-    name: "Stream 강조"
-    description: "stream을 강조합니다."
+    name: "Highlight Stream"
+    description: "Highlight the stream."
     color: #E91E63
     pulse: true
     duration: 1.5s
 
   step 6: show cg1
-    name: "Consumer Group 1 표시"
-    description: "order-processors Consumer Group을 화면에 표시합니다."
+    name: "Show Consumer Group 1"
+    description: "Display the order-processors Consumer Group on screen."
     effect: slideInRight
     duration: 1s
 
   step 7: show cg2
-    name: "Consumer Group 2 표시"
-    description: "analytics Consumer Group을 화면에 표시합니다."
+    name: "Show Consumer Group 2"
+    description: "Display the analytics Consumer Group on screen."
     effect: slideInRight
     duration: 0.8s
 
   step 8: connect stream->cg1
     name: "CG1 XREADGROUP"
-    description: "stream에서 cg1으로 메시지를 읽습니다."
+    description: "Read messages from stream to cg1."
     flow: particles
     speed: 1.5s
 
   step 9: connect stream->cg2
     name: "CG2 XREADGROUP"
-    description: "stream에서 cg2로 독립적으로 메시지를 읽습니다."
+    description: "Read messages from stream to cg2 independently."
     flow: particles
     speed: 1.5s
 
   step 10: highlight cg1, cg2
-    name: "두 그룹 동시 강조"
-    description: "cg1과 cg2를 동시에 강조합니다."
+    name: "Highlight Both Groups"
+    description: "Highlight cg1 and cg2 simultaneously."
     color: #9C27B0
     glow: true
     duration: 2s
 
   step 11: show c1, c2
-    name: "CG1 Consumer 표시"
-    description: "consumer1, consumer2 노드를 화면에 표시합니다."
+    name: "Show CG1 Consumers"
+    description: "Display consumer1 and consumer2 nodes on screen."
     effect: fadeIn
     stagger: 0.3s
     duration: 0.8s
 
   step 12: show c3
-    name: "CG2 Consumer 표시"
-    description: "consumer3 노드를 화면에 표시합니다."
+    name: "Show CG2 Consumer"
+    description: "Display consumer3 node on screen."
     effect: fadeIn
     duration: 0.8s
 
   step 13: connect cg1->c1, cg1->c2
-    name: "CG1 메시지 할당"
-    description: "cg1에서 c1, c2로 메시지를 할당합니다."
+    name: "CG1 Message Distribution"
+    description: "Distribute messages from cg1 to c1 and c2."
     flow: arrow
     speed: 1s
 
   step 14: connect cg2->c3
-    name: "CG2 메시지 할당"
-    description: "cg2에서 c3으로 메시지를 할당합니다."
+    name: "CG2 Message Distribution"
+    description: "Distribute messages from cg2 to c3."
     flow: arrow
     speed: 1s
 
   step 15: highlight c1
-    name: "Consumer 1 처리 중"
-    description: "c1이 메시지를 처리합니다."
+    name: "Processing - Consumer 1"
+    description: "Consumer 1 processes the message."
     color: #4CAF50
     pulse: true
     duration: 1s
 
   step 16: highlight c3
-    name: "Consumer 3 처리 중"
-    description: "c3이 메시지를 처리합니다."
+    name: "Processing - Consumer 3"
+    description: "Consumer 3 processes the message."
     color: #4CAF50
     pulse: true
     duration: 1s
 
   step 17: connect c1->cg1
     name: "Consumer 1 XACK"
-    description: "c1이 처리 완료 후 ACK를 보냅니다."
+    description: "Consumer 1 sends ACK after processing."
     flow: particles
     speed: 1s
 
   step 18: connect c3->cg2
     name: "Consumer 3 XACK"
-    description: "c3이 처리 완료 후 ACK를 보냅니다."
+    description: "Consumer 3 sends ACK after processing."
     flow: particles
     speed: 1s
 
   step 19: show pel
-    name: "PEL 표시"
-    description: "PEL 노드를 화면에 표시합니다."
+    name: "Show PEL"
+    description: "Display the PEL node on screen."
     effect: bounceIn
     duration: 1s
 
   step 20: connect c2->pel
-    name: "Consumer 2 타임아웃"
-    description: "c2에서 pel로 타임아웃 메시지가 이동합니다."
+    name: "Consumer 2 Timeout"
+    description: "Timeout message moves from c2 to pel."
     flow: dash
     speed: 1.5s
 
   step 21: highlight pel
-    name: "PEL 강조"
-    description: "pel을 강조합니다."
+    name: "Highlight PEL"
+    description: "Highlight the pel."
     color: #FF9800
     glow: true
     duration: 1.5s
 
   step 22: show xclaim
-    name: "XCLAIM 표시"
-    description: "xclaim 노드를 화면에 표시합니다."
+    name: "Show XCLAIM"
+    description: "Display the xclaim node on screen."
     effect: scaleIn
     duration: 1s
 
   step 23: connect pel->xclaim
-    name: "XCLAIM 인수"
-    description: "pel에서 xclaim으로 메시지를 인수합니다."
+    name: "XCLAIM Takeover"
+    description: "Message taken over from pel to xclaim."
     flow: particles
     speed: 1.5s
 
   step 24: highlight xclaim
-    name: "XCLAIM 강조"
-    description: "xclaim을 강조합니다."
+    name: "Highlight XCLAIM"
+    description: "Highlight the xclaim."
     color: #FF5722
     pulse: true
     duration: 1s
 
   step 25: connect xclaim->c1
-    name: "c1에 재처리 위임"
-    description: "xclaim에서 c1으로 재처리를 위임합니다."
+    name: "Reprocessing Delegation"
+    description: "Delegate reprocessing from xclaim to c1."
     flow: particles
     speed: 1.5s
 
   step 26: connect c1->cg1
-    name: "재처리 성공 XACK"
-    description: "c1이 재처리 성공 후 ACK를 보냅니다."
+    name: "Successful Reprocessing XACK"
+    description: "Consumer 1 sends ACK after successful reprocessing."
     flow: particles
     speed: 1s
 
   step 27: show dead
-    name: "Dead Letter 표시"
-    description: "dead 노드를 화면에 표시합니다."
+    name: "Show Dead Letter"
+    description: "Display the dead letter node on screen."
     effect: fadeIn
     duration: 1s
 
   step 28: connect pel->dead
-    name: "재시도 초과"
-    description: "pel에서 dead로 재시도 초과 메시지가 이동합니다."
+    name: "Retry Exceeded"
+    description: "Message exceeding retry limit moves from pel to dead."
     flow: dash
     speed: 1.5s
 
   step 29: highlight dead
-    name: "Dead Letter 강조"
-    description: "dead를 강조합니다."
+    name: "Highlight Dead Letter"
+    description: "Highlight the dead letter."
     color: #F44336
     pulse: true
     duration: 1s
 
   step 30: camera fitAll
-    name: "카메라 전체 맞춤"
-    description: "전체 Redis Stream 흐름이 보이도록 카메라를 조정합니다."
+    name: "Camera Fit All"
+    description: "Adjust camera to show entire Redis Stream flow."
     padding: 40px
     duration: 2s
 @end
@@ -267,48 +267,48 @@ export const redisStreamTemplate: Template = {
 
 @narration
   step 1:
-    title: "Redis Stream이란?"
-    text: "Redis Stream은 Redis 5.0에서 도입된 append-only 로그 자료구조입니다. 각 메시지는 '타임스탬프-시퀀스' 형식의 고유 ID(예: 1699001-0)를 자동으로 부여받습니다. 이 ID 덕분에 메시지는 항상 시간 순서로 정렬되고, 특정 시점부터 다시 읽는 것도 가능합니다."
+    title: "What is Redis Stream?"
+    text: "Redis Stream is an append-only log data structure introduced in Redis 5.0. Each message is automatically assigned a unique ID in 'timestamp-sequence' format (e.g., 1699001-0). Thanks to this ID, messages are always sorted in time order, and you can read from a specific point again."
 
   step 4:
-    title: "XADD - 이벤트를 스트림에 기록"
-    text: "Producer는 XADD 명령으로 메시지를 추가합니다. 예시: 'XADD order-events * event order_created order_id 123 user_id 456'. 여기서 별표(*)는 ID를 자동 생성하라는 의미입니다. 메시지는 삭제되지 않고 쌓이기 때문에, 나중에 언제든 다시 조회할 수 있습니다."
+    title: "XADD - Recording Events to Stream"
+    text: "Producer adds messages with the XADD command. Example: 'XADD order-events * event order_created order_id 123 user_id 456'. The asterisk (*) means auto-generate the ID. Messages are not deleted but accumulated, so you can query them again later."
 
   step 5:
-    title: "스트림 - 불변의 로그"
-    text: "스트림 노드 안을 보면 메시지 ID와 데이터가 쌓여 있습니다. append-only이기 때문에 한 번 기록된 메시지는 수정되지 않습니다. MAXLEN 옵션으로 크기를 제한하거나 XDEL로 명시적으로 삭제할 수는 있지만, 일반적으로는 그대로 보존합니다."
+    title: "Stream - Immutable Log"
+    text: "Inside the stream node, message IDs and data are accumulated. Because it's append-only, once recorded, messages are never modified. You can limit size with MAXLEN or explicitly delete with XDEL, but generally messages are preserved."
 
   step 10:
-    title: "Fan-out - Redis Stream의 핵심 차이"
-    text: "두 개의 Consumer Group이 같은 스트림을 읽고 있습니다. order-processors는 1699002-0까지 처리했고, analytics는 아직 1699001-0까지입니다. 각 그룹이 last-delivered-id라는 자신만의 오프셋 커서를 독립적으로 관리합니다. 즉, 같은 메시지가 두 그룹 모두에 전달됩니다. 이것이 Redis Pub/Sub과의 결정적 차이입니다. Pub/Sub은 구독 시점에 없으면 메시지를 놓치지만, Stream은 언제든 특정 ID부터 다시 읽을 수 있습니다."
+    title: "Fan-out - The Core Difference of Redis Stream"
+    text: "Two Consumer Groups are reading the same stream. order-processors has processed up to 1699002-0, while analytics is still at 1699001-0. Each group independently manages its own last-delivered-id cursor. That is, the same message is delivered to both groups. This is the crucial difference from Redis Pub/Sub. Pub/Sub loses messages if they were published before subscription, but Stream allows reading from any ID anytime."
 
   step 13:
-    title: "Consumer Group 내 메시지 분배"
-    text: "같은 Group 안에서는 메시지가 분산됩니다. c1이 1699001-0을 처리하는 동안 c2가 1699002-0을 처리하는 식입니다. XREADGROUP GROUP order-processors consumer1 COUNT 1 STREAMS order-events > 여기서 '>'는 이 그룹에서 아직 전달하지 않은 새 메시지를 가져오라는 특수 ID입니다. Group 내에서는 중복 전달이 없습니다."
+    title: "Message Distribution in Consumer Group"
+    text: "Messages are distributed within the same Group. While c1 processes 1699001-0, c2 processes 1699002-0. XREADGROUP GROUP order-processors consumer1 COUNT 1 STREAMS order-events > Here, '>' is a special ID meaning 'get new undelivered messages for this group'. No duplicate delivery within a group."
 
   step 17:
-    title: "XACK - 처리 완료 확인"
-    text: "메시지를 성공적으로 처리한 후 반드시 XACK를 보내야 합니다. 예시: 'XACK order-events order-processors 1699001-0'. ACK를 받으면 그 메시지는 PEL에서 제거됩니다. ACK를 보내지 않으면 Redis는 그 메시지가 아직 처리 중이라고 간주합니다. 이 ACK 메커니즘이 at-least-once 처리를 보장하는 핵심입니다."
+    title: "XACK - Acknowledge Processing Complete"
+    text: "After successfully processing a message, you must send XACK. Example: 'XACK order-events order-processors 1699001-0'. When ACK is received, the message is removed from PEL. If you don't send ACK, Redis considers the message still processing. This ACK mechanism is key to guaranteeing at-least-once processing."
 
   step 21:
-    title: "PEL - 미확인 메시지 추적소"
-    text: "PEL(Pending Entries List)은 전달됐지만 ACK를 받지 못한 메시지 목록입니다. c2가 메시지를 받아갔지만 32초가 지나도록 ACK를 보내지 않았습니다. 이는 c2가 죽었거나 처리 중 예외가 발생했음을 의미합니다. XPENDING 명령으로 PEL을 조회할 수 있습니다: 'XPENDING order-events order-processors - + 10'."
+    title: "PEL - Pending Message Tracking"
+    text: "PEL (Pending Entries List) is the list of delivered but unacknowledged messages. Consumer 2 received the message but hasn't sent ACK even after 32 seconds. This means c2 died or an exception occurred. You can query PEL with XPENDING command: 'XPENDING order-events order-processors - + 10'."
 
   step 23:
-    title: "XCLAIM - 죽은 Consumer의 메시지 인수"
-    text: "XCLAIM은 PEL에서 특정 시간 이상 방치된 메시지를 다른 Consumer가 가져오는 명령입니다. 예시: 'XCLAIM order-events order-processors consumer1 30000 1699002-0'. 30000ms(30초) 이상 처리되지 않은 메시지를 consumer1에게 넘깁니다. Redis 6.2부터는 XAUTOCLAIM으로 자동화도 가능합니다."
+    title: "XCLAIM - Taking Over Dead Consumer's Messages"
+    text: "XCLAIM is a command for another Consumer to take over messages left unprocessed for a certain time in PEL. Example: 'XCLAIM order-events order-processors consumer1 30000 1699002-0'. Take over messages unprocessed for 30000ms (30s) and assign to consumer1. Since Redis 6.2, you can automate this with XAUTOCLAIM."
 
   step 26:
-    title: "재처리 성공 - 복구 완료"
-    text: "c1이 XCLAIM으로 받은 메시지를 성공적으로 처리하고 XACK를 보냈습니다. 이로써 1699002-0 메시지는 PEL에서 완전히 제거됩니다. 이 흐름이 Redis Stream의 장애 복구 메커니즘입니다. 컨슈머가 갑자기 죽어도 메시지가 유실되지 않는 이유입니다."
+    title: "Successful Reprocessing - Recovery Complete"
+    text: "Consumer 1 successfully processed the message received via XCLAIM and sent XACK. With this, message 1699002-0 is completely removed from PEL. This is Redis Stream's failure recovery mechanism. It's why messages aren't lost even when a consumer suddenly dies."
 
   step 29:
-    title: "Dead Letter - 최후의 안전망"
-    text: "같은 메시지를 여러 번 재시도해도 계속 실패한다면 무한 루프를 방지하기 위해 별도의 스트림으로 분리합니다. Redis 자체 기능은 아니고 애플리케이션 레벨에서 구현합니다. PEL을 XPENDING으로 조회해서 delivery-count가 일정 횟수를 넘으면 XADD my-stream-dead로 이동시키는 로직을 별도로 작성해야 합니다."
+    title: "Dead Letter - Final Safety Net"
+    text: "If the same message keeps failing after multiple retries, separate it to a different stream to prevent infinite loops. This isn't a Redis built-in feature; it's implemented at application level. You must write logic to query PEL with XPENDING, check delivery-count exceeds threshold, then XADD my-stream-dead to move it."
 
   step 30:
-    title: "전체 흐름 정리 - Redis Stream vs Kafka"
-    text: "정리하면: Producer는 XADD로 기록하고, 각 Consumer Group은 독립된 오프셋으로 Fan-out 읽기를 합니다. Group 내에서는 메시지가 분산되고, XACK로 처리를 확인하며, 실패 시 XCLAIM으로 복구합니다. Kafka와 비교하면 Redis Stream은 설정이 간단하고 레이턴시가 낮습니다. 다만 Kafka는 파티션 기반 병렬 처리와 대용량에 더 강합니다. 이미 Redis를 쓰고 있다면 추가 인프라 없이 스트림 처리를 구현할 수 있다는 것이 가장 큰 장점입니다."
+    title: "Complete Flow Summary - Redis Stream vs Kafka"
+    text: "To summarize: Producer records with XADD, each Consumer Group does Fan-out reading with independent offset. Within a group, messages are distributed, processing confirmed with XACK, and failure recovery with XCLAIM. Compared to Kafka, Redis Stream is simpler to configure and has lower latency. However, Kafka is stronger in partition-based parallel processing and large volumes. The biggest advantage if you're already using Redis is implementing stream processing without additional infrastructure."
 @end
 
 @config

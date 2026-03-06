@@ -1,64 +1,64 @@
 import type { Template } from "./index";
 
 export const simpleTemplate: Template = {
-  name: "간단한 예제",
-  description: "시작하기 좋은 간단한 예제",
+  name: "Simple Example",
+  description: "Simple example perfect for getting started",
   dsl: `flowchart LR
-  A[시작]
-  B[처리]
-  C[종료]
+  A[Start]
+  B[Process]
+  C[End]
 
   A --> B
   B --> C
 
 @animation
   step 1: show A
-    name: "시작 노드 표시"
-    description: "A 노드를 화면에 표시합니다."
+    name: "Show Start Node"
+    description: "Display node A on screen."
     effect: fadeIn
     duration: 1s
 
   step 2: highlight A
-    name: "시작 강조"
-    description: "A 노드를 강조합니다."
+    name: "Highlight Start"
+    description: "Highlight node A."
     color: #2196F3
     glow: true
     duration: 1s
 
   step 3: connect A->B
-    name: "시작에서 처리 연결"
-    description: "A에서 B로 흐름을 연결합니다."
+    name: "Connect Start to Process"
+    description: "Connect flow from A to B."
     flow: particles
     speed: 1.5s
 
   step 4: show B
-    name: "처리 노드 표시"
-    description: "B 노드를 화면에 표시합니다."
+    name: "Show Process Node"
+    description: "Display node B on screen."
     effect: slideInRight
     duration: 1s
 
   step 5: highlight B
-    name: "처리 강조"
-    description: "B 노드를 강조합니다."
+    name: "Highlight Process"
+    description: "Highlight node B."
     color: #FF9800
     pulse: true
     duration: 1s
 
   step 6: connect B->C
-    name: "처리에서 종료 연결"
-    description: "B에서 C로 흐름을 연결합니다."
+    name: "Connect Process to End"
+    description: "Connect flow from B to C."
     flow: particles
     speed: 1.5s
 
   step 7: show C
-    name: "종료 노드 표시"
-    description: "C 노드를 화면에 표시합니다."
+    name: "Show End Node"
+    description: "Display node C on screen."
     effect: slideInRight
     duration: 1s
 
   step 8: highlight C
-    name: "종료 강조"
-    description: "C 노드를 강조합니다."
+    name: "Highlight End"
+    description: "Highlight node C."
     color: #4CAF50
     glow: true
     duration: 1s
@@ -81,28 +81,28 @@ export const simpleTemplate: Template = {
 
 @narration
   step 1:
-    title: "프로세스의 시작"
-    text: "모든 프로세스에는 시작점이 있습니다. 이곳에서 작업이 출발합니다."
+    title: "Beginning of Process"
+    text: "Every process has a starting point. Work begins here."
 
   step 2:
-    title: "시작 단계"
-    text: "시작 노드가 활성화되었습니다. 여기서부터 데이터나 요청이 다음 단계로 흘러갑니다."
+    title: "Start Stage"
+    text: "The start node is activated. From here, data or requests flow to the next stage."
 
   step 3:
-    title: "흐름의 이동"
-    text: "화살표는 데이터나 작업이 한 단계에서 다음 단계로 이동하는 것을 보여줍니다. 프로세스는 항상 정해진 순서대로 진행됩니다."
+    title: "Flow Movement"
+    text: "Arrows show how data or work moves from one stage to the next. Processes always proceed in fixed order."
 
   step 5:
-    title: "처리 단계"
-    text: "중간의 '처리' 단계에서 실제 작업이 이루어집니다. 예를 들어 데이터를 계산하거나, 요청을 처리하거나, 판단을 내리는 단계입니다."
+    title: "Processing Stage"
+    text: "Actual work happens in the middle 'Process' stage. For example, calculating data, processing requests, or making decisions."
 
   step 7:
-    title: "종료 단계"
-    text: "모든 처리가 완료되면 종료 단계에 도달합니다. 결과물이 만들어지고 프로세스가 마무리됩니다."
+    title: "End Stage"
+    text: "When all processing is complete, you reach the end stage. Results are generated and the process finishes."
 
   step 8:
-    title: "프로세스 완료"
-    text: "이것이 가장 기본적인 프로세스 흐름입니다. 시작 → 처리 → 종료, 모든 복잡한 시스템도 이 기본 패턴의 조합으로 이루어져 있습니다."
+    title: "Process Complete"
+    text: "This is the most basic process flow. Start → Process → End. All complex systems are built from combinations of this basic pattern."
 @end
 
 @config
