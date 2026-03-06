@@ -75,13 +75,6 @@ flowchart LR
 
 The main component that renders and controls animated diagrams.
 
-```tsx
-<AnimflowPlayer
-  dsl={string}       // DSL string (required)
-  className={string} // CSS class for container
-/>
-```
-
 #### Props
 
 | Prop | Type | Default | Description |
@@ -467,20 +460,7 @@ import { BLOCKCHAIN_DSL } from './dsl/blockchain';
 <AnimflowPlayer dsl={BLOCKCHAIN_DSL} />
 ```
 
-### 2. **Use Constants for Timing**
-```tsx
-const TIMING = {
-  short: '0.8s',
-  normal: '1.5s',
-  long: '2.5s'
-};
-
-// In DSL:
-// step 1: show node
-//   duration: TIMING.normal
-```
-
-### 3. **Memoize DSL for Performance**
+### 2. **Memoize DSL for Performance**
 ```tsx
 import { useMemo } from 'react';
 
@@ -490,7 +470,7 @@ export default function App() {
 }
 ```
 
-### 4. **Responsive Container**
+### 3. **Responsive Container**
 ```tsx
 <div className="w-full h-screen md:h-96">
   <AnimflowPlayer dsl={dsl} className="w-full h-full" />
@@ -498,6 +478,11 @@ export default function App() {
 ```
 
 ## Troubleshooting
+
+### Mermaid syntax not parsing
+- Use `flowchart` keyword, not `graph` (e.g. `flowchart LR`, not `graph LR`)
+- Node IDs must not contain spaces — use underscore or camelCase (`my_node`, `myNode`)
+- Chained edges (`A --> B --> C`) and multi-target edges (`A --> B & C`) are supported
 
 ### Animation doesn't play
 - Check that `@animation` section syntax is correct

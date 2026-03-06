@@ -1,17 +1,8 @@
 # AnimFlow DSL
 
-**Make complex systems understandable with animated, narrated diagrams.**
+**Paste Mermaid flowcharts. Add animations. Done.**
 
-A powerful Domain-Specific Language (DSL) for creating step-by-step animated diagrams that tell compelling stories. AnimFlow combines the simplicity of Mermaid syntax with professional animation capabilities, perfect for engineering documentation, education, and technical storytelling.
-
-## 🎯 Why AnimFlow DSL?
-
-- **Visual Storytelling** - Diagrams alone don't explain; animation + narration do
-- **Educational** - Make technical concepts accessible to everyone
-- **Professional** - Clean animations with optional hand-drawn aesthetics
-- **Developer-Friendly** - Simple, readable syntax inspired by Mermaid
-- **Fully Animated** - Show, hide, highlight, connect - every element can be animated
-- **Interactive** - Built-in playback controls, chapter navigation, speed control
+AnimFlow DSL extends standard Mermaid flowchart syntax with `@animation`, `@narration`, `@style`, and `@config` sections. If you already write Mermaid diagrams, you already know 80% of the syntax.
 
 ## 🚀 Quick Start
 
@@ -23,13 +14,29 @@ npm install @animflow-dsl/react
 pnpm add @animflow-dsl/react
 ```
 
-### Basic Example
+### Step 1 — Paste Mermaid code
+
+Any Mermaid flowchart works as-is. No animation sections required:
 
 ```tsx
 import { AnimflowPlayer } from '@animflow-dsl/react';
 
 export default function MyDiagram() {
   const dsl = `
+flowchart LR
+  A[Start] --> B[Process] --> C[End]
+  `;
+
+  return <AnimflowPlayer dsl={dsl} />;
+}
+```
+
+### Step 2 — Add animations
+
+Extend with `@animation` and `@narration` sections on top of the same Mermaid diagram:
+
+```tsx
+const dsl = `
 flowchart LR
   A[Start]
   B[Process]
@@ -78,11 +85,53 @@ flowchart LR
   autoplay: true
   speed: 1.0
 @end
-  `;
-
-  return <AnimflowPlayer dsl={dsl} />;
-}
+`;
 ```
+
+---
+
+## 🧩 Mermaid Compatibility
+
+AnimFlow's diagram section is **standard Mermaid flowchart syntax**. You can paste any `flowchart` diagram directly and it will render immediately.
+
+AnimFlow adds four optional extension sections:
+
+| Section | Purpose |
+|---------|---------|
+| `@animation ... @end` | Step-by-step animations |
+| `@narration ... @end` | Synchronized text overlays |
+| `@style ... @end` | Per-node/edge colors and styles |
+| `@config ... @end` | Playback settings (autoplay, speed, TTS) |
+
+### Supported Mermaid Syntax
+
+**Directions:** `LR` `RL` `TD` `TB` `BT`
+
+**Node shapes:**
+```
+A[Rectangle]
+B{Diamond}
+C(Stadium)
+D([Terminator])
+E((Circle))
+F[(Database)]
+G[/Parallelogram/]
+H>Asymmetric]
+```
+
+**Edges:**
+```
+A --> B          # Arrow
+A --- B          # Line (no arrowhead)
+A -->|label| B   # Labeled arrow
+A -- label --> B # Labeled arrow (alternate)
+A --> B --> C    # Chained
+A --> B & C      # Multi-target
+```
+
+> **Note:** `graph` keyword is not supported — use `flowchart` instead.
+
+---
 
 ## ✨ Key Features
 
@@ -93,10 +142,9 @@ flowchart LR
 - **Bulk targets**: `show/hide all`, `show/hide nodes`, `show/hide edges`
 - **Simultaneous connect**: multiple edges in one step animate in parallel
 - **Precise timing**: Duration, delay, easing, stagger for perfect choreography
-- **Flexible sequencing**: Absolute or relative timing with GSAP timeline
 
 ### Visual Design
-- **Hand-drawn aesthetic** - Sketchy style powered by rough.js for professional yet expressive diagrams
+- **Hand-drawn aesthetic** - Sketchy style powered by rough.js
 - **Automatic layout** - Dagre-powered intelligent graph positioning
 - **Custom styling** - Per-node/edge colors, strokes, and styles
 - **Responsive SVG** - Scales perfectly at any resolution
@@ -110,28 +158,32 @@ flowchart LR
 ### Education & Narration
 - **Synchronized narration** - Text appears exactly when you need it
 - **Text-to-Speech** - Web Speech API narration, synced with play/pause/stop
-- **Flexible timing** - Narration can lead or follow animation
-- **Educational focus** - Design for learning, not just visualization
-- **Template library** - 10 pre-built examples from blockchain to algorithm visualizations
+- **Template library** - Pre-built examples from blockchain to algorithm visualizations
 
-## 📦 Project Structure
+---
 
-```
-animflow-dsl/
-├── packages/react/
-│   ├── src/
-│   │   ├── components/       # AnimflowPlayer, renderers, controls
-│   │   ├── core/             # Parser, layout, animation engine
-│   │   ├── hooks/            # useTTS and other hooks
-│   │   ├── store/            # Zustand state management
-│   │   └── index.ts          # Public API
-│   └── package.json
-│
-└── apps/web/
-    ├── app/                  # Next.js 14 app
-    ├── data/templates/       # 9 pre-built template examples
-    └── package.json
-```
+## 📚 Documentation
+
+- **[DSL Guide](docs/dsl-guide.md)** - Complete syntax reference for all sections
+- **[SDK API](packages/react/README.md)** - React component API, hooks, imperative control
+
+## 📦 Built-in Templates
+
+Production-ready DSL examples in `apps/web/data/templates/`:
+
+| Template | One-line preview |
+|----------|-----------------|
+| **Blockchain** | `flowchart LR\n  genesis[Genesis Block] --> block1[Block #1]` |
+| **JWT Auth** | `flowchart LR\n  client[Client] --> gateway[API Gateway]` |
+| **HTTP Cycle** | `flowchart TD\n  browser[Browser] --> dns[DNS Resolver]` |
+| **Git Branches** | `flowchart LR\n  main[main] --> feature[feature/auth]` |
+| **Order Processing** | `flowchart TD\n  order[New Order] --> payment[Payment]` |
+| **Network Topology** | `flowchart TD\n  internet([Internet]) --> fw[Firewall]` |
+| **Microservices** | `flowchart LR\n  gateway[API Gateway] --> auth[Auth]` |
+| **zk-SNARK** | `flowchart LR\n  input[Private Input] --> circuit[Circuit]` |
+| **Dijkstra** | `flowchart LR\n  A((A)) --> B((B))` |
+
+---
 
 ## 🛠️ Development
 
@@ -161,83 +213,10 @@ pnpm --filter @animflow-dsl/react build  # Build SDK for production
 pnpm --filter web build                  # Build demo app
 
 # Quality
-pnpm lint                                 # Lint all packages
-pnpm test                                 # Run tests
+pnpm lint                                # Lint all packages
 ```
 
-## 📚 Documentation
-
-- **[DSL Guide](docs/dsl-guide.md)** - Complete syntax reference, all features and examples
-- **[SDK API](packages/react/README.md)** - React component API, hooks, imperative control
-- **[Built-in Templates](apps/web/data/templates)** - Production-ready examples:
-  - **Blockchain** - Understand cryptographic chains and hashing
-  - **JWT Auth** - See how tokens secure APIs
-  - **HTTP Cycle** - Demystify web requests
-  - **Git Branches** - Visualize version control
-  - **Order Processing** - E-commerce workflows
-  - **Network Topology** - Cloud architecture patterns
-  - **Microservices** - Distributed system design
-  - **zk-SNARK** - Zero-knowledge cryptography pipeline
-  - **Dijkstra** - Shortest path algorithm step-by-step
-
-## 🧩 React API
-
-### Main Component
-
-```tsx
-<AnimflowPlayer
-  dsl={string}              // DSL string (required)
-  className={string}        // CSS class for container
-  autoplay={boolean}        // Auto-play on load (default: false)
-  controls={boolean}        // Show playback controls (default: true)
-  narration={boolean}       // Show narration overlay (default: true)
-/>
-```
-
-### Imperative Control
-
-```tsx
-const playerRef = useRef<AnimflowPlayerRef>(null);
-
-playerRef.current?.play();        // Start playback
-playerRef.current?.pause();       // Pause playback
-playerRef.current?.seek(5);       // Jump to 5 second mark
-playerRef.current?.setSpeed(1.5); // Set playback speed (0.25–2.0)
-playerRef.current?.restart();     // Restart from beginning
-```
-
-### Hooks
-
-```tsx
-// Get current playback state
-const { isPlaying, currentTime, duration } = useDiagramStore();
-
-// Listen to step changes
-const currentStep = useDiagramStore(s => s.currentStep);
-```
-
-#### `useTTS` — standalone TTS hook
-
-For custom TTS integration outside of DSL config:
-
-```tsx
-import { useTTS } from '@animflow-dsl/react';
-
-const tts = useTTS({
-  enabled: true,
-  voiceName: 'Kyunghoon, InJoon, ko-KR', // comma-separated, tried in order
-  rate: 1.1,    // 0.1–10
-  pitch: 1.0,   // 0–2
-  volume: 0.8,  // 0–1
-  onEnd: () => console.log('finished'), // fires on natural end only
-});
-
-tts.speak('Hello, world!');
-tts.pause();
-tts.resume();
-tts.cancel();
-console.log(tts.isSpeakingRef.current); // sync ref safe inside callbacks
-```
+---
 
 ## 🏗️ Architecture
 
@@ -268,110 +247,32 @@ Animate → GSAP Timeline → Synchronized animations
 Playback → User Controls → Timeline scrubbing
 ```
 
-## 📖 DSL Syntax Overview
+## 📦 Project Structure
 
-### Diagram Definition
 ```
-flowchart LR
-  A[Rectangle]
-  B{Diamond}
-  C([Stadium])
-  D[(Cylinder)]
-
-  A --> B
-  B --- C
-  C -->|Label| D
-```
-
-### Animation
-```
-@animation
-  step 1: show A
-    effect: fadeIn
-    duration: 1s
-
-  step 2: connect A->B
-    flow: particles
-    speed: 1.5s
-
-  step 3: highlight B
-    color: #FF9800
-    glow: true
-    duration: 1s
-@end
-```
-
-### Narration
-```
-@narration
-  step 1:
-    title: "Main Heading"
-    text: "Detailed explanation that appears with animation."
-
-  step 3:
-    title: "Next Topic"
-    text: "Continue the story with narration."
-@end
-```
-
-### Styling
-```
-@style
-  A, B:
-    fill: #e3f2fd
-    stroke: #2196F3
-  C:
-    fill: #fff3e0
-    stroke: #FF9800
-@end
-```
-
-### Configuration
-```
-@config
-  autoplay: true
-  loop: false
-  controls: true
-  speed: 1.0
-  tts: true
-  tts-voice: en-US
-  tts-rate: 1.0
-@end
+animflow-dsl/
+├── packages/react/
+│   ├── src/
+│   │   ├── components/       # AnimflowPlayer, renderers, controls
+│   │   ├── core/             # Parser, layout, animation engine
+│   │   ├── hooks/            # useTTS and other hooks
+│   │   ├── store/            # Zustand state management
+│   │   └── index.ts          # Public API
+│   └── package.json
+│
+└── apps/web/
+    ├── app/                  # Next.js 14 app
+    ├── data/templates/       # Pre-built template DSL files
+    └── package.json
 ```
 
 ## 🎓 Use Cases
 
-### 1. Engineering Documentation
-Explain system architecture, deployment pipelines, and data flows with animated diagrams instead of static PDFs.
-
-### 2. Educational Content
-Make programming concepts, algorithms, and design patterns engaging and understandable.
-
-### 3. Product Demos
-Walk users through features with guided, animated walkthroughs.
-
-### 4. Technical Interviews
-Illustrate your thought process and system design solutions clearly.
-
-### 5. Team Onboarding
-Help new developers understand codebases and system architecture faster.
-
-## 🚀 Performance
-
-- Optimized for diagrams with **up to 100+ nodes**
-- Smooth 60fps animations on modern browsers
-- Efficient SVG rendering with minimal DOM churn
-- Lazy animation scheduling for large diagrams
-
-## 🔮 Future Roadmap
-
-- [ ] Export to image/video
-- [ ] Collaborative editing
-- [ ] More node shapes
-- [ ] Custom plugins system
-- [ ] Node/edge tooltips
-- [ ] Undo/redo in editor
-- [ ] Advanced layout algorithms
+1. **Engineering Documentation** - Animated system architecture and data flow diagrams
+2. **Educational Content** - Make algorithms and design patterns engaging
+3. **Product Demos** - Guided animated walkthroughs
+4. **Technical Interviews** - Illustrate system design solutions
+5. **Team Onboarding** - Help new developers understand codebases faster
 
 ## 📄 License
 
@@ -379,8 +280,8 @@ MIT - Free for personal and commercial use
 
 ## 🤝 Contributing
 
-Contributions welcome! Whether it's bug reports, feature suggestions, or PRs - we'd love your help.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and contribution guidelines.
 
 ---
 
-**Bring clarity to complexity through animated storytelling. 🎬✨**
+**Bring clarity to complexity through animated storytelling.**

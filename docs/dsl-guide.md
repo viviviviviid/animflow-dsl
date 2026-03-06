@@ -56,7 +56,11 @@ flowchart [direction]
   nodeId2 -->|No| nodeId4
 ```
 
-**Direction**: `LR` (left-right), `RL`, `TD` (top-down), `BT` (bottom-top)
+**Direction**: `LR` (left-right), `RL` (right-left), `TD` (top-down), `TB` (top-bottom, same as TD), `BT` (bottom-top)
+
+> **Mermaid Compatible**: The diagram section accepts standard Mermaid flowchart syntax.
+> You can paste any Mermaid `flowchart` diagram directly and add `@animation`, `@style`, `@narration`, `@config` sections on top.
+> Note: use `flowchart` keyword, not `graph`.
 
 ### Node Shapes
 
@@ -64,9 +68,13 @@ flowchart [direction]
 |--------|-------|
 | `[label]` | Rectangle |
 | `{label}` | Diamond (decision) |
-| `([label])` | Stadium (rounded) |
-| `[(label)]` | Cylinder (database) |
+| `(label)` | Stadium (rounded) |
+| `([label])` | Terminator (pill shape) |
 | `((label))` | Circle |
+| `[(label)]` | Database (cylinder) |
+| `[[label]]` | Document |
+| `[/label/]` | Parallelogram |
+| `>label]` | Asymmetric |
 
 ### Edges
 
@@ -75,7 +83,10 @@ flowchart [direction]
 | `A --> B` | Arrow (with arrowhead) |
 | `A --- B` | Line (no arrowhead) |
 | `A -->|text| B` | Arrow with label |
+| `A -- text --> B` | Arrow with label (alternate) |
 | `A ---|text| B` | Line with label |
+| `A --> B --> C` | Chained arrows |
+| `A --> B & C` | Multi-target (B and C both) |
 
 ### Multi-line Labels
 
