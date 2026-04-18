@@ -7,7 +7,6 @@ import { cicdTemplate } from "./cicd";
 import { immuneResponseTemplate } from "./immune-response";
 import { legislationTemplate } from "./legislation";
 import { simpleTemplate } from "./simple";
-import { x402RoleplayTemplate } from "./x402-roleplay";
 import { x402AutonomousRetailTemplate } from "./x402-autonomous-retail";
 
 export interface Template {
@@ -18,7 +17,6 @@ export interface Template {
 
 export const TEMPLATES: Template[] = [
   x402AutonomousRetailTemplate,
-  x402RoleplayTemplate,
   blockchainTemplate,
   jwtAuthTemplate,
   httpCycleTemplate,
