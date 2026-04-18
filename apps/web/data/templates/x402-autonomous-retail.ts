@@ -79,61 +79,76 @@ export const x402AutonomousRetailTemplate: Template = {
   settlement2 --> end
 
 @animation
-  step 1: show start
+  step 1: camera start, phase1_banner, phase2_banner, settlement1, settlement2, end
+    name: "전체 다이어그램 보기"
+    description: "처음부터 전체 흐름을 멀리서 봅니다."
+    cameraAction: fitNodes
+    padding: 60px
+    duration: 1.5s
+
+  step 2: show start
     name: "시작"
     description: "X402 Autonomous Retail 데모 시작"
-    effect: slideInLeft
+    effect: fadeIn
     duration: 0.8s
 
-  step 2: show telegram, faucet, role
+  step 3: show telegram, faucet, role
     name: "텔레그램 온보딩"
     description: "참가자들이 봇에 진입하고 역할을 배정받습니다."
     effect: fadeIn
     stagger: 0.2s
     duration: 1.2s
 
-  step 3: highlight role
+  step 4: highlight role
     name: "역할 배정"
     description: "점주 1명, 나머지는 손님으로 결정됩니다."
     color: #FF6B35
     pulse: true
     duration: 1.5s
 
-  step 4: show phase1_banner
+  step 5: show phase1_banner
     name: "Phase 1 시작: Manual Chaos"
     description: "자동화 없이 수동으로 운영하는 현실입니다."
-    effect: scaleIn
+    effect: fadeIn
     duration: 1s
 
-  step 5: show customer_p1, owner_p1
+  step 6: show customer_p1, owner_p1
     name: "역할별 진입"
     description: "손님과 점주가 각각 자신의 사이트로 진입합니다."
-    effect: slideInLeft, slideInRight
+    effect: fadeIn
     stagger: 0.3s
     duration: 1s
 
-  step 6: show buy_item, monitor_stock
+  step 7: show buy_item, monitor_stock
     name: "손님·점주 활동"
     description: "손님은 물품을 구매하고, 점주는 실시간 재고를 모니터링합니다."
     effect: fadeIn
     stagger: 0.2s
-    duration: 1.2s
-
-  step 7: show out_of_stock, request_item
-    name: "문제 발생"
-    description: "품절과 신청이라는 두 가지 문제가 발생합니다."
-    effect: slideInLeft, slideInRight
-    stagger: 0.3s
     duration: 1s
 
-  step 8: show manual_order, process_request
+  step 8: show out_of_stock, request_item
+    name: "문제 발생"
+    description: "품절과 신청이라는 두 가지 문제가 발생합니다."
+    effect: fadeIn
+    stagger: 0.2s
+    duration: 1s
+
+  step 9: show manual_order, process_request
     name: "수동 대응"
     description: "점주가 예측으로 발주하고, 신청을 처리합니다."
     effect: fadeIn
     stagger: 0.2s
     duration: 1s
 
-  step 9: highlight settlement1
+  step 10: camera settlement1
+    name: "문제 포커스"
+    description: "악성재고와 운영 피로 문제를 강조합니다."
+    cameraAction: focus
+    zoom: 1.5
+    padding: 30px
+    duration: 1s
+
+  step 11: highlight settlement1
     name: "정산: 악성재고와 피로"
     description: "예측 실패, 미처리 신청, 운영 피로가 드러납니다."
     color: #C62828
@@ -141,41 +156,50 @@ export const x402AutonomousRetailTemplate: Template = {
     pulse: true
     duration: 2s
 
-  step 10: camera start, phase1_banner, customer_p1, owner_p1, settlement1
-    name: "Phase 1 전체 흐름"
-    description: "Manual Chaos의 혼돈을 한눈에 봅니다."
-    cameraAction: fitNodes
+  step 12: camera phase2_banner
+    name: "Phase 2 전환"
+    description: "새로운 솔루션이 등장합니다."
+    cameraAction: focus
+    zoom: 1.2
     padding: 40px
-    duration: 1.5s
+    duration: 1s
 
-  step 11: show phase2_banner
+  step 13: show phase2_banner
     name: "Phase 2: X402 Smart Era"
     description: "이제 X402와 AI가 모든 것을 자동화합니다."
-    effect: scaleIn
-    duration: 1.2s
+    effect: fadeIn
+    duration: 1s
 
-  step 12: show customer_p2, owner_p2
+  step 14: show customer_p2, owner_p2
     name: "새로운 환경"
     description: "손님은 AI와 대화하고, 점주는 대시보드를 봅니다."
-    effect: slideInLeft, slideInRight
+    effect: fadeIn
     stagger: 0.3s
     duration: 1s
 
-  step 13: show ai_ask, auto_trigger
+  step 15: show ai_ask, auto_trigger
     name: "자동화 시작"
     description: "AI가 제안하고, 자동 발주가 트리거됩니다."
     effect: fadeIn
     stagger: 0.2s
     duration: 1s
 
-  step 14: show auto_pay, demand_agg
+  step 16: show auto_pay, demand_agg
     name: "스마트 처리"
     description: "X402 자동 결제와 수요 집계가 동시에 진행됩니다."
-    effect: slideInLeft, slideInRight
-    stagger: 0.3s
-    duration: 1.2s
+    effect: fadeIn
+    stagger: 0.2s
+    duration: 1s
 
-  step 15: highlight settlement2
+  step 17: camera settlement2
+    name: "X402 정산 포커스"
+    description: "솔루션의 핵심을 강조합니다."
+    cameraAction: focus
+    zoom: 1.5
+    padding: 30px
+    duration: 1s
+
+  step 18: highlight settlement2
     name: "X402 온체인 정산"
     description: "모든 거래가 블록체인 위에서 투명하게, 즉시 정산됩니다."
     color: #FFD700
@@ -183,17 +207,17 @@ export const x402AutonomousRetailTemplate: Template = {
     pulse: true
     duration: 2.5s
 
-  step 16: show end
+  step 19: show end
     name: "완벽한 자동화 미래"
     description: "이것이 X402가 만드는 리테일의 미래입니다."
-    effect: slideInRight
+    effect: fadeIn
     duration: 1s
 
-  step 17: camera start, phase1_banner, phase2_banner, settlement2, end
-    name: "전체 흐름"
+  step 20: camera start, phase1_banner, phase2_banner, settlement1, settlement2, end
+    name: "전체 흐름 정리"
     description: "Manual Chaos에서 Smart Era로의 변환을 봅니다."
     cameraAction: fitNodes
-    padding: 40px
+    padding: 60px
     duration: 2s
 @end
 
