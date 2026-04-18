@@ -141,9 +141,10 @@ export const x402AutonomousRetailTemplate: Template = {
     pulse: true
     duration: 2s
 
-  step 10: camera fitAll
+  step 10: camera start, phase1_banner, customer_p1, owner_p1, settlement1
     name: "Phase 1 전체 흐름"
     description: "Manual Chaos의 혼돈을 한눈에 봅니다."
+    cameraAction: fitNodes
     padding: 40px
     duration: 1.5s
 
@@ -188,9 +189,10 @@ export const x402AutonomousRetailTemplate: Template = {
     effect: slideInRight
     duration: 1s
 
-  step 17: camera fitAll
+  step 17: camera start, phase1_banner, phase2_banner, settlement2, end
     name: "전체 흐름"
     description: "Manual Chaos에서 Smart Era로의 변환을 봅니다."
+    cameraAction: fitNodes
     padding: 40px
     duration: 2s
 @end
