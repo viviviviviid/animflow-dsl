@@ -104,7 +104,6 @@ export const x402AutonomousRetailTemplate: Template = {
     description: "자동화 없이 수동으로 운영하는 현실입니다."
     effect: scaleIn
     duration: 1s
-    camera: focusOn
 
   step 5: show customer_p1, owner_p1
     name: "역할별 진입"
@@ -113,114 +112,84 @@ export const x402AutonomousRetailTemplate: Template = {
     stagger: 0.3s
     duration: 1s
 
-  step 6: connect customer_p1->buy_item
-    name: "손님: 물품 구매"
-    description: "손님들은 각자 음식 재료를 구매합니다."
-    flow: particles
-    speed: 1.5s
+  step 6: show buy_item, monitor_stock
+    name: "손님·점주 활동"
+    description: "손님은 물품을 구매하고, 점주는 실시간 재고를 모니터링합니다."
+    effect: fadeIn
+    stagger: 0.2s
+    duration: 1.2s
 
-  step 7: connect owner_p1->monitor_stock
-    name: "점주: 재고 모니터링"
-    description: "실시간으로 줄어드는 재고를 지켜봅니다."
-    flow: arrow
-    speed: 1.5s
-
-  step 8: show out_of_stock, request_item
+  step 7: show out_of_stock, request_item
     name: "문제 발생"
     description: "품절과 신청이라는 두 가지 문제가 발생합니다."
+    effect: slideInLeft, slideInRight
+    stagger: 0.3s
+    duration: 1s
+
+  step 8: show manual_order, process_request
+    name: "수동 대응"
+    description: "점주가 예측으로 발주하고, 신청을 처리합니다."
     effect: fadeIn
-    duration: 0.8s
+    stagger: 0.2s
+    duration: 1s
 
-  step 9: connect manual_order
-    name: "점주: 수동 발주"
-    description: "점주가 예측해서 물품을 발주합니다."
-    flow: arrow
-    speed: 1.5s
-
-  step 10: connect process_request
-    name: "신청 대응"
-    description: "없는 물품 신청을 받아 판단합니다."
-    flow: arrow
-    speed: 1.5s
-
-  step 11: show settlement1
+  step 9: highlight settlement1
     name: "정산: 악성재고와 피로"
-    description: "라운드 종료. 예측 실패로 남은 재고, 처리하지 못한 신청, 점주의 피로가 드러납니다."
-    effect: scaleIn
+    description: "예측 실패, 미처리 신청, 운영 피로가 드러납니다."
     color: #C62828
     glow: true
+    pulse: true
     duration: 2s
-    camera: focusOn
 
-  step 12: camera fitAll
-    name: "전체 상황 조망"
-    description: "Phase 1의 혼돈을 한눈에 봅니다."
+  step 10: camera fitAll
+    name: "Phase 1 전체 흐름"
+    description: "Manual Chaos의 혼돈을 한눈에 봅니다."
     padding: 40px
     duration: 1.5s
 
-  step 13: show phase2_banner
-    name: "Phase 2 시작: X402 Smart Era"
+  step 11: show phase2_banner
+    name: "Phase 2: X402 Smart Era"
     description: "이제 X402와 AI가 모든 것을 자동화합니다."
     effect: scaleIn
-    duration: 1s
-    camera: focusOn
+    duration: 1.2s
 
-  step 14: show customer_p2, owner_p2
+  step 12: show customer_p2, owner_p2
     name: "새로운 환경"
     description: "손님은 AI와 대화하고, 점주는 대시보드를 봅니다."
     effect: slideInLeft, slideInRight
     stagger: 0.3s
     duration: 1s
 
-  step 15: connect customer_p2->ai_ask
-    name: "AI 제안"
-    description: "AI 에이전트가 '이 요리 사올까요?'라고 먼저 제안합니다."
-    flow: particles
-    speed: 1.2s
+  step 13: show ai_ask, auto_trigger
+    name: "자동화 시작"
+    description: "AI가 제안하고, 자동 발주가 트리거됩니다."
+    effect: fadeIn
+    stagger: 0.2s
+    duration: 1s
 
-  step 16: show auto_pay
-    name: "X402 자동 결제"
-    description: "X402가 즉시 대금을 처리합니다."
-    effect: scaleIn
-    duration: 0.8s
+  step 14: show auto_pay, demand_agg
+    name: "스마트 처리"
+    description: "X402 자동 결제와 수요 집계가 동시에 진행됩니다."
+    effect: slideInLeft, slideInRight
+    stagger: 0.3s
+    duration: 1.2s
 
-  step 17: connect owner_p2->auto_trigger
-    name: "점주: 자동 발주"
-    description: "AI가 임계치를 감지하면 자동으로 발주를 트리거합니다."
-    flow: arrow
-    speed: 1s
-
-  step 18: connect demand_agg
-    name: "수요 집계"
-    description: "여러 신청을 AI가 분석해 데이터 기반 판단을 제안합니다."
-    flow: arrow
-    speed: 1.2s
-
-  step 19: show settlement2
+  step 15: highlight settlement2
     name: "X402 온체인 정산"
-    description: "모든 거래가 블록체인 위에서 투명하게, 실시간으로 정산됩니다."
-    effect: scaleIn
+    description: "모든 거래가 블록체인 위에서 투명하게, 즉시 정산됩니다."
     color: #FFD700
     glow: true
     pulse: true
     duration: 2.5s
-    camera: focusOn
 
-  step 20: highlight settlement2
-    name: "솔루션의 핵심"
-    description: "X402: 무결점 운영, 자동화된 정산, M2M의 미래"
-    color: #FFD700
-    glow: true
-    duration: 2s
-
-  step 21: show end
+  step 16: show end
     name: "완벽한 자동화 미래"
     description: "이것이 X402가 만드는 리테일의 미래입니다."
     effect: slideInRight
     duration: 1s
 
-  step 22: camera fitAll
-    name: "전체 흐름 조망"
+  step 17: camera fitAll
+    name: "전체 흐름"
     description: "Manual Chaos에서 Smart Era로의 변환을 봅니다."
     padding: 40px
     duration: 2s
