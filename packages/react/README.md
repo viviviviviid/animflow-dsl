@@ -483,6 +483,7 @@ export default function App() {
 - Use `flowchart` keyword, not `graph` (e.g. `flowchart LR`, not `graph LR`)
 - Node IDs must not contain spaces — use underscore or camelCase (`my_node`, `myNode`)
 - Chained edges (`A --> B --> C`) and multi-target edges (`A --> B & C`) are supported
+- AnimFlow supports the flowchart subset listed in the main DSL guide; unsupported Mermaid constructs return a parse error
 
 ### Animation doesn't play
 - Check that `@animation` section syntax is correct

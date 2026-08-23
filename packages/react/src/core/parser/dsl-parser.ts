@@ -34,7 +34,7 @@ export function parseDsl(dslText: string): ParseResult {
     // Parse config
     const config = sections.config
       ? parseConfig(sections.config)
-      : { autoplay: true, loop: false, controls: true };
+      : { autoplay: false, loop: false, controls: true, narration: true, speed: 1 };
 
     // Merge @style into each node's inline style
     const styledNodes = nodes.map((node) =>
@@ -63,13 +63,15 @@ export function parseDsl(dslText: string): ParseResult {
       data,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const lineMatch = message.match(/^Line (\d+):/);
     return {
       success: false,
       errors: [
         {
-          line: 0,
+          line: lineMatch ? Number(lineMatch[1]) : 0,
           column: 0,
-          message: error instanceof Error ? error.message : "Unknown error",
+          message,
           type: "syntax",
         },
       ],

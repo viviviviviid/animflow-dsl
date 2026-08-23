@@ -16,7 +16,7 @@ pnpm add @animflow-dsl/react
 
 ### Step 1 — Paste Mermaid code
 
-Any Mermaid flowchart works as-is. No animation sections required:
+Supported Mermaid flowchart syntax works without animation sections:
 
 ```tsx
 import { AnimflowPlayer } from '@animflow-dsl/react';
@@ -92,7 +92,7 @@ flowchart LR
 
 ## 🧩 Mermaid Compatibility
 
-AnimFlow's diagram section is **standard Mermaid flowchart syntax**. You can paste any `flowchart` diagram directly and it will render immediately.
+AnimFlow's diagram section implements the Mermaid flowchart subset documented below. Unsupported Mermaid constructs return a parse error instead of being silently ignored.
 
 AnimFlow adds four optional extension sections:
 
@@ -100,7 +100,7 @@ AnimFlow adds four optional extension sections:
 |---------|---------|
 | `@animation ... @end` | Step-by-step animations |
 | `@narration ... @end` | Synchronized text overlays |
-| `@style ... @end` | Per-node/edge colors and styles |
+| `@style ... @end` | Per-node colors and styles |
 | `@config ... @end` | Playback settings (autoplay, speed, TTS) |
 
 ### Supported Mermaid Syntax
@@ -214,6 +214,7 @@ pnpm --filter web build                  # Build demo app
 
 # Quality
 pnpm lint                                # Lint all packages
+pnpm test                                # Build and run parser/layout contract tests
 ```
 
 ---

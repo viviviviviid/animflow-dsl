@@ -70,6 +70,29 @@ export function RoughNodeRenderer({ node, style }: RoughNodeRendererProps) {
         );
         break;
 
+      case "circle":
+        roughElement = rc.circle(
+          x + width / 2,
+          y + height / 2,
+          Math.min(width, height),
+          roughOptions
+        );
+        break;
+
+      case "stadium": {
+        const radius = height / 2;
+        const stadiumPath = [
+          `M ${x + radius} ${y}`,
+          `L ${x + width - radius} ${y}`,
+          `A ${radius} ${radius} 0 0 1 ${x + width - radius} ${y + height}`,
+          `L ${x + radius} ${y + height}`,
+          `A ${radius} ${radius} 0 0 1 ${x + radius} ${y}`,
+          "Z",
+        ].join(" ");
+        roughElement = rc.path(stadiumPath, roughOptions);
+        break;
+      }
+
       case "diamond": {
         const cx = x + width / 2;
         const cy = y + height / 2;
@@ -90,6 +113,19 @@ export function RoughNodeRenderer({ node, style }: RoughNodeRendererProps) {
           [x + width, y],
           [x + width - offset, y + height],
           [x, y + height],
+        ];
+        roughElement = rc.polygon(points, roughOptions);
+        break;
+      }
+
+      case "asymmetric": {
+        const offset = width * 0.18;
+        const points: [number, number][] = [
+          [x + offset, y],
+          [x + width, y],
+          [x + width, y + height],
+          [x + offset, y + height],
+          [x, y + height / 2],
         ];
         roughElement = rc.polygon(points, roughOptions);
         break;
@@ -186,7 +222,15 @@ export function RoughNodeRenderer({ node, style }: RoughNodeRendererProps) {
       style={{ opacity: 1, ...style }}
       className="node-group"
     >
-      {renderText(label, subtitle, position.x, position.y, textColor)}
+      {renderText(
+        label,
+        subtitle,
+        position.x,
+        position.y,
+        textColor,
+        node.style?.fontSize,
+        node.style?.fontWeight
+      )}
     </g>
   );
 }
@@ -199,7 +243,9 @@ function renderText(
   subtitle: string | undefined,
   cx: number,
   cy: number,
-  color: string
+  color: string,
+  fontSize: number = 15,
+  fontWeight: string = "400"
 ) {
   const lines = [label];
   if (subtitle) {
@@ -216,9 +262,9 @@ function renderText(
       textAnchor="middle"
       dominantBaseline="middle"
       fill={color}
-      fontSize="15"
+      fontSize={fontSize}
       fontFamily="Comic Neue, Comic Sans MS, sans-serif"
-      fontWeight="400"
+      fontWeight={fontWeight}
     >
       {lines.map((line, i) => (
         <tspan key={i} x={cx} dy={i === 0 ? 0 : lineHeight}>

@@ -5,7 +5,7 @@
 // ----- Diagram Types -----
 
 export type DiagramType = "flowchart";
-export type FlowchartDirection = "LR" | "RL" | "TD" | "BT";
+export type FlowchartDirection = "LR" | "RL" | "TD" | "TB" | "BT";
 
 // ----- Node Types -----
 
@@ -15,7 +15,10 @@ export type NodeShape =
   | "diamond"       // {text}
   | "parallelogram" // [/text/]
   | "database"      // [(text)]
-  | "document";     // [[text]]
+  | "document"      // [[text]]
+  | "stadium"       // (text)
+  | "circle"        // ((text))
+  | "asymmetric";   // >text]
 
 export interface DiagramNode {
   id: string;
@@ -162,6 +165,7 @@ export interface NarrationItem {
 export interface DiagramConfig {
   autoplay?: boolean;
   loop?: boolean;
+  speed?: number;
   controls?: boolean;
   narration?: boolean;
   background?: string;

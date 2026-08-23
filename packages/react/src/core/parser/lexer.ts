@@ -68,6 +68,15 @@ export function parseIndentedProperties(text: string): Record<string, any> {
     else if (!isNaN(Number(value))) {
       props[key] = Number(value);
     }
+    // Parse simple numeric arrays used by move/transform properties.
+    else if (/^\[.*\]$/.test(value)) {
+      try {
+        const parsed = JSON.parse(value);
+        props[key] = Array.isArray(parsed) ? parsed : value;
+      } catch {
+        props[key] = value;
+      }
+    }
     // Parse string
     else {
       props[key] = value.replace(/^["']|["']$/g, "");

@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import rough from "roughjs/bin/rough";
 import type { DiagramEdge } from "../../core/types";
-import { calculateEdgePath } from "../../core/layout/flowchart-layout";
+import { calculateEdgePath, calculateEdgeTangent } from "../../core/layout/flowchart-layout";
 
 interface RoughEdgeRendererProps {
   edge: DiagramEdge;
@@ -35,21 +35,17 @@ export function RoughEdgeRenderer({ edge, style }: RoughEdgeRendererProps) {
     }
 
     const lastPoint = points[points.length - 1];
-    const secondLastPoint = points[points.length - 2];
 
-    // Validate points
-    if (!lastPoint || !secondLastPoint ||
+    // Validate last point
+    if (!lastPoint ||
         typeof lastPoint.x !== 'number' || typeof lastPoint.y !== 'number' ||
-        typeof secondLastPoint.x !== 'number' || typeof secondLastPoint.y !== 'number' ||
-        isNaN(lastPoint.x) || isNaN(lastPoint.y) ||
-        isNaN(secondLastPoint.x) || isNaN(secondLastPoint.y)) {
+        isNaN(lastPoint.x) || isNaN(lastPoint.y)) {
       return { points: [] as [number, number][], valid: false };
     }
 
-    const angle = Math.atan2(
-      lastPoint.y - secondLastPoint.y,
-      lastPoint.x - secondLastPoint.x
-    );
+    // Use Catmull-Rom end tangent for accurate arrowhead direction on curved paths
+    const tangent = calculateEdgeTangent(points);
+    const angle = Math.atan2(tangent.y, tangent.x);
     const arrowLength = 10;
     const arrowWidth = 6;
 

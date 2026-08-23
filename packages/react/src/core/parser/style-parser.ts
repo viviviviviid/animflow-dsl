@@ -15,7 +15,7 @@ export function parseStyle(styleText: string): Record<string, NodeStyle> {
     if (!trimmed) continue;
 
     // Node ID line: "nodeId:" or "nodeA, nodeB, nodeC:"
-    if (trimmed.endsWith(":") && !line.startsWith("  ")) {
+    if (trimmed.endsWith(":")) {
       // Save previous style
       if (currentNodeId) {
         for (const id of currentNodeId.split(",").map((s) => s.trim())) {

@@ -13,6 +13,7 @@ export function parseConfig(configText: string): DiagramConfig {
   if (props.loop !== undefined) config.loop = props.loop;
   if (props.controls !== undefined) config.controls = props.controls;
   if (props.narration !== undefined) config.narration = props.narration;
+  if (props.speed !== undefined) config.speed = props.speed;
   if (props.background) config.background = props.background;
 
   // TTS

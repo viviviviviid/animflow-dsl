@@ -5,6 +5,7 @@ import {
   applyExitEffect,
   applyGlowEffect,
   removeGlowEffect,
+  applyEmphasisEffect,
 } from "./effects";
 import { animateEdgeFlow } from "./flow-effects";
 import { animateCamera } from "./camera";
@@ -45,6 +46,8 @@ export class AnimationTimeline {
     this.svgElement = svgElement;
     this.timeline.clear();
     this.stepBoundaries = [];
+    this.originalFills.clear();
+    this.svgElement.querySelectorAll("[data-animflow-annotation]").forEach((element) => element.remove());
 
     // Hide nodes that have explicit show actions; others remain visible
     this.initNodeVisibility();
@@ -68,6 +71,8 @@ export class AnimationTimeline {
       const capturedStep = stepNum;
       this.timeline.call(() => { this.onStepComplete?.(capturedStep); }, undefined, stepEnd);
     }
+
+    this.timeline.repeat(this.data.config.loop ? -1 : 0);
   }
 
   /**
@@ -77,29 +82,64 @@ export class AnimationTimeline {
     if (!this.svgElement) return;
 
     const showTargets = new Set<string>();
+    const connectTargets = new Set<string>();
     for (const step of this.data.animations) {
       if (step.action === "show") {
         for (const t of step.targets) showTargets.add(t);
+      } else if (step.action === "connect") {
+        for (const t of step.targets) connectTargets.add(t.replace(/\s+/g, ""));
       }
     }
 
     const allNodes = this.svgElement.querySelectorAll('[data-node-id]');
     allNodes.forEach((node) => {
       const id = node.getAttribute('data-node-id') ?? '';
-      gsap.set(node, { opacity: showTargets.has(id) ? 0 : 1 });
+      const startsHidden = showTargets.has("all") || showTargets.has("nodes") || showTargets.has(id);
+      gsap.set(node, { opacity: startsHidden ? 0 : 1 });
     });
 
-    // All edges start hidden; they are revealed only by connect actions
     const allEdges = this.svgElement.querySelectorAll('[data-edge-id]');
     allEdges.forEach((edge) => {
-      gsap.set(edge, { opacity: 0 });
-      // Also hide rough-path-container and rough-arrow-overlay via visibility
-      // so their individual paths don't flash before strokeDashoffset is set
+      const id = edge.getAttribute("data-edge-id") ?? "";
+      const from = edge.getAttribute("data-from") ?? "";
+      const to = edge.getAttribute("data-to") ?? "";
+      const startsHidden =
+        showTargets.has("all") ||
+        showTargets.has("edges") ||
+        showTargets.has(id) ||
+        connectTargets.has(`${from}->${to}`);
+      gsap.set(edge, { opacity: startsHidden ? 0 : 1 });
       const roughContainer = edge.querySelector('.rough-path-container');
       const roughArrow = edge.querySelector('.rough-arrow-overlay');
-      if (roughContainer) (roughContainer as SVGElement).style.visibility = 'hidden';
-      if (roughArrow) (roughArrow as SVGElement).style.visibility = 'hidden';
+      if (roughContainer) (roughContainer as SVGElement).style.visibility = startsHidden ? 'hidden' : 'visible';
+      if (roughArrow) (roughArrow as SVGElement).style.visibility = startsHidden ? 'hidden' : 'visible';
     });
+
+    this.svgElement.querySelectorAll("[data-animflow-annotation]").forEach((element) => {
+      gsap.set(element, { opacity: 0 });
+    });
+  }
+
+  private resolveTargets(targets: string[]): Element[] {
+    if (!this.svgElement) return [];
+    const elements = new Set<Element>();
+
+    for (const targetId of targets) {
+      if (targetId === "all") {
+        this.svgElement.querySelectorAll("[data-node-id], [data-edge-id]").forEach((element) => elements.add(element));
+      } else if (targetId === "nodes") {
+        this.svgElement.querySelectorAll("[data-node-id]").forEach((element) => elements.add(element));
+      } else if (targetId === "edges") {
+        this.svgElement.querySelectorAll("[data-edge-id]").forEach((element) => elements.add(element));
+      } else {
+        const node = this.svgElement.querySelector(`[data-node-id="${targetId}"]`);
+        const edge = this.svgElement.querySelector(`[data-edge-id="${targetId}"]`);
+        if (node) elements.add(node);
+        if (edge) elements.add(edge);
+      }
+    }
+
+    return [...elements];
   }
 
   /**
@@ -183,13 +223,20 @@ export class AnimationTimeline {
     const effect = properties.effect || "fadeIn";
     const stagger = this.parseDuration(properties.stagger || "0s");
 
-    targets.forEach((targetId, index) => {
-      const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
-      if (!element) return;
-
+    const elements = this.resolveTargets(targets);
+    const basePosition = this.timeline.duration();
+    elements.forEach((element, index) => {
       const offset = delay + index * stagger;
+      if (element.hasAttribute("data-edge-id")) {
+        this.timeline.call(() => {
+          const roughContainer = element.querySelector(".rough-path-container");
+          const roughArrow = element.querySelector(".rough-arrow-overlay");
+          if (roughContainer) (roughContainer as SVGElement).style.visibility = "visible";
+          if (roughArrow) (roughArrow as SVGElement).style.visibility = "visible";
+        }, undefined, basePosition + offset);
+      }
       const tween = applyEntranceEffect(element, effect, duration);
-      this.timeline.add(tween, offset > 0 ? `+=${offset}` : "+=0");
+      this.timeline.add(tween, basePosition + offset);
     });
   }
 
@@ -206,26 +253,12 @@ export class AnimationTimeline {
 
     const effect = properties.effect || "fadeOut";
 
-    const elements: Element[] = [];
-
-    for (const targetId of targets) {
-      if (targetId === "all") {
-        this.svgElement.querySelectorAll("[data-node-id], [data-edge-id]").forEach((el) => elements.push(el));
-      } else if (targetId === "edges") {
-        this.svgElement.querySelectorAll("[data-edge-id]").forEach((el) => elements.push(el));
-      } else if (targetId === "nodes") {
-        this.svgElement.querySelectorAll("[data-node-id]").forEach((el) => elements.push(el));
-      } else {
-        const node = this.svgElement.querySelector(`[data-node-id="${targetId}"]`);
-        const edge = this.svgElement.querySelector(`[data-edge-id="${targetId}"]`);
-        if (node) elements.push(node);
-        if (edge) elements.push(edge);
-      }
-    }
+    const elements = this.resolveTargets(targets);
+    const basePosition = this.timeline.duration();
 
     elements.forEach((element) => {
       const tween = applyExitEffect(element, effect, duration);
-      this.timeline.add(tween, delay > 0 ? `+=${delay}` : "+=0");
+      this.timeline.add(tween, basePosition + delay);
     });
   }
 
@@ -243,7 +276,9 @@ export class AnimationTimeline {
     const color = properties.color || "#FFD700";
     const glow = properties.glow || false;
     const pulse = properties.pulse || false;
+    const flash = properties.flash || false;
     const stagger = this.parseDuration(properties.stagger || "0s");
+    const basePosition = this.timeline.duration();
 
     targets.forEach((targetId, index) => {
       const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
@@ -257,6 +292,8 @@ export class AnimationTimeline {
         this.originalFills.set(targetId, currentFill);
       }
 
+      const targetPosition = basePosition + delay + index * stagger;
+
       // Change fill color
       if (rect) {
         this.timeline.to(
@@ -266,14 +303,14 @@ export class AnimationTimeline {
             duration: duration / 2,
             ease: "power2.out",
           },
-          stagger > 0 ? `+=${index * stagger}` : "+=0"
+          targetPosition
         );
       }
 
       // Add glow effect
       if (glow) {
         const glowTween = applyGlowEffect(element, color, duration / 2);
-        this.timeline.add(glowTween, stagger > 0 ? `+=${index * stagger}` : "+=0");
+        this.timeline.add(glowTween, targetPosition);
       }
 
       // Add pulse effect
@@ -287,8 +324,12 @@ export class AnimationTimeline {
             repeat: 1,
             ease: "power2.inOut",
           },
-          stagger > 0 ? `+=${index * stagger}` : "+=0"
+          targetPosition
         );
+      }
+
+      if (flash) {
+        this.timeline.add(applyEmphasisEffect(element, "flash", duration), targetPosition);
       }
     });
   }
@@ -303,6 +344,7 @@ export class AnimationTimeline {
   ): void {
     if (!this.svgElement) return;
 
+    const basePosition = this.timeline.duration();
     targets.forEach((targetId) => {
       const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
       if (!element) return;
@@ -314,16 +356,16 @@ export class AnimationTimeline {
         this.timeline.to(
           rect,
           { fill: originalFill, duration: duration / 2, ease: "power2.out" },
-          delay
+          basePosition + delay
         );
       }
 
       // Remove glow
       const removeGlow = removeGlowEffect(element, duration / 2);
-      this.timeline.add(removeGlow, delay);
+      this.timeline.add(removeGlow, basePosition + delay);
 
       // Reset scale
-      this.timeline.to(element, { scale: 1, duration: duration / 2 }, delay);
+      this.timeline.to(element, { scale: 1, duration: duration / 2 }, basePosition + delay);
     });
   }
 
@@ -342,18 +384,17 @@ export class AnimationTimeline {
     const speed = this.parseDuration(properties.speed || "2s");
 
     // targets format: ["nodeA->nodeB", "nodeC->nodeD"]
-    const startPosition = "+=0";
-    targets.forEach((connection, index) => {
+    const startPosition = this.timeline.duration() + delay;
+    targets.forEach((connection) => {
       const [from, to] = connection.split("->").map((s) => s.trim());
-      const edgeElement = this.svgElement!.querySelector(
+      const edgeElements = this.svgElement!.querySelectorAll(
         `[data-from="${from}"][data-to="${to}"]`
       );
 
-      if (!edgeElement) return;
-
-      const tween = animateEdgeFlow(edgeElement, flow, speed);
-      // First connection advances timeline; rest start at same position (simultaneous)
-      this.timeline.add(tween, index === 0 ? startPosition : "<");
+      edgeElements.forEach((edgeElement) => {
+        const tween = animateEdgeFlow(edgeElement, flow, speed);
+        this.timeline.add(tween, startPosition);
+      });
     });
   }
 
@@ -372,17 +413,17 @@ export class AnimationTimeline {
     const tween = animateCamera(this.svgElement, action, {
       target: targets[0],
       targets,
-      zoom: properties.zoom,
+      zoom: this.parseZoom(properties.zoom),
       padding: this.parsePadding(properties.padding),
       duration,
     });
 
     // Add to end of timeline for sequential execution
-    this.timeline.add(tween, "+=0");
+    this.timeline.add(tween, this.timeline.duration() + delay);
   }
 
   /**
-   * Add annotate animation (placeholder)
+   * Add a temporary SVG callout anchored to each target node.
    */
   private addAnnotateAnimation(
     targets: string[],
@@ -390,7 +431,87 @@ export class AnimationTimeline {
     duration: number,
     delay: number
   ): void {
-    // TODO: Implement annotation overlay
+    if (!this.svgElement || !properties.text) return;
+
+    const namespace = "http://www.w3.org/2000/svg";
+    const basePosition = this.timeline.duration() + delay;
+    const placement = properties.position || "top";
+
+    targets.forEach((targetId) => {
+      const target = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`) as SVGGElement | null;
+      if (!target) return;
+
+      const bbox = target.getBBox();
+      const words = String(properties.text).split(/\s+/);
+      const lines: string[] = [];
+      let currentLine = "";
+      for (const word of words) {
+        const candidate = currentLine ? `${currentLine} ${word}` : word;
+        if (candidate.length > 38 && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = candidate;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      const width = Math.min(320, Math.max(120, ...lines.map((line) => line.length * 7 + 24)));
+      const height = Math.max(36, lines.length * 18 + 18);
+      const gap = 14;
+      let x = bbox.x + bbox.width / 2 - width / 2;
+      let y = bbox.y - height - gap;
+      if (placement === "bottom") y = bbox.y + bbox.height + gap;
+      if (placement === "left") {
+        x = bbox.x - width - gap;
+        y = bbox.y + bbox.height / 2 - height / 2;
+      }
+      if (placement === "right") {
+        x = bbox.x + bbox.width + gap;
+        y = bbox.y + bbox.height / 2 - height / 2;
+      }
+
+      const group = document.createElementNS(namespace, "g");
+      group.setAttribute("data-animflow-annotation", targetId);
+      group.setAttribute("pointer-events", "none");
+
+      const background = document.createElementNS(namespace, "rect");
+      background.setAttribute("x", String(x));
+      background.setAttribute("y", String(y));
+      background.setAttribute("width", String(width));
+      background.setAttribute("height", String(height));
+      background.setAttribute("rx", "8");
+      background.setAttribute("fill", "#111827");
+      background.setAttribute("fill-opacity", "0.92");
+      background.setAttribute("stroke", "#ffffff");
+      background.setAttribute("stroke-width", "1");
+      group.appendChild(background);
+
+      const text = document.createElementNS(namespace, "text");
+      text.setAttribute("x", String(x + width / 2));
+      text.setAttribute("y", String(y + 20));
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("fill", "#ffffff");
+      text.setAttribute("font-size", "14");
+      text.setAttribute("font-family", "sans-serif");
+      lines.forEach((line, index) => {
+        const span = document.createElementNS(namespace, "tspan");
+        span.setAttribute("x", String(x + width / 2));
+        span.setAttribute("dy", index === 0 ? "0" : "18");
+        span.textContent = line;
+        text.appendChild(span);
+      });
+      group.appendChild(text);
+      this.svgElement!.appendChild(group);
+
+      gsap.set(group, { opacity: 0, scale: 0.96, transformOrigin: "center center" });
+      const annotationTimeline = gsap.timeline();
+      const fadeDuration = Math.min(0.2, duration / 3);
+      annotationTimeline.to(group, { opacity: 1, scale: 1, duration: fadeDuration });
+      annotationTimeline.to(group, { opacity: 1, duration: Math.max(0, duration - fadeDuration * 2) });
+      annotationTimeline.to(group, { opacity: 0, scale: 0.98, duration: fadeDuration });
+      this.timeline.add(annotationTimeline, basePosition);
+    });
   }
 
   /**
@@ -406,6 +527,7 @@ export class AnimationTimeline {
   ): void {
     if (!this.svgElement) return;
 
+    const basePosition = this.timeline.duration();
     targets.forEach((targetId) => {
       const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
       if (!element) return;
@@ -420,7 +542,7 @@ export class AnimationTimeline {
         tweenProps.y = properties.to[1];
       }
 
-      this.timeline.to(element, tweenProps, delay > 0 ? `+=${delay}` : "+=0");
+      this.timeline.to(element, tweenProps, basePosition + delay);
     });
   }
 
@@ -438,6 +560,7 @@ export class AnimationTimeline {
   ): void {
     if (!this.svgElement) return;
 
+    const basePosition = this.timeline.duration();
     targets.forEach((targetId) => {
       const element = this.svgElement!.querySelector(`[data-node-id="${targetId}"]`);
       if (!element) return;
@@ -450,16 +573,23 @@ export class AnimationTimeline {
         if (!isNaN(deg)) tweenProps.rotation = deg;
       }
 
-      this.timeline.to(element, tweenProps, delay > 0 ? `+=${delay}` : "+=0");
+      this.timeline.to(element, tweenProps, basePosition + delay);
     });
   }
 
   /**
    * Parse duration string (e.g., "1.5s" -> 1.5)
    */
-  private parseDuration(durationStr: string): number {
-    const match = durationStr.match(/([0-9.]+)s?/);
+  private parseDuration(durationValue: unknown): number {
+    if (typeof durationValue === "number" && Number.isFinite(durationValue)) return durationValue;
+    const match = String(durationValue).match(/([0-9.]+)s?/);
     return match ? parseFloat(match[1]) : 1;
+  }
+
+  private parseZoom(zoomValue: unknown): number | undefined {
+    if (zoomValue === undefined) return undefined;
+    const zoom = typeof zoomValue === "number" ? zoomValue : parseFloat(String(zoomValue));
+    return Number.isFinite(zoom) && zoom > 0 ? zoom : undefined;
   }
 
   /**
@@ -522,5 +652,11 @@ export class AnimationTimeline {
 
   isPlaying(): boolean {
     return this.timeline.isActive();
+  }
+
+  destroy(): void {
+    this.timeline.kill();
+    this.svgElement?.querySelectorAll("[data-animflow-annotation]").forEach((element) => element.remove());
+    this.svgElement = null;
   }
 }

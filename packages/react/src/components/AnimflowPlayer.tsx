@@ -64,9 +64,9 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
   function AnimflowPlayer(
     {
       dsl,
-      autoplay = false,
-      controls = true,
-      narration = true,
+      autoplay,
+      controls,
+      narration,
       className = "",
       i18n,
       onError,
@@ -74,7 +74,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
     },
     ref
   ) {
-    const effectiveI18n = { ...defaultI18n, ...i18n };
+    const effectiveI18n = useMemo(() => ({ ...defaultI18n, ...i18n }), [i18n]);
     const svgRef = useRef<SVGSVGElement | null>(null);
     const storeRef = useRef<DiagramStoreApi | null>(null);
     if (storeRef.current === null) {
@@ -170,6 +170,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       setSpeed,
       currentNarration,
       setCurrentNarration,
+      setDiagramData,
     } = useStore(store);
 
     // TTS mode — initialised from DSL config, toggled by the user (disabled while playing)
@@ -205,6 +206,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
     useEffect(() => {
       if (!dsl.trim()) {
         setLocalDiagramData(null);
+        setDiagramData(null);
         setError(null);
         return;
       }
@@ -214,6 +216,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         
         if (!parseResult.success || !parseResult.data) {
           const errorMsg = parseResult.errors?.[0]?.message ?? effectiveI18n.unknownError;
+          setDiagramData(null);
           setError(errorMsg);
           onError?.(errorMsg);
           return;
@@ -233,28 +236,32 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
           edges,
           config: {
             ...data.config,
-            autoplay: autoplay ?? data.config.autoplay,
-            controls: controls ?? data.config.controls,
-            narration: narration ?? data.config.narration,
+            autoplay: autoplay ?? data.config.autoplay ?? false,
+            controls: controls ?? data.config.controls ?? true,
+            narration: narration ?? data.config.narration ?? true,
+            speed: data.config.speed ?? 1,
           },
         };
 
         setLocalDiagramData(data);
+        setDiagramData(data);
         setError(null);
         onReady?.(data);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : effectiveI18n.unknownError;
+        setDiagramData(null);
         setError(errorMsg);
         onError?.(errorMsg);
       }
-    }, [dsl, autoplay, controls, narration, onError, onReady]);
+    }, [dsl, autoplay, controls, narration, onError, onReady, setDiagramData, effectiveI18n]);
 
     // Build animation timeline
     useEffect(() => {
       if (!svgRef.current || !localDiagramData) return;
 
       if (timelineRef.current) {
-        timelineRef.current.pause();
+        timelineRef.current.destroy();
+        timelineRef.current = null;
       }
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -297,10 +304,13 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         },
       });
       timeline.buildTimeline(svgRef.current);
+      const initialSpeed = localDiagramData.config.speed ?? 1;
+      timeline.setSpeed(initialSpeed);
       timelineRef.current = timeline;
       setStepBoundaries(timeline.getStepBoundaries());
 
       setDuration(timeline.getDuration());
+      setSpeed(initialSpeed);
 
       if (localDiagramData.config.autoplay) {
         timeline.play();
@@ -322,6 +332,8 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
 
       if (localDiagramData.narrations.length > 0) {
         setCurrentNarration(localDiagramData.narrations[0]);
+      } else {
+        setCurrentNarration(null);
       }
 
       return () => {
@@ -329,6 +341,8 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
           clearInterval(intervalRef.current);
         }
         ttsRef.current.cancel();
+        timeline.destroy();
+        if (timelineRef.current === timeline) timelineRef.current = null;
       };
     }, [
       localDiagramData,
@@ -337,6 +351,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
       setCurrentStep,
       setIsPlaying,
       setCurrentNarration,
+      setSpeed,
     ]);
 
     useEffect(() => {
@@ -429,6 +444,48 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         }
       }
     }, [localDiagramData, stepBoundaries, setCurrentTime, setCurrentStep, setCurrentNarration]);
+
+    useEffect(() => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        const target = event.target as HTMLElement | null;
+        if (
+          target?.isContentEditable ||
+          target?.tagName === "INPUT" ||
+          target?.tagName === "TEXTAREA" ||
+          target?.tagName === "SELECT"
+        ) {
+          return;
+        }
+
+        if (event.code === "Space") {
+          event.preventDefault();
+          if (isPlaying) handlePause();
+          else handlePlay();
+          return;
+        }
+
+        if (!timelineRef.current || stepBoundaries.length === 0) return;
+        const currentTime = timelineRef.current.getCurrentTime();
+        if (event.key === "ArrowRight") {
+          const next = stepBoundaries.find((boundary) => boundary.start > currentTime + 0.05);
+          if (next) {
+            event.preventDefault();
+            handleSeekToTime(next.start);
+          }
+        } else if (event.key === "ArrowLeft") {
+          const previous = [...stepBoundaries]
+            .reverse()
+            .find((boundary) => boundary.start < currentTime - 0.05);
+          if (previous) {
+            event.preventDefault();
+            handleSeekToTime(previous.start);
+          }
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [handlePause, handlePlay, handleSeekToTime, isPlaying, stepBoundaries]);
 
     const handleZoomIn = useCallback(() => {
       setZoomLevel((prev) => Math.min(2, Number((prev + 0.1).toFixed(1))));
@@ -597,7 +654,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
           />
 
           {/* Narration Overlay — absolutely positioned so it doesn't shift the diagram */}
-          {localDiagramData.config.narration !== false && narration && (
+          {localDiagramData.config.narration !== false && (
             <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
               <NarrationOverlay narration={currentNarration} />
             </div>
@@ -605,7 +662,7 @@ export const AnimflowPlayer = forwardRef<AnimflowPlayerRef, AnimflowPlayerProps>
         </div>
 
         {/* Playback Controls */}
-        {localDiagramData.config.controls !== false && controls && (
+        {localDiagramData.config.controls !== false && (
           <PlaybackControls
             store={store}
             i18n={effectiveI18n}

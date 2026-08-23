@@ -48,7 +48,7 @@ flowchart LR
 flowchart [direction]
   nodeId[label]
   nodeId2{decision label}
-  nodeId3([stadium shape])
+  nodeId3(stadium shape)
   nodeId4[(database)]
 
   nodeId --> nodeId2
@@ -58,8 +58,8 @@ flowchart [direction]
 
 **Direction**: `LR` (left-right), `RL` (right-left), `TD` (top-down), `TB` (top-bottom, same as TD), `BT` (bottom-top)
 
-> **Mermaid Compatible**: The diagram section accepts standard Mermaid flowchart syntax.
-> You can paste any Mermaid `flowchart` diagram directly and add `@animation`, `@style`, `@narration`, `@config` sections on top.
+> **Mermaid-compatible subset**: The diagram section accepts the flowchart directions, node shapes, and edge forms documented below.
+> Unsupported Mermaid constructs return a parse error. You can add `@animation`, `@style`, `@narration`, and `@config` sections to supported flowcharts.
 > Note: use `flowchart` keyword, not `graph`.
 
 ### Node Shapes
