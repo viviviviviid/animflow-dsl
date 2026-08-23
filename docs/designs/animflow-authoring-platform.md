@@ -791,7 +791,9 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Shipped: local/public Presenter, keyboard/pointer scene transport, separated speaker notes, create-only 30-day revision store, one-time deletion token, canonical SHA-256, version-gated replay, strict public CSP, persistent cross-process quotas, isolated server compile worker and public privacy/report surfaces
   - Verify: publish package unit/integration tests and Chromium/Firefox/WebKit E2E for local Presenter, immutable public playback, label/title XSS escaping, CSP, invalid/oversized input, deletion and post-delete replay stop
 
-- [ ] **T12 (P1)** — Public SDK — React façade, SSR/diagnostic/version contract와 clean consumer 설치 검증을 구현한다.
+- [x] **T12 (P1)** — Public SDK — React façade, SSR/diagnostic/version contract와 clean consumer 설치 검증을 구현한다.
+  - Shipped: `@animflow/sdk-react` 0.1.0 façade with bundled compatible compiler worker/runtime/renderer, single-story assertion, controlled transport, SSR placeholder, diagnostic/ready callbacks, self-hosted worker override, API and semver documentation
+  - Verify: package tests for invalid source, story and protocol mismatch; tarball install into a non-workspace React fixture; typecheck, esbuild production bundle, SSR test and real Chromium worker/render smoke test with no internal runtime dependency
 
 - [ ] **T13 (P1)** — Dogfood acceptance — 실제 10분 강의와 cross-browser·보안·복구 인수 기준을 완료한다.
 

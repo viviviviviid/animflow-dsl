@@ -1,0 +1,45 @@
+{
+  "name": "@animflow/sdk-react",
+  "version": "0.1.0",
+  "description": "Public React SDK for deterministic AnimFlow lecture diagrams",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/viviviviviid/animflow-dsl.git",
+    "directory": "packages/sdk-react"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup && node scripts/finalize-build.mjs",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "pnpm build"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@animflow-dsl/browser-worker": "workspace:*",
+    "@animflow-dsl/model": "workspace:*",
+    "@animflow-dsl/react-v2": "workspace:*",
+    "@animflow-dsl/runtime": "workspace:*",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-test-renderer": "^18.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-test-renderer": "^18.3.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  }
+}

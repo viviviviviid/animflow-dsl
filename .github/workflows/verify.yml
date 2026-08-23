@@ -23,6 +23,7 @@ jobs:
       - run: pnpm --filter @animflow-dsl/browser-worker test:coverage
       - run: pnpm verify:worker-bundle
       - run: pnpm eval:skill
+      - run: pnpm verify:sdk-consumer
 
   studio-e2e:
     runs-on: ubuntu-24.04
