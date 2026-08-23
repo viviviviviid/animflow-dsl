@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-import { ANIMFLOW_COMPILER_VERSION, compileAnimFlow } from "@animflow-dsl/compiler";
+import {
+  ANIMFLOW_COMPILER_VERSION,
+  compileAnimFlow,
+  lowerDocument,
+} from "@animflow-dsl/compiler";
 import {
   ANIMFLOW_SOURCE_VERSIONS,
   RENDER_PLAN_VERSION,
@@ -13,12 +17,18 @@ import {
   BROWSER_WORKER_PROTOCOL_VERSION,
   BrowserCompileClient,
   compileWorkerSource,
+  createBrowserCompileClient,
   DEFAULT_BROWSER_COMPILE_LIMITS,
   type MainToWorkerMessage,
   type WorkerLike,
   type WorkerReadyMessage,
   type WorkerToMainMessage,
 } from "../src/index.js";
+
+vi.mock("@animflow-dsl/compiler", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@animflow-dsl/compiler")>();
+  return { ...actual, lowerDocument: vi.fn(actual.lowerDocument) };
+});
 
 const fixturePath = fileURLToPath(
   new URL("../../language/fixtures/valid/basic.animflow", import.meta.url),
@@ -36,6 +46,8 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("browser compile client", () => {
@@ -225,6 +237,7 @@ describe("browser compile client", () => {
     workers[0]!.emit(readyMessage());
     const cancelled = client.compile(source);
     cancelled.cancel();
+    cancelled.cancel();
 
     await expect(cancelled.result).resolves.toEqual({
       status: "superseded",
@@ -314,6 +327,20 @@ describe("browser compile client", () => {
     client.dispose();
   });
 
+  test("normalizes non-Error worker construction failures", async () => {
+    const client = new BrowserCompileClient({
+      workerFactory: () => {
+        throw "workers unavailable";
+      },
+    });
+    const outcome = await client.compile(source).result;
+    expect(outcome.status).toBe("failure");
+    if (outcome.status === "failure") {
+      expect(outcome.diagnostics[0]?.message).toBe("workers unavailable");
+    }
+    client.dispose();
+  });
+
   test("fails jobs submitted after disposal and clamps limit overrides", async () => {
     const workers: FakeWorker[] = [];
     const client = createClient(workers, {
@@ -335,19 +362,194 @@ describe("browser compile client", () => {
       expect(disposed.diagnostics[0]?.code).toBe("AF705");
     }
   });
+
+  test("turns malformed cloned plans into a transport failure and restarts", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    workers[0]!.emit(readyMessage());
+    const job = client.compile(source);
+    const malformed = structuredClone(plan);
+    Object.defineProperty(malformed, "theme", {
+      get: () => {
+        throw new Error("malformed cloned plan");
+      },
+    });
+    workers[0]!.emit({
+      type: "result",
+      jobId: job.jobId,
+      ok: true,
+      plan: malformed,
+      diagnostics: [],
+    });
+
+    const outcome = await job.result;
+    expect(outcome.status).toBe("failure");
+    if (outcome.status === "failure") {
+      expect(outcome.diagnostics[0]?.message).toBe("malformed cloned plan");
+    }
+    expect(workers).toHaveLength(2);
+    client.dispose();
+  });
+
+  test("normalizes non-Error plan hydration failures", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    workers[0]!.emit(readyMessage());
+    const job = client.compile(source);
+    const malformed = structuredClone(plan);
+    Object.defineProperty(malformed, "theme", {
+      get: () => {
+        throw "malformed cloned plan";
+      },
+    });
+    workers[0]!.emit({
+      type: "result",
+      jobId: job.jobId,
+      ok: true,
+      plan: malformed,
+      diagnostics: [],
+    });
+    const outcome = await job.result;
+    expect(outcome.status).toBe("failure");
+    if (outcome.status === "failure") {
+      expect(outcome.diagnostics[0]?.message).toBe("malformed cloned plan");
+    }
+    client.dispose();
+  });
+
+  test("ignores detached worker callbacks and uses the crash fallback message", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    const staleMessage = workers[0]!.onmessage!;
+    const staleError = workers[0]!.onerror!;
+    workers[0]!.emit(readyMessage());
+    const cancelled = client.compile(source);
+    cancelled.cancel();
+    await cancelled.result;
+
+    staleMessage({ data: readyMessage() });
+    staleError({ message: "detached crash" });
+    workers[1]!.emit(readyMessage());
+    const crashing = client.compile(source);
+    workers[1]!.crash();
+    const outcome = await crashing.result;
+    expect(outcome.status).toBe("failure");
+    if (outcome.status === "failure") {
+      expect(outcome.diagnostics[0]?.message).toBe("Browser compile worker crashed.");
+    }
+    client.dispose();
+  });
+
+  test("ignores obsolete ready and compile timers", async () => {
+    vi.useFakeTimers();
+    const bootingWorkers: FakeWorker[] = [];
+    const booting = createClient(bootingWorkers, { readyTimeoutMs: 10 });
+    const bootingInternals = booting as unknown as { currentStatus: string };
+    bootingInternals.currentStatus = "idle";
+    await vi.advanceTimersByTimeAsync(11);
+    expect(bootingWorkers[0]!.terminated).toBe(false);
+    booting.dispose();
+
+    const compilingWorkers: FakeWorker[] = [];
+    const compiling = createClient(compilingWorkers, { compileTimeoutMs: 10 });
+    compilingWorkers[0]!.emit(readyMessage());
+    const job = compiling.compile(source);
+    const compilingInternals = compiling as unknown as { active: unknown };
+    const active = compilingInternals.active;
+    compilingInternals.active = undefined;
+    await vi.advanceTimersByTimeAsync(11);
+    compilingInternals.active = active;
+    compiling.dispose();
+    await expect(job.result).resolves.toEqual({ status: "superseded", jobId: job.jobId });
+  });
+
+  test("does not reboot after disposal", () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    client.dispose();
+    const internals = client as unknown as { boot(): void; restart(): void };
+    internals.boot();
+    internals.restart();
+    expect(workers).toHaveLength(1);
+  });
+
+  test("queues defensively if the idle transport disappears", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    workers[0]!.emit(readyMessage());
+    (client as unknown as { worker: WorkerLike | undefined }).worker = undefined;
+    const queued = client.compile(source);
+    expect(workers[0]!.messages).toEqual([]);
+    client.dispose();
+    await expect(queued.result).resolves.toEqual({
+      status: "superseded",
+      jobId: queued.jobId,
+    });
+  });
+
+  test("constructs the default module worker through the public factory", () => {
+    const workers: FakeWorker[] = [];
+    const constructions: Array<{ url: string; type: string | undefined }> = [];
+    class GlobalWorker extends FakeWorker {
+      constructor(url: URL, options?: WorkerOptions) {
+        super();
+        workers.push(this);
+        constructions.push({ url: url.href, type: options?.type });
+      }
+    }
+    vi.stubGlobal("Worker", GlobalWorker);
+    const client = createBrowserCompileClient();
+    expect(constructions).toHaveLength(1);
+    expect(constructions[0]?.url).toMatch(/\/worker\.js$/);
+    expect(constructions[0]?.type).toBe("module");
+    client.dispose();
+    expect(workers[0]?.terminated).toBe(true);
+  });
 });
 
 describe("worker resource validation", () => {
-  test("rejects semantic limits before lowering and compiles within limits", async () => {
-    const rejected = await compileWorkerSource(source, {
-      ...DEFAULT_BROWSER_COMPILE_LIMITS,
-      maxNodes: 1,
+  test("uses the public browser hard caps", () => {
+    expect(DEFAULT_BROWSER_COMPILE_LIMITS).toEqual({
+      maxSourceBytes: 256 * 1_024,
+      maxNodes: 100,
+      maxEdges: 150,
+      maxScenes: 30,
+      maxActions: 600,
+      maxActionNesting: 32,
     });
-    expect(rejected.ok).toBe(false);
-    if (!rejected.ok) expect(rejected.diagnostics[0]?.code).toBe("AF702");
+  });
+
+  test("rejects semantic limits before lowering and compiles within limits", async () => {
+    const limits = [
+      { key: "maxNodes", value: 1, label: "nodes" },
+      { key: "maxEdges", value: 0, label: "edges" },
+      { key: "maxScenes", value: 0, label: "scenes" },
+      { key: "maxActions", value: 3, label: "actions" },
+      { key: "maxActionNesting", value: 1, label: "action nesting" },
+    ] as const;
+    for (const limit of limits) {
+      const rejected = await compileWorkerSource(source, {
+        ...DEFAULT_BROWSER_COMPILE_LIMITS,
+        [limit.key]: limit.value,
+      });
+      expect(rejected.ok).toBe(false);
+      if (!rejected.ok) {
+        expect(rejected.diagnostics[0]?.code).toBe("AF702");
+        expect(rejected.diagnostics[0]?.message).toContain(limit.label);
+      }
+    }
 
     const accepted = await compileWorkerSource(source, DEFAULT_BROWSER_COMPILE_LIMITS);
     expect(accepted.ok).toBe(true);
+  });
+
+  test("rejects oversized UTF-8 input before parsing", async () => {
+    const rejected = await compileWorkerSource("éé", {
+      ...DEFAULT_BROWSER_COMPILE_LIMITS,
+      maxSourceBytes: 3,
+    });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.diagnostics[0]?.code).toBe("AF702");
   });
 
   test("compiles v2.1 named actions and returns parser diagnostics", async () => {
@@ -366,6 +568,56 @@ describe("worker resource validation", () => {
     );
     expect(rejected.ok).toBe(false);
     if (!rejected.ok) expect(rejected.diagnostics[0]?.code).toBe("AF101");
+  });
+
+  test("returns invariant diagnostics when lowering rejects", async () => {
+    vi.mocked(lowerDocument).mockRejectedValueOnce(new Error("synthetic invariant"));
+    const rejected = await compileWorkerSource(source, DEFAULT_BROWSER_COMPILE_LIMITS);
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) {
+      expect(rejected.diagnostics[0]?.code).toBe("AF501");
+      expect(rejected.diagnostics[0]?.message).toBe("synthetic invariant");
+    }
+
+    vi.mocked(lowerDocument).mockRejectedValueOnce("string invariant");
+    const stringRejected = await compileWorkerSource(source, DEFAULT_BROWSER_COMPILE_LIMITS);
+    expect(stringRejected.ok).toBe(false);
+    if (!stringRejected.ok) {
+      expect(stringRejected.diagnostics[0]?.message).toBe("string invariant");
+    }
+  });
+});
+
+describe("worker entry", () => {
+  test("announces readiness, ignores unknown messages, and compiles both outcomes", async () => {
+    const posted: WorkerToMainMessage[] = [];
+    vi.stubGlobal("onmessage", null);
+    vi.stubGlobal("postMessage", (message: WorkerToMainMessage) => posted.push(message));
+    await import("../src/worker.js");
+
+    expect(posted[0]).toEqual(readyMessage());
+    const workerScope = globalThis as unknown as {
+      onmessage: ((event: { data: MainToWorkerMessage | { type: "unknown" } }) => void) | null;
+    };
+    workerScope.onmessage?.({ data: { type: "unknown" } });
+    expect(posted).toHaveLength(1);
+
+    workerScope.onmessage?.({
+      data: { type: "compile", jobId: 1, source } as unknown as MainToWorkerMessage,
+    });
+    await vi.waitFor(() => expect(posted).toHaveLength(2));
+    expect(posted[1]).toMatchObject({ type: "result", jobId: 1, ok: true });
+
+    workerScope.onmessage?.({
+      data: {
+        type: "compile",
+        jobId: 2,
+        source: "animflow 2 canvas {",
+        limits: DEFAULT_BROWSER_COMPILE_LIMITS,
+      },
+    });
+    await vi.waitFor(() => expect(posted).toHaveLength(3));
+    expect(posted[2]).toMatchObject({ type: "result", jobId: 2, ok: false });
   });
 });
 
@@ -387,7 +639,7 @@ class FakeWorker implements WorkerLike {
     this.onmessage?.({ data: message });
   }
 
-  crash(message: string): void {
+  crash(message?: string): void {
     this.onerror?.({ message });
   }
 }

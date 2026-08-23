@@ -1,0 +1,32 @@
+name: browser-performance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm benchmark:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-performance-${{ github.sha }}
+          path: artifacts/browser-performance.json
+          if-no-files-found: error
+          retention-days: 30

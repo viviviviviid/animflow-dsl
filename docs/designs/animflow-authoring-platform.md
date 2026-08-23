@@ -764,10 +764,11 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Files: `packages/browser-worker`, `apps/web`
   - Verify: handshake mismatch, stale result, timeout, crash, next-valid recovery Playwright tests
 
-- [ ] **T6 (P2, human: ~5h / CC: ~35min)** — Verification — resource caps, coverage gate, serial root verify, reproducible performance workflow를 만든다.
+- [x] **T6 (P2, human: ~5h / CC: ~35min)** — Verification — resource caps, coverage gate, serial root verify, reproducible performance workflow를 만든다.
   - Surfaced by: Tests/Performance — 기존 test/build/lint는 통과하지만 worker/resource/performance 계약은 아직 fixture와 pinned runner가 없다.
   - Files: root CI/config, changed package tests, browser benchmark
   - Verify: new/changed code 100% coverage, sequential verify, bundle/compile/clone+freeze/memory budgets and raw artifacts
+  - Shipped: Chromium 151 고정 workflow, 100/150/30/600 상한 fixture, CDP worker heap plateau, raw JSON artifact, worker 전체 module 100% coverage gate
 
 
 ### Completion Summary

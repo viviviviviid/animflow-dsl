@@ -4,13 +4,13 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      include: ["src/client.ts", "src/compile-worker.ts"],
+      include: ["src/**/*.ts"],
       reporter: ["text", "json-summary"],
       thresholds: {
-        branches: 85,
-        functions: 90,
-        lines: 90,
-        statements: 90,
+        branches: 100,
+        functions: 100,
+        lines: 100,
+        statements: 100,
       },
     },
   },

@@ -29,6 +29,7 @@ export async function compileWorkerSource(
   const parsed = await parseAnimFlow(source);
   if (!parsed.ok) return parsed;
 
+  let result: Result<RenderPlan>;
   try {
     const counts = {
       nodes: parsed.value.graphs.reduce(
@@ -43,12 +44,14 @@ export async function compileWorkerSource(
       ...countActions(parsed.value.story.scenes.flatMap((scene) => scene.statements)),
     };
     const limitDiagnostic = validateSemanticCounts(counts, limits);
-    if (limitDiagnostic) return { ok: false, diagnostics: [limitDiagnostic] };
-
-    const plan = await lowerDocument(parsed.value, source);
-    return { ok: true, value: plan, diagnostics: parsed.diagnostics };
+    if (limitDiagnostic) {
+      result = { ok: false, diagnostics: [limitDiagnostic] };
+    } else {
+      const plan = await lowerDocument(parsed.value, source);
+      result = { ok: true, value: plan, diagnostics: parsed.diagnostics };
+    }
   } catch (error) {
-    return {
+    result = {
       ok: false,
       diagnostics: [
         diagnostic(
@@ -57,9 +60,9 @@ export async function compileWorkerSource(
         ),
       ],
     };
-  } finally {
-    await releaseAnimFlowDocument(parsed.value);
   }
+  await releaseAnimFlowDocument(parsed.value);
+  return result;
 }
 
 export function validateSourceBytes(

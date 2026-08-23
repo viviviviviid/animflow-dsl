@@ -8,10 +8,10 @@ export interface BrowserCompileLimits {
 }
 
 export const DEFAULT_BROWSER_COMPILE_LIMITS: BrowserCompileLimits = Object.freeze({
-  maxSourceBytes: 1_048_576,
-  maxNodes: 1_000,
-  maxEdges: 2_000,
-  maxScenes: 200,
-  maxActions: 5_000,
-  maxActionNesting: 64,
+  maxSourceBytes: 256 * 1_024,
+  maxNodes: 100,
+  maxEdges: 150,
+  maxScenes: 30,
+  maxActions: 600,
+  maxActionNesting: 32,
 });
