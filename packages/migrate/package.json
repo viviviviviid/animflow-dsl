@@ -21,10 +21,12 @@
   "dependencies": {
     "@animflow-dsl/language": "workspace:*",
     "@animflow-dsl/model": "workspace:*",
-    "@animflow-dsl/react": "workspace:*"
+    "@animflow-dsl/react": "workspace:*",
+    "langium": "4.3.0"
   },
   "devDependencies": {
     "@animflow-dsl/compiler": "workspace:*",
+    "@animflow-dsl/runtime": "workspace:*",
     "typescript": "^5.9.3",
     "vitest": "^2.1.8"
   }

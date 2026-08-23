@@ -1,4 +1,5 @@
 import {
+  ANIMFLOW_DIAGNOSTIC_CODES,
   actionId,
   assertValidRenderPlan,
   documentId,
@@ -143,7 +144,7 @@ export async function compileAnimFlow(
     return { ok: true, value: plan, diagnostics: parsed.diagnostics };
   } catch (error) {
     const diagnostic: Diagnostic = {
-      code: "AF501",
+      code: ANIMFLOW_DIAGNOSTIC_CODES.compileInvariant,
       severity: "error",
       message: error instanceof Error ? error.message : String(error),
       range: ZERO_RANGE,

@@ -1,3 +1,4 @@
+import { ANIMFLOW_DIAGNOSTIC_CODES } from "@animflow-dsl/model";
 import type { AstNode, ValidationAcceptor, ValidationChecks } from "langium";
 
 import type {
@@ -44,18 +45,7 @@ import {
 } from "./generated/ast.js";
 import type { AnimFlowServices } from "./animflow-module.js";
 
-const code = {
-  duplicateId: "AF201",
-  invalidReference: "AF211",
-  invalidVersion: "AF301",
-  missingProperty: "AF302",
-  duplicateProperty: "AF303",
-  invalidNumber: "AF304",
-  invalidTarget: "AF305",
-  invalidNarration: "AF405",
-  invalidActionIdentity: "AF406",
-  parallelWrite: "AF422",
-} as const;
+const code = ANIMFLOW_DIAGNOSTIC_CODES;
 
 export function registerValidationChecks(services: AnimFlowServices): void {
   const validator = services.validation.AnimFlowValidator;

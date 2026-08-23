@@ -18,6 +18,7 @@ import {
   AnimFlowValidator,
   registerValidationChecks,
 } from "./animflow-validator.js";
+import { AnimFlowFormatter } from "./animflow-formatter.js";
 import { AnimFlowScopeProvider } from "./animflow-scope-provider.js";
 
 export interface AnimFlowAddedServices {
@@ -32,6 +33,9 @@ export const AnimFlowModule: Module<
   AnimFlowServices,
   PartialLangiumServices & AnimFlowAddedServices
 > = {
+  lsp: {
+    Formatter: () => new AnimFlowFormatter(),
+  },
   references: {
     ScopeProvider: (services) => new AnimFlowScopeProvider(services),
   },

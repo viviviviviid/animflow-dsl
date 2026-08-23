@@ -1,9 +1,10 @@
-import type {
-  AnimFlowSourceVersion,
-  Diagnostic,
-  DiagnosticCode,
-  Result,
-  SourcePosition,
+import {
+  ANIMFLOW_DIAGNOSTIC_CODES,
+  type AnimFlowSourceVersion,
+  type Diagnostic,
+  type DiagnosticCode,
+  type Result,
+  type SourcePosition,
 } from "@animflow-dsl/model";
 import { AstUtils, EmptyFileSystem, URI } from "langium";
 
@@ -104,11 +105,11 @@ function diagnosticCode(diagnostic: LangiumDiagnostic): DiagnosticCode {
   }
   if (diagnostic.data && typeof diagnostic.data === "object" && "code" in diagnostic.data) {
     const dataCode = (diagnostic.data as { code?: unknown }).code;
-    if (dataCode === "linking-error") return "AF210";
+    if (dataCode === "linking-error") return ANIMFLOW_DIAGNOSTIC_CODES.unresolvedReference;
   }
   return diagnosticMessage(diagnostic).startsWith("Could not resolve reference")
-    ? "AF210"
-    : "AF101";
+    ? ANIMFLOW_DIAGNOSTIC_CODES.unresolvedReference
+    : ANIMFLOW_DIAGNOSTIC_CODES.syntax;
 }
 
 function diagnosticMessage(diagnostic: LangiumDiagnostic): string {

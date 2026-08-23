@@ -1,5 +1,6 @@
 import { parseAnimFlow, releaseAnimFlowDocument } from "@animflow-dsl/language";
 import {
+  ANIMFLOW_DIAGNOSTIC_CODES,
   ZERO_RANGE,
   type Diagnostic,
   type DiagnosticCode,
@@ -61,7 +62,7 @@ export async function migrateV1ToV2(
   if (!parsed.success || !parsed.data) {
     const diagnostics = (parsed.errors ?? []).map((error) =>
       diagnostic(
-        "AF601",
+        ANIMFLOW_DIAGNOSTIC_CODES.legacyParse,
         "error",
         error.message,
         rangeAtLine(legacySource, error.line, error.column),
@@ -72,7 +73,7 @@ export async function migrateV1ToV2(
       diagnostics:
         diagnostics.length > 0
           ? (diagnostics as [Diagnostic, ...Diagnostic[]])
-          : [diagnostic("AF601", "error", "Legacy parser returned no diagram.")],
+          : [diagnostic(ANIMFLOW_DIAGNOSTIC_CODES.legacyParse, "error", "Legacy parser returned no diagram.")],
     };
   }
 
@@ -87,7 +88,7 @@ export async function migrateV1ToV2(
       ok: false,
       diagnostics: [
         diagnostic(
-          "AF699",
+          ANIMFLOW_DIAGNOSTIC_CODES.generatedMigrationInvalid,
           "error",
           `Generated v2 source failed validation: ${validation.diagnostics
             .map((item) => `${item.code} ${item.message}`)
@@ -116,7 +117,7 @@ function lowerLegacyData(
     if (migrated !== node.id) {
       warnings.push(
         diagnostic(
-          "AF602",
+          ANIMFLOW_DIAGNOSTIC_CODES.legacyRenamedId,
           "warning",
           `Legacy node ID \"${node.id}\" was renamed to \"${migrated}\".`,
           rangeForNeedle(legacySource, node.id),
@@ -141,7 +142,7 @@ function lowerLegacyData(
     if (!stepToScene[narration.step]) {
       errors.push(
         diagnostic(
-          "AF621",
+          ANIMFLOW_DIAGNOSTIC_CODES.orphanNarration,
           "error",
           `Narration step ${narration.step} has no animation step and cannot be attached to a scene.`,
           rangeForNeedle(legacySource, `step ${narration.step}:`),
@@ -153,7 +154,7 @@ function lowerLegacyData(
   if (data.nodes.some((node) => node.style && Object.keys(node.style).length > 0)) {
     warnings.push(
       diagnostic(
-        "AF610",
+        ANIMFLOW_DIAGNOSTIC_CODES.legacyNormalizedStyle,
         "warning",
         "Legacy fill, stroke, and typography overrides were normalized into typed node tones.",
       ),
@@ -304,7 +305,7 @@ function migrateStep(
     }
     errors.push(
       diagnostic(
-        "AF620",
+        ANIMFLOW_DIAGNOSTIC_CODES.unsupportedLegacyBehavior,
         "error",
         `Camera action ${String(action)} in step ${step.step} has no lossless v2 mapping.`,
         rangeForNeedle(source, `step ${step.step}:`),
@@ -315,7 +316,7 @@ function migrateStep(
 
   errors.push(
     diagnostic(
-      "AF620",
+      ANIMFLOW_DIAGNOSTIC_CODES.unsupportedLegacyBehavior,
       "error",
       `Animation action ${step.action} in step ${step.step} has no v2 mapping.`,
       rangeForNeedle(source, `step ${step.step}:`),
@@ -442,7 +443,7 @@ function quote(value: string): string {
 
 function unknownTarget(step: AnimationStep, target: string, source: string): Diagnostic {
   return diagnostic(
-    "AF623",
+    ANIMFLOW_DIAGNOSTIC_CODES.invalidLegacyNumber,
     "error",
     `Unknown target \"${target}\" in legacy step ${step.step}.`,
     rangeForNeedle(source, target),

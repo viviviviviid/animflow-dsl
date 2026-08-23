@@ -119,10 +119,16 @@ importers:
       '@animflow-dsl/react':
         specifier: workspace:*
         version: link:../react
+      langium:
+        specifier: 4.3.0
+        version: 4.3.0
     devDependencies:
       '@animflow-dsl/compiler':
         specifier: workspace:*
         version: link:../compiler
+      '@animflow-dsl/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

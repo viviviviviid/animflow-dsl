@@ -1,8 +1,17 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, test } from "vitest";
 
 import { TEMPLATES } from "../../../apps/web/data/templates/index.js";
 import { compileAnimFlow } from "@animflow-dsl/compiler";
-import { migrateV1ToV2 } from "../src/index.js";
+import { formatAnimFlow } from "@animflow-dsl/language";
+import { sample } from "@animflow-dsl/runtime";
+import { migrateV1ToV2, migrateV2ToV21 } from "../src/index.js";
+
+const v2FixturePath = fileURLToPath(
+  new URL("../../language/fixtures/valid/basic.animflow", import.meta.url),
+);
 
 describe("v1 to v2 migration", () => {
   test("migrates and compiles all 11 templates without losing steps or narration", async () => {
@@ -120,5 +129,103 @@ describe("v1 to v2 migration", () => {
     expect(migration.ok).toBe(false);
     if (migration.ok) return;
     expect(migration.diagnostics.some((item) => item.code === "AF620")).toBe(true);
+  });
+});
+
+describe("v2 to v2.1 migration", () => {
+  test("generates collision-free action IDs in scene pre-order", async () => {
+    const source = (await readFile(v2FixturePath, "utf8")).replace(
+      '  node client "Client" {',
+      '  node requestScene_action001 "Reserved" {\n    shape rectangle\n    tone neutral\n  }\n\n  node client "Client" {',
+    );
+    const result = await migrateV2ToV21(source);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.generatedIds).toEqual([
+      "requestScene_action002",
+      "requestScene_action003",
+      "requestScene_action004",
+      "requestScene_action005",
+    ]);
+    expect(result.value.source).toContain(
+      "action requestScene_action003: sequence {",
+    );
+    expect(result.value.source).toContain(
+      "action requestScene_action004: highlight api tone accent",
+    );
+  });
+
+  test("preserves comments and is byte-stable across repeated runs", async () => {
+    const source = (await readFile(v2FixturePath, "utf8"))
+      .replace("    draw request", "    // trace request\n    draw request")
+      .replace("      highlight api", "      /* emphasize API */\n      highlight api");
+
+    const first = await migrateV2ToV21(source);
+    const second = await migrateV2ToV21(source);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+
+    expect(second.value).toEqual(first.value);
+    expect(first.value.source).toContain(
+      "// trace request\n    action requestScene_action001: draw request",
+    );
+    expect(first.value.source).toContain(
+      "/* emphasize API */\n      action requestScene_action003: highlight api",
+    );
+  });
+
+  test("preserves sampled runtime behavior", async () => {
+    const source = await readFile(v2FixturePath, "utf8");
+    const migration = await migrateV2ToV21(source);
+    expect(migration.ok).toBe(true);
+    if (!migration.ok) return;
+
+    const before = await compileAnimFlow(source);
+    const after = await compileAnimFlow(migration.value.source);
+    expect(before.ok).toBe(true);
+    expect(after.ok).toBe(true);
+    if (!before.ok || !after.ok) return;
+
+    for (const timeMs of [0, 500, 1000, 1500, 2000]) {
+      expect(sample(after.value, timeMs)).toEqual(sample(before.value, timeMs));
+    }
+  });
+
+  test("rejects a source that is not version 2", async () => {
+    const source = (await readFile(v2FixturePath, "utf8"))
+      .replace("animflow 2", "animflow 2.1")
+      .replace("    draw request via trace", "    action drawRequest: draw request via trace")
+      .replace("    sequence {", "    action emphasize: sequence {")
+      .replace("      highlight api tone accent", "      action highlightApi: highlight api tone accent")
+      .replace("      clearHighlight api", "      action clearApi: clearHighlight api");
+    const result = await migrateV2ToV21(source);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.diagnostics[0]?.code).toBe("AF624");
+  });
+});
+
+describe("source-tool semantic preservation", () => {
+  test("formatting preserves sampled runtime frames", async () => {
+    const source = (await readFile(v2FixturePath, "utf8"))
+      .replace(/\n\s*/g, " ")
+      .replace("client.e -> api.w", "client . e->api . w")
+      .trim();
+    const formatted = await formatAnimFlow(source);
+    expect(formatted.ok).toBe(true);
+    if (!formatted.ok) return;
+
+    const before = await compileAnimFlow(source);
+    const after = await compileAnimFlow(formatted.value.source);
+    expect(before.ok).toBe(true);
+    expect(after.ok).toBe(true);
+    if (!before.ok || !after.ok) return;
+
+    for (const timeMs of [0, 500, 1000, 1500, 2000]) {
+      expect(sample(after.value, timeMs)).toEqual(sample(before.value, timeMs));
+    }
   });
 });

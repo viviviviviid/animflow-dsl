@@ -1,5 +1,6 @@
 export * from "./animation";
 export * from "./diagnostics";
+export * from "./diagnostic-codes";
 export * from "./elements";
 export * from "./geometry";
 export * from "./ids";

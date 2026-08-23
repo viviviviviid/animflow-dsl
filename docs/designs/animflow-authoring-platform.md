@@ -739,22 +739,22 @@ Lane C: 0C browser isolation.
 
 Synthesized from this review's findings. Each task derives from a specific finding above. Run with Claude Code or Codex; checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~6h / CC: ~45min)** — Language contract — 문자열 source version과 모든 non-`say` statement의 ActionId를 구현한다.
+- [x] **T1 (P1, human: ~6h / CC: ~45min)** — Language contract — 문자열 source version과 모든 non-`say` statement의 ActionId를 구현한다.
   - Surfaced by: Architecture — NUMBER version과 anonymous nested scheduling node는 장기 호환성과 stable editing을 깨뜨린다.
   - Files: `packages/model`, `packages/language`
   - Verify: language version matrix, nested ID, global collision test와 `langium:generate` clean diff
 
-- [ ] **T2 (P1, human: ~5h / CC: ~40min)** — Compiler/model — normalized action provenance와 clone-safe `freezeRenderPlan`을 구현한다.
+- [x] **T2 (P1, human: ~5h / CC: ~40min)** — Compiler/model — normalized action provenance와 clone-safe `freezeRenderPlan`을 구현한다.
   - Surfaced by: Architecture/Performance — source range 반복과 structured clone의 freeze 손실
   - Files: `packages/model`, `packages/compiler`, `packages/runtime`
   - Verify: model invariant, leaf/parent provenance, v2 compatibility, clone+freeze tests
 
-- [ ] **T3 (P1, human: ~4h / CC: ~30min)** — Formatter — Langium CST 기반 deterministic syntax formatter를 구현한다.
+- [x] **T3 (P1, human: ~4h / CC: ~30min)** — Formatter — Langium CST 기반 deterministic syntax formatter를 구현한다.
   - Surfaced by: Code Quality — AST canonical printer는 comment trivia를 잃는다.
   - Files: `packages/language`
   - Verify: formatter idempotence, comment/order golden, sampled FrameState equivalence
 
-- [ ] **T4 (P1, human: ~5h / CC: ~40min)** — Migration — collision-free v2→v2.1 insertion migration을 구현한다.
+- [x] **T4 (P1, human: ~5h / CC: ~40min)** — Migration — collision-free v2→v2.1 insertion migration을 구현한다.
   - Surfaced by: Architecture — 기존 `<sceneId>.actionNNN` 제안은 현재 ID grammar에서 불법이다.
   - Files: `packages/migrate`, `packages/language`
   - Verify: pre-order IDs, global collision, nested action, comment preservation, repeat determinism
