@@ -1,7 +1,7 @@
 // Monarch syntax highlighting for the animflow language.
 export default {
     keywords: [
-        'anchor','animflow','arrow','auto','background','badge','both','by','callout','camera','canvas','card','circle','clearHighlight','curve','dash','dashed','database','diamond','distance','document','dotted','down','draw','duration','e','edge','effect','end','fade','fit','flip','flow','focus','from','glow','graph','hide','highlight','initial','label','layout','left','lightning','line','ms','n','node','nodeGap','none','orthogonal','overlay','padding','parallelogram','particles','pill','pop','pulse','rankGap','rectangle','right','rounded','routing','s','say','scene','sequence','shape','show','size','slide','solid','stagger','start','story','straight','text','theme','tone','trace','up','via','w','wave','width'
+        'action','anchor','animflow','arrow','auto','background','badge','both','by','callout','camera','canvas','card','circle','clearHighlight','curve','dash','dashed','database','diamond','distance','document','dotted','down','draw','duration','e','edge','effect','end','fade','fit','flip','flow','focus','from','glow','graph','hide','highlight','initial','label','layout','left','lightning','line','ms','n','node','nodeGap','none','orthogonal','overlay','padding','parallelogram','particles','pill','pop','pulse','rankGap','rectangle','right','rounded','routing','s','say','scene','sequence','shape','show','size','slide','solid','stagger','start','story','straight','text','theme','tone','trace','up','via','w','wave','width'
     ],
     operators: [
         '*',',','->','.',':'

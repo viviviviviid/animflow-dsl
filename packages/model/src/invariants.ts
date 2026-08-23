@@ -5,7 +5,7 @@ import type {
   SceneSnapshot,
 } from "./animation";
 import type { ElementGeometry } from "./geometry";
-import type { ElementHandle } from "./ids";
+import type { ActionId, ElementHandle, SceneId } from "./ids";
 import type { RenderPlan } from "./render-plan";
 
 export interface ModelViolation {
@@ -95,6 +95,8 @@ function validateScene(
   index: number,
   expectedStartMs: number,
   expectedKinds: ReadonlyMap<ElementHandle, ElementFrameState["kind"]>,
+  actionScenes: ReadonlyMap<ActionId, SceneId>,
+  requireActionIds: boolean,
   violations: ModelViolation[]
 ): void {
   const path = `scenes[${index}]`;
@@ -141,7 +143,112 @@ function validateScene(
         message: `Track targets unknown handle ${handle}`,
       });
     }
+
+    if (track.actionId === undefined && requireActionIds) {
+      violations.push({
+        code: "MODEL_MISSING_TRACK_ACTION",
+        path: `${trackPath}.actionId`,
+        message: "A plan with authoring metadata requires every animation track to reference an action",
+      });
+    } else if (track.actionId !== undefined) {
+      const actionScene = actionScenes.get(track.actionId);
+      if (actionScene === undefined) {
+        violations.push({
+          code: "MODEL_UNKNOWN_TRACK_ACTION",
+          path: `${trackPath}.actionId`,
+          message: `Track references unknown action ${track.actionId}`,
+        });
+      } else if (actionScene !== scene.id) {
+        violations.push({
+          code: "MODEL_TRACK_ACTION_SCENE_MISMATCH",
+          path: `${trackPath}.actionId`,
+          message: `Action ${track.actionId} belongs to scene ${actionScene}, not ${scene.id}`,
+        });
+      }
+    }
   }
+}
+
+function validateAuthoring(
+  plan: RenderPlan,
+  knownSceneIds: ReadonlySet<string>,
+  reservedIds: ReadonlySet<string>,
+  violations: ModelViolation[],
+): Map<ActionId, SceneId> {
+  const actionScenes = new Map<ActionId, SceneId>();
+  const authoring = plan.authoring;
+  if (!authoring) return actionScenes;
+
+  if (authoring.sourceVersion !== "2.1") {
+    violations.push({
+      code: "MODEL_UNSUPPORTED_AUTHORING_VERSION",
+      path: "authoring.sourceVersion",
+      message: `Authoring metadata requires source version 2.1; received ${authoring.sourceVersion}`,
+    });
+  }
+
+  const actionById = new Map(authoring.actions.map((action) => [action.id, action]));
+  const actionOrder = new Map(authoring.actions.map((action, index) => [action.id, index]));
+  for (let index = 0; index < authoring.actions.length; index += 1) {
+    const action = authoring.actions[index];
+    const path = `authoring.actions[${index}]`;
+    if (actionScenes.has(action.id)) {
+      violations.push({
+        code: "MODEL_DUPLICATE_ACTION_ID",
+        path: `${path}.id`,
+        message: `Action ID ${action.id} appears more than once`,
+      });
+    }
+    actionScenes.set(action.id, action.sceneId);
+    if (reservedIds.has(action.id)) {
+      violations.push({
+        code: "MODEL_ACTION_ID_COLLISION",
+        path: `${path}.id`,
+        message: `Action ID ${action.id} collides with another semantic ID`,
+      });
+    }
+    if (!knownSceneIds.has(action.sceneId)) {
+      violations.push({
+        code: "MODEL_UNKNOWN_ACTION_SCENE",
+        path: `${path}.sceneId`,
+        message: `Action ${action.id} references unknown scene ${action.sceneId}`,
+      });
+    }
+
+    const { start, end } = action.range;
+    const positions = [start.offset, start.line, start.character, end.offset, end.line, end.character];
+    if (positions.some((value) => !Number.isSafeInteger(value) || value < 0) || end.offset < start.offset) {
+      violations.push({
+        code: "MODEL_INVALID_ACTION_RANGE",
+        path: `${path}.range`,
+        message: "Action source range must contain non-negative integer coordinates in source order",
+      });
+    }
+
+    if (action.parentActionId !== undefined) {
+      const parent = actionById.get(action.parentActionId);
+      if (!parent) {
+        violations.push({
+          code: "MODEL_UNKNOWN_PARENT_ACTION",
+          path: `${path}.parentActionId`,
+          message: `Parent action ${action.parentActionId} does not exist`,
+        });
+      } else if (parent.sceneId !== action.sceneId) {
+        violations.push({
+          code: "MODEL_PARENT_ACTION_SCENE_MISMATCH",
+          path: `${path}.parentActionId`,
+          message: `Parent action ${action.parentActionId} belongs to another scene`,
+        });
+      } else if ((actionOrder.get(action.parentActionId) ?? index) >= index) {
+        violations.push({
+          code: "MODEL_PARENT_ACTION_ORDER",
+          path: `${path}.parentActionId`,
+          message: `Parent action ${action.parentActionId} must precede its child`,
+        });
+      }
+    }
+  }
+  return actionScenes;
 }
 
 function validateGeometry(
@@ -245,19 +352,31 @@ export function validateRenderPlan(plan: RenderPlan): readonly ModelViolation[] 
   validateGeometry(plan.geometry, expectedKinds, violations);
   validateSnapshot(plan.initial, expectedKinds, "initial", violations);
 
+  const sceneIds = new Set(plan.scenes.map((scene) => scene.id));
+  const reservedIds = new Set<string>([plan.storyId, ...ids, ...sceneIds]);
+  const actionScenes = validateAuthoring(plan, sceneIds, reservedIds, violations);
+
   let expectedStartMs = 0;
-  const sceneIds = new Set<string>();
+  const visitedSceneIds = new Set<string>();
   for (let index = 0; index < plan.scenes.length; index += 1) {
     const scene = plan.scenes[index];
-    if (sceneIds.has(scene.id)) {
+    if (visitedSceneIds.has(scene.id)) {
       violations.push({
         code: "MODEL_DUPLICATE_SCENE_ID",
         path: `scenes[${index}].id`,
         message: `Scene ID ${scene.id} appears more than once`,
       });
     }
-    sceneIds.add(scene.id);
-    validateScene(scene, index, expectedStartMs, expectedKinds, violations);
+    visitedSceneIds.add(scene.id);
+    validateScene(
+      scene,
+      index,
+      expectedStartMs,
+      expectedKinds,
+      actionScenes,
+      plan.authoring !== undefined,
+      violations,
+    );
     expectedStartMs += scene.durationMs;
   }
 

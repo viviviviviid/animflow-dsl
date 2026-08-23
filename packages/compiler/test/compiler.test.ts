@@ -27,6 +27,7 @@ describe("AnimFlow compiler", () => {
     ]);
     expect(result.value.geometry.map((item) => item.handle)).toEqual([0, 1, 2, 3]);
     expect(result.value.initial.elements.map((item) => item.opacity)).toEqual([1, 1, 1, 0]);
+    expect(result.value.authoring).toBeUndefined();
     expect(Object.isFrozen(result.value)).toBe(true);
     expect(Object.isFrozen(result.value.scenes[0]?.tracks)).toBe(true);
   });
@@ -81,6 +82,36 @@ describe("AnimFlow compiler", () => {
     expect(track.to.width / track.to.height).toBeCloseTo(1280 / 720, 8);
   });
 
+  test("preserves nested v2.1 action provenance on the plan and leaf tracks", async () => {
+    const source = toV21(await readFile(fixturePath, "utf8"));
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.authoring?.sourceVersion).toBe("2.1");
+    expect(result.value.authoring?.actions.map((action) => action.id)).toEqual([
+      "traceRequest",
+      "emphasizeApi",
+      "highlightApi",
+      "clearApi",
+    ]);
+    expect(result.value.authoring?.actions[2]).toMatchObject({
+      id: "highlightApi",
+      parentActionId: "emphasizeApi",
+      kind: "highlight",
+      sceneId: "requestScene",
+    });
+    const firstRange = result.value.authoring?.actions[0]?.range;
+    expect(firstRange && source.slice(firstRange.start.offset, firstRange.end.offset)).toBe(
+      "action traceRequest: draw request via trace",
+    );
+    expect(result.value.scenes[0]?.tracks.every((track) => track.actionId !== undefined)).toBe(true);
+    expect(result.value.scenes[0]?.tracks[0]?.actionId).toBe("traceRequest");
+    expect(Object.isFrozen(result.value.authoring?.actions)).toBe(true);
+    expect(validateRenderPlan(result.value)).toEqual([]);
+  });
+
   test("does not produce a plan for invalid source", async () => {
     const source = (await readFile(fixturePath, "utf8")).replace(
       'scene requestScene "Send request"',
@@ -95,3 +126,12 @@ describe("AnimFlow compiler", () => {
     );
   });
 });
+
+function toV21(source: string): string {
+  return source
+    .replace("animflow 2", "animflow 2.1")
+    .replace("    draw request via trace", "    action traceRequest: draw request via trace")
+    .replace("    sequence {", "    action emphasizeApi: sequence {")
+    .replace("      highlight api tone accent", "      action highlightApi: highlight api tone accent")
+    .replace("      clearHighlight api", "      action clearApi: clearHighlight api");
+}

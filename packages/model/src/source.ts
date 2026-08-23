@@ -1,4 +1,6 @@
 /** All source coordinates are zero-based and the end position is exclusive. */
+export type AnimFlowSourceVersion = "2" | "2.1";
+
 export interface SourcePosition {
   readonly offset: number;
   readonly line: number;

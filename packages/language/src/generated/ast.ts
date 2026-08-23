@@ -27,6 +27,7 @@ export type AnimFlowKeywordNames =
     | ":"
     | "["
     | "]"
+    | "action"
     | "anchor"
     | "animflow"
     | "arrow"
@@ -117,13 +118,30 @@ export type AnimFlowKeywordNames =
 
 export type AnimFlowTokenNames = AnimFlowTerminalNames | AnimFlowKeywordNames;
 
+export interface ActionStatement extends langium.AstNode {
+    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $type: 'ActionStatement';
+    body: SceneAction;
+    name: string;
+}
+
+export const ActionStatement = {
+    $type: 'ActionStatement',
+    body: 'body',
+    name: 'name'
+} as const;
+
+export function isActionStatement(item: unknown): item is ActionStatement {
+    return reflection.isInstance(item, ActionStatement.$type);
+}
+
 export interface AnimFlowDocument extends langium.AstNode {
     readonly $type: 'AnimFlowDocument';
     canvas: Canvas;
     graphs: Array<Graph>;
     overlays: Array<Overlay>;
     story: Story;
-    version: number;
+    version: AnimFlowSourceVersion;
 }
 
 export const AnimFlowDocument = {
@@ -139,6 +157,9 @@ export function isAnimFlowDocument(item: unknown): item is AnimFlowDocument {
     return reflection.isInstance(item, AnimFlowDocument.$type);
 }
 
+export type AnimFlowSourceVersion = number;
+
+
 export type ArrowPlacement = 'both' | 'end' | 'none' | 'start';
 
 export function isArrowPlacement(item: unknown): item is ArrowPlacement {
@@ -152,7 +173,7 @@ export function isCameraAction(item: unknown): item is CameraAction {
 }
 
 export interface CameraStatement extends langium.AstNode {
-    readonly $container: InitialBlock | Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | InitialBlock | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'CameraStatement';
     action: CameraAction;
     padding?: number;
@@ -243,7 +264,7 @@ export function isCanvasThemeProperty(item: unknown): item is CanvasThemePropert
 }
 
 export interface ClearHighlightStatement extends langium.AstNode {
-    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'ClearHighlightStatement';
     target: langium.Reference<Element>;
 }
@@ -258,7 +279,7 @@ export function isClearHighlightStatement(item: unknown): item is ClearHighlight
 }
 
 export interface DrawStatement extends langium.AstNode {
-    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'DrawStatement';
     edge: langium.Reference<Edge>;
     flow?: FlowEffect;
@@ -542,7 +563,7 @@ export function isHighlightEffect(item: unknown): item is HighlightEffect {
 }
 
 export interface HighlightStatement extends langium.AstNode {
-    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'HighlightStatement';
     effect?: HighlightEffect;
     target: langium.Reference<Element>;
@@ -897,7 +918,17 @@ export function isScene(item: unknown): item is Scene {
     return reflection.isInstance(item, Scene.$type);
 }
 
-export type SceneStatement = CameraStatement | ClearHighlightStatement | DrawStatement | HighlightStatement | SayStatement | SceneVisibilityStatement | SequenceStatement | StaggerStatement;
+export type SceneAction = CameraStatement | ClearHighlightStatement | DrawStatement | HighlightStatement | SceneVisibilityStatement | SequenceStatement | StaggerStatement;
+
+export const SceneAction = {
+    $type: 'SceneAction'
+} as const;
+
+export function isSceneAction(item: unknown): item is SceneAction {
+    return reflection.isInstance(item, SceneAction.$type);
+}
+
+export type SceneStatement = ActionStatement | SayStatement | SceneAction;
 
 export const SceneStatement = {
     $type: 'SceneStatement'
@@ -908,7 +939,7 @@ export function isSceneStatement(item: unknown): item is SceneStatement {
 }
 
 export interface SceneVisibilityStatement extends langium.AstNode {
-    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'SceneVisibilityStatement';
     action: 'hide' | 'show';
     targets: TargetSet;
@@ -937,7 +968,7 @@ export function isSelectable(item: unknown): item is Selectable {
 }
 
 export interface SequenceStatement extends langium.AstNode {
-    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'SequenceStatement';
     statements: Array<SceneStatement>;
 }
@@ -975,7 +1006,7 @@ export function isSlideTransition(item: unknown): item is SlideTransition {
 }
 
 export interface StaggerStatement extends langium.AstNode {
-    readonly $container: Scene | SequenceStatement | StaggerStatement;
+    readonly $container: ActionStatement | Scene | SequenceStatement | StaggerStatement;
     readonly $type: 'StaggerStatement';
     interval: Duration;
     statements: Array<SceneStatement>;
@@ -1050,6 +1081,7 @@ export function isVisibilityTransition(item: unknown): item is VisibilityTransit
 }
 
 export type AnimFlowAstType = {
+    ActionStatement: ActionStatement
     AnimFlowDocument: AnimFlowDocument
     CameraStatement: CameraStatement
     Canvas: Canvas
@@ -1097,6 +1129,7 @@ export type AnimFlowAstType = {
     RoutingSetting: RoutingSetting
     SayStatement: SayStatement
     Scene: Scene
+    SceneAction: SceneAction
     SceneStatement: SceneStatement
     SceneVisibilityStatement: SceneVisibilityStatement
     Selectable: Selectable
@@ -1111,6 +1144,18 @@ export type AnimFlowAstType = {
 
 export class AnimFlowAstReflection extends langium.AbstractAstReflection {
     override readonly types = {
+        ActionStatement: {
+            name: ActionStatement.$type,
+            properties: {
+                body: {
+                    name: ActionStatement.body
+                },
+                name: {
+                    name: ActionStatement.name
+                }
+            },
+            superTypes: [SceneStatement.$type]
+        },
         AnimFlowDocument: {
             name: AnimFlowDocument.$type,
             properties: {
@@ -1149,7 +1194,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     name: CameraStatement.targets
                 }
             },
-            superTypes: [InitialStatement.$type, SceneStatement.$type]
+            superTypes: [InitialStatement.$type, SceneAction.$type]
         },
         Canvas: {
             name: Canvas.$type,
@@ -1206,7 +1251,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     referenceType: Element.$type
                 }
             },
-            superTypes: [SceneStatement.$type]
+            superTypes: [SceneAction.$type]
         },
         DrawStatement: {
             name: DrawStatement.$type,
@@ -1223,7 +1268,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     name: DrawStatement.transition
                 }
             },
-            superTypes: [SceneStatement.$type]
+            superTypes: [SceneAction.$type]
         },
         Duration: {
             name: Duration.$type,
@@ -1409,7 +1454,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     name: HighlightStatement.tone
                 }
             },
-            superTypes: [SceneStatement.$type]
+            superTypes: [SceneAction.$type]
         },
         InitialBlock: {
             name: InitialBlock.$type,
@@ -1627,6 +1672,12 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: []
         },
+        SceneAction: {
+            name: SceneAction.$type,
+            properties: {
+            },
+            superTypes: [SceneStatement.$type]
+        },
         SceneStatement: {
             name: SceneStatement.$type,
             properties: {
@@ -1646,7 +1697,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     name: SceneVisibilityStatement.transition
                 }
             },
-            superTypes: [SceneStatement.$type]
+            superTypes: [SceneAction.$type]
         },
         Selectable: {
             name: Selectable.$type,
@@ -1663,7 +1714,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     optional: true
                 }
             },
-            superTypes: [SceneStatement.$type]
+            superTypes: [SceneAction.$type]
         },
         SlideTransition: {
             name: SlideTransition.$type,
@@ -1690,7 +1741,7 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                     optional: true
                 }
             },
-            superTypes: [SceneStatement.$type]
+            superTypes: [SceneAction.$type]
         },
         Story: {
             name: Story.$type,

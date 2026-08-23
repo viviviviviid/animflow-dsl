@@ -1,11 +1,14 @@
 grammar AnimFlow
 
 entry AnimFlowDocument:
-    'animflow' version=NUMBER
+    'animflow' version=AnimFlowSourceVersion
     canvas=Canvas
     graphs+=Graph+
     overlays+=Overlay*
     story=Story;
+
+AnimFlowSourceVersion returns string:
+    NUMBER;
 
 Canvas:
     'canvas' '{'
@@ -145,12 +148,19 @@ Scene:
     '}';
 
 SceneStatement:
+    ActionStatement
+    | SayStatement
+    | SceneAction;
+
+ActionStatement:
+    'action' name=ID ':' body=SceneAction;
+
+SceneAction:
     SceneVisibilityStatement
     | DrawStatement
     | HighlightStatement
     | ClearHighlightStatement
     | CameraStatement
-    | SayStatement
     | SequenceStatement
     | StaggerStatement;
 

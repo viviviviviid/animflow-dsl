@@ -1,6 +1,7 @@
 import type { AstNode, ValidationAcceptor, ValidationChecks } from "langium";
 
 import type {
+  ActionStatement,
   AnimFlowAstType,
   AnimFlowDocument,
   CameraStatement,
@@ -13,10 +14,13 @@ import type {
   Node,
   Overlay,
   Scene,
+  SceneAction,
   SceneStatement,
+  SayStatement,
   TargetSet,
 } from "./generated/ast.js";
 import {
+  isActionStatement,
   isCameraStatement,
   isClearHighlightStatement,
   isDrawStatement,
@@ -49,6 +53,7 @@ const code = {
   invalidNumber: "AF304",
   invalidTarget: "AF305",
   invalidNarration: "AF405",
+  invalidActionIdentity: "AF406",
   parallelWrite: "AF422",
 } as const;
 
@@ -60,7 +65,14 @@ export function registerValidationChecks(services: AnimFlowServices): void {
   services.validation.ValidationRegistry.register(checks, validator);
 }
 
-type NamedDeclaration = Graph | Node | Edge | Overlay | Scene | AnimFlowDocument["story"];
+type NamedDeclaration =
+  | ActionStatement
+  | Graph
+  | Node
+  | Edge
+  | Overlay
+  | Scene
+  | AnimFlowDocument["story"];
 
 interface WriteOwner {
   readonly statement: SceneStatement;
@@ -102,8 +114,9 @@ export class AnimFlowValidator {
   }
 
   private checkVersion(document: AnimFlowDocument, accept: ValidationAcceptor): void {
-    if (document.version !== 2) {
-      accept("error", "AnimFlow document version must be 2.", {
+    const sourceVersion = String(document.version);
+    if (sourceVersion !== "2" && sourceVersion !== "2.1") {
+      accept("error", "AnimFlow document version must be 2 or 2.1.", {
         node: document,
         property: "version",
         code: code.invalidVersion,
@@ -116,6 +129,11 @@ export class AnimFlowValidator {
     declarations.push(...document.graphs, ...document.overlays, ...document.story.scenes);
     for (const graph of document.graphs) {
       declarations.push(...graph.members);
+    }
+    for (const scene of document.story.scenes) {
+      for (const statement of this.walkStatements(scene.statements)) {
+        if (isActionStatement(statement)) declarations.push(statement);
+      }
     }
 
     const byName = new Map<string, NamedDeclaration[]>();
@@ -233,28 +251,30 @@ export class AnimFlowValidator {
     }
 
     for (const statement of this.walkStatements(scene.statements)) {
-      if (isSceneVisibilityStatement(statement)) {
-        this.checkTarget(statement.targets, accept);
-        if (isSlideTransition(statement.transition) && (statement.transition.distance ?? 0) < 0) {
+      this.checkActionIdentity(scene.$container.$container.version, statement, accept);
+      const action = this.unwrapStatement(statement);
+      if (isSceneVisibilityStatement(action)) {
+        this.checkTarget(action.targets, accept);
+        if (isSlideTransition(action.transition) && (action.transition.distance ?? 0) < 0) {
           accept("error", "Slide distance must not be negative.", {
-            node: statement.transition,
+            node: action.transition,
             property: "distance",
             code: code.invalidNumber,
           });
         }
-      } else if (isCameraStatement(statement)) {
-        this.checkCamera(statement, accept);
+      } else if (isCameraStatement(action)) {
+        this.checkCamera(action, accept);
       } else if (
-        isSayStatement(statement) &&
-        (isSequenceStatement(statement.$container) || isStaggerStatement(statement.$container))
+        isSayStatement(action) &&
+        (isSequenceStatement(action.$container) || isStaggerStatement(action.$container))
       ) {
         accept("error", "say must be a direct scene statement because narration is scene-scoped.", {
-          node: statement,
+          node: action,
           code: code.invalidNarration,
         });
-      } else if (isStaggerStatement(statement) && statement.interval.value < 0) {
+      } else if (isStaggerStatement(action) && action.interval.value < 0) {
         accept("error", "Stagger interval must not be negative.", {
-          node: statement.interval,
+          node: action.interval,
           property: "value",
           code: code.invalidNumber,
         });
@@ -366,41 +386,65 @@ export class AnimFlowValidator {
   private *walkStatements(statements: readonly SceneStatement[]): Iterable<SceneStatement> {
     for (const statement of statements) {
       yield statement;
-      if (isSequenceStatement(statement)) {
-        yield* this.walkStatements(statement.statements);
-      } else if (isStaggerStatement(statement)) {
-        yield* this.walkStatements(statement.statements);
+      const action = this.unwrapStatement(statement);
+      if (isSequenceStatement(action) || isStaggerStatement(action)) {
+        yield* this.walkStatements(action.statements);
       }
     }
   }
 
   private statementWrites(statement: SceneStatement): Set<string> {
-    if (isSequenceStatement(statement)) {
+    const action = this.unwrapStatement(statement);
+    if (isSequenceStatement(action)) {
       const writes = new Set<string>();
-      for (const child of statement.statements) {
+      for (const child of action.statements) {
         for (const key of this.statementWrites(child)) writes.add(key);
       }
       return writes;
     }
-    if (isStaggerStatement(statement)) {
+    if (isStaggerStatement(action)) {
       const writes = new Set<string>();
-      for (const child of statement.statements) {
+      for (const child of action.statements) {
         for (const key of this.statementWrites(child)) writes.add(key);
       }
       return writes;
     }
-    if (isSceneVisibilityStatement(statement)) {
-      return new Set(this.expandTarget(statement.targets).map((target) => `${target.name}.opacity`));
+    if (isSceneVisibilityStatement(action)) {
+      return new Set(this.expandTarget(action.targets).map((target) => `${target.name}.opacity`));
     }
-    if (isDrawStatement(statement)) {
-      return new Set(statement.edge.ref ? [`${statement.edge.ref.name}.drawProgress`] : []);
+    if (isDrawStatement(action)) {
+      return new Set(action.edge.ref ? [`${action.edge.ref.name}.drawProgress`] : []);
     }
-    if (isHighlightStatement(statement) || isClearHighlightStatement(statement)) {
-      return new Set(statement.target.ref ? [`${statement.target.ref.name}.highlight`] : []);
+    if (isHighlightStatement(action) || isClearHighlightStatement(action)) {
+      return new Set(action.target.ref ? [`${action.target.ref.name}.highlight`] : []);
     }
-    if (isCameraStatement(statement)) return new Set(["camera.viewBox"]);
-    if (isSayStatement(statement)) return new Set(["narration"]);
+    if (isCameraStatement(action)) return new Set(["camera.viewBox"]);
+    if (isSayStatement(action)) return new Set(["narration"]);
     return new Set();
+  }
+
+  private checkActionIdentity(
+    version: AnimFlowDocument["version"],
+    statement: SceneStatement,
+    accept: ValidationAcceptor,
+  ): void {
+    const sourceVersion = String(version);
+    if (sourceVersion === "2.1" && !isSayStatement(statement) && !isActionStatement(statement)) {
+      accept("error", "AnimFlow 2.1 requires action <id>: before every scene action.", {
+        node: statement,
+        code: code.invalidActionIdentity,
+      });
+    } else if (sourceVersion === "2" && isActionStatement(statement)) {
+      accept("error", "Named actions require animflow 2.1.", {
+        node: statement,
+        property: "name",
+        code: code.invalidActionIdentity,
+      });
+    }
+  }
+
+  private unwrapStatement(statement: SceneStatement): SceneAction | SayStatement {
+    return isActionStatement(statement) ? statement.body : statement;
   }
 
   private expandTarget(target: TargetSet): Array<Element | Graph> {

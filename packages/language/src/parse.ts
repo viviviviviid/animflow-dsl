@@ -1,8 +1,14 @@
-import type { Diagnostic, DiagnosticCode, Result, SourcePosition } from "@animflow-dsl/model";
+import type {
+  AnimFlowSourceVersion,
+  Diagnostic,
+  DiagnosticCode,
+  Result,
+  SourcePosition,
+} from "@animflow-dsl/model";
 import { AstUtils, EmptyFileSystem, URI } from "langium";
 
 import { createAnimFlowServices } from "./animflow-module.js";
-import type { AnimFlowDocument } from "./generated/ast.js";
+import type { AnimFlowDocument as GeneratedAnimFlowDocument } from "./generated/ast.js";
 
 const services = createAnimFlowServices(EmptyFileSystem);
 let documentSequence = 0;
@@ -22,12 +28,16 @@ export interface ParseAnimFlowOptions {
   readonly validation?: boolean;
 }
 
+export type ParsedAnimFlowDocument = Omit<GeneratedAnimFlowDocument, "version"> & {
+  readonly version: AnimFlowSourceVersion;
+};
+
 export async function parseAnimFlow(
   source: string,
   options: ParseAnimFlowOptions = {},
-): Promise<Result<AnimFlowDocument>> {
+): Promise<Result<ParsedAnimFlowDocument>> {
   const uri = URI.parse(`memory:///animflow-${documentSequence++}.animflow`);
-  const document = services.shared.workspace.LangiumDocumentFactory.fromString<AnimFlowDocument>(
+  const document = services.shared.workspace.LangiumDocumentFactory.fromString<GeneratedAnimFlowDocument>(
     source,
     uri,
   );
@@ -55,7 +65,10 @@ export async function parseAnimFlow(
 
   return {
     ok: true,
-    value: document.parseResult.value,
+    // Langium's data-type rule returns the source lexeme at runtime, while its
+    // generated alias follows the nested NUMBER terminal. Validation above
+    // narrows successful documents to the public string version union.
+    value: document.parseResult.value as unknown as ParsedAnimFlowDocument,
     diagnostics,
   };
 }
@@ -64,7 +77,7 @@ export function getAnimFlowServices(): typeof services {
   return services;
 }
 
-export async function releaseAnimFlowDocument(document: AnimFlowDocument): Promise<void> {
+export async function releaseAnimFlowDocument(document: ParsedAnimFlowDocument): Promise<void> {
   await releaseUri(AstUtils.getDocument(document).uri);
 }
 

@@ -1,8 +1,10 @@
 import {
+  actionId,
   assertValidRenderPlan,
   documentId,
   edgeId,
   elementHandle,
+  freezeRenderPlan,
   graphId,
   nodeId,
   overlayId,
@@ -12,6 +14,9 @@ import {
   themeToken,
   ZERO_RANGE,
   type AnimationTrack,
+  type ActionId,
+  type ActionKind,
+  type ActionProvenance,
   type CompiledEdge,
   type CompiledElement,
   type CompiledNode,
@@ -30,10 +35,12 @@ import {
   type RenderPlan,
   type Result,
   type SceneSnapshot,
+  type SourceRange,
   type ThemeToken,
   type TransformState,
 } from "@animflow-dsl/model";
 import {
+  isActionStatement,
   isCameraStatement,
   isClearHighlightStatement,
   isDrawStatement,
@@ -66,11 +73,13 @@ import {
   isStaggerStatement,
   parseAnimFlow,
   releaseAnimFlowDocument,
-  type AnimFlowDocument,
+  type ParsedAnimFlowDocument as AnimFlowDocument,
+  type ActionStatement,
   type CameraStatement,
   type Element as AstElement,
   type Graph,
   type SceneStatement,
+  type SceneAction,
   type Selectable,
   type TargetSet,
 } from "@animflow-dsl/language";
@@ -172,7 +181,8 @@ export async function lowerDocument(
   const state = createInitialState(elements, canvas.viewport);
   applyInitial(ast, context, state);
   const initial = snapshot(state);
-  const scenes = compileScenes(ast, context, state);
+  const compiledStory = compileScenes(ast, context, state);
+  const scenes = compiledStory.scenes;
   const durationMs = scenes.reduce((total, scene) => total + scene.durationMs, 0);
   const seed = options.seed ?? Number.parseInt(hash.slice(0, 8), 16);
 
@@ -181,6 +191,9 @@ export async function lowerDocument(
     documentId: documentId(options.documentId ?? ast.story.name),
     sourceHash: sourceHash(hash),
     storyId: storyId(ast.story.name),
+    authoring: String(ast.version) === "2.1"
+      ? { sourceVersion: "2.1", actions: compiledStory.actions }
+      : undefined,
     seed,
     durationMs,
     canvas,
@@ -192,7 +205,7 @@ export async function lowerDocument(
     scenes,
   };
   assertValidRenderPlan(plan);
-  return deepFreeze(plan);
+  return freezeRenderPlan(plan);
 }
 
 function canvasSpec(ast: AnimFlowDocument): RenderPlan["canvas"] {
@@ -324,7 +337,7 @@ function collectThemeTokens(ast: AnimFlowDocument): Set<string> {
     if (tone) tokens.add(tone);
   }
   for (const scene of ast.story.scenes) {
-    for (const statement of walkStatements(scene.statements)) {
+    for (const statement of walkSceneActions(scene.statements)) {
       if (isHighlightStatement(statement)) tokens.add(statement.tone);
     }
   }
@@ -365,25 +378,35 @@ function applyInitial(ast: AnimFlowDocument, context: LoweringContext, state: Mu
   }
 }
 
+interface CompiledStory {
+  readonly scenes: RenderPlan["scenes"];
+  readonly actions: readonly ActionProvenance[];
+}
+
 function compileScenes(
   ast: AnimFlowDocument,
   context: LoweringContext,
   state: MutableState,
-): RenderPlan["scenes"] {
+): CompiledStory {
   const scenes: RenderPlan["scenes"][number][] = [];
+  const actions: ActionProvenance[] = [];
   let startMs = 0;
   for (const scene of ast.story.scenes) {
+    const compiledSceneId = sceneId(scene.name);
     const durationMs = scene.duration.unit === "s" ? scene.duration.value * 1000 : scene.duration.value;
     const narration = scene.statements.find(isSayStatement)?.text;
-    const narrationState = narration ? { sceneId: sceneId(scene.name), text: narration } : undefined;
+    const narrationState = narration ? { sceneId: compiledSceneId, text: narration } : undefined;
     const from = snapshot(state, narrationState);
     const tracks: AnimationTrack[] = [];
+    if (String(ast.version) === "2.1") {
+      collectActionProvenance(scene.statements, compiledSceneId, undefined, actions);
+    }
     for (const statement of scene.statements) {
       applySceneStatement(statement, 0, durationMs, context, state, tracks);
     }
     const to = snapshot(state, narrationState);
     scenes.push({
-      id: sceneId(scene.name),
+      id: compiledSceneId,
       title: scene.title,
       startMs,
       durationMs,
@@ -393,7 +416,56 @@ function compileScenes(
     });
     startMs += durationMs;
   }
-  return scenes;
+  return { scenes, actions };
+}
+
+function collectActionProvenance(
+  statements: readonly SceneStatement[],
+  owningSceneId: ReturnType<typeof sceneId>,
+  parentActionId: ActionId | undefined,
+  target: ActionProvenance[],
+): void {
+  for (const statement of statements) {
+    if (!isActionStatement(statement)) continue;
+    const id = actionId(statement.name);
+    target.push({
+      id,
+      sceneId: owningSceneId,
+      parentActionId,
+      kind: actionKind(statement.body),
+      range: actionSourceRange(statement),
+    });
+    if (isSequenceStatement(statement.body) || isStaggerStatement(statement.body)) {
+      collectActionProvenance(statement.body.statements, owningSceneId, id, target);
+    }
+  }
+}
+
+function actionKind(action: SceneAction): ActionKind {
+  if (isSceneVisibilityStatement(action)) return action.action;
+  if (isDrawStatement(action)) return "draw";
+  if (isHighlightStatement(action)) return "highlight";
+  if (isClearHighlightStatement(action)) return "clear-highlight";
+  if (isCameraStatement(action)) return "camera";
+  if (isSequenceStatement(action)) return "sequence";
+  return "stagger";
+}
+
+function actionSourceRange(statement: ActionStatement): SourceRange {
+  const node = statement.$cstNode;
+  if (!node) return ZERO_RANGE;
+  return {
+    start: {
+      offset: node.offset,
+      line: node.range.start.line,
+      character: node.range.start.character,
+    },
+    end: {
+      offset: node.end,
+      line: node.range.end.line,
+      character: node.range.end.character,
+    },
+  };
 }
 
 function applySceneStatement(
@@ -404,34 +476,38 @@ function applySceneStatement(
   state: MutableState,
   tracks: AnimationTrack[],
 ): void {
-  if (isSequenceStatement(statement)) {
-    const childDuration = statement.statements.length === 0 ? 0 : durationMs / statement.statements.length;
-    statement.statements.forEach((child, index) => {
+  if (isSayStatement(statement)) return;
+
+  const currentActionId = isActionStatement(statement) ? actionId(statement.name) : undefined;
+  const action = isActionStatement(statement) ? statement.body : statement;
+
+  if (isSequenceStatement(action)) {
+    const childDuration = action.statements.length === 0 ? 0 : durationMs / action.statements.length;
+    action.statements.forEach((child, index) => {
       applySceneStatement(child, startMs + childDuration * index, childDuration, context, state, tracks);
     });
     return;
   }
-  if (isStaggerStatement(statement)) {
-    const gapMs = statement.interval.unit === "s"
-      ? statement.interval.value * 1000
-      : statement.interval.value;
+  if (isStaggerStatement(action)) {
+    const gapMs = action.interval.unit === "s"
+      ? action.interval.value * 1000
+      : action.interval.value;
     const childDuration = Math.max(
       0,
-      durationMs - gapMs * Math.max(0, statement.statements.length - 1),
+      durationMs - gapMs * Math.max(0, action.statements.length - 1),
     );
-    statement.statements.forEach((child, index) => {
+    action.statements.forEach((child, index) => {
       applySceneStatement(child, startMs + gapMs * index, childDuration, context, state, tracks);
     });
     return;
   }
-  if (isSayStatement(statement)) return;
 
-  if (isSceneVisibilityStatement(statement)) {
-    for (const target of expandTarget(statement.targets)) {
+  if (isSceneVisibilityStatement(action)) {
+    for (const target of expandTarget(action.targets)) {
       if (isGraph(target)) continue;
       const frame = frameFor(context, state, target);
       if (!frame) continue;
-      const visible = statement.action === "show";
+      const visible = action.action === "show";
       const wasVisible = frame.opacity > 0;
       tracks.push({
         kind: "element-number",
@@ -441,38 +517,39 @@ function applySceneStatement(
         to: visible ? 1 : 0,
         startMs,
         durationMs,
-        easing: statement.transition.$type === "PopTransition" ? "spring" : "easeInOut",
+        easing: action.transition.$type === "PopTransition" ? "spring" : "easeInOut",
+        actionId: currentActionId,
       });
       frame.opacity = visible ? 1 : 0;
 
-      if (statement.transition.$type === "PopTransition") {
+      if (action.transition.$type === "PopTransition") {
         const from = visible && !wasVisible ? 0.82 : frame.transform.scaleX;
         const to = visible ? 1 : 0.82;
         for (const property of ["transform.scale.x", "transform.scale.y"] as const) {
-          tracks.push({ kind: "element-number", handle: frame.handle, property, from, to, startMs, durationMs, easing: "spring" });
+          tracks.push({ kind: "element-number", handle: frame.handle, property, from, to, startMs, durationMs, easing: "spring", actionId: currentActionId });
         }
         frame.transform.scaleX = to;
         frame.transform.scaleY = to;
-      } else if (isFlipTransition(statement.transition)) {
+      } else if (isFlipTransition(action.transition)) {
         const from = visible && !wasVisible ? -90 : frame.transform.rotationDeg;
         const to = visible ? 0 : 90;
-        tracks.push({ kind: "element-number", handle: frame.handle, property: "transform.rotationDeg", from, to, startMs, durationMs, easing: "easeOut" });
+        tracks.push({ kind: "element-number", handle: frame.handle, property: "transform.rotationDeg", from, to, startMs, durationMs, easing: "easeOut", actionId: currentActionId });
         frame.transform.rotationDeg = to;
-      } else if (isSlideTransition(statement.transition)) {
-        applySlide(frame, visible, statement.transition.from, statement.transition.distance ?? 48, startMs, durationMs, tracks);
+      } else if (isSlideTransition(action.transition)) {
+        applySlide(frame, visible, action.transition.from, action.transition.distance ?? 48, startMs, durationMs, tracks, currentActionId);
       }
     }
     return;
   }
 
-  if (isDrawStatement(statement)) {
-    const target = statement.edge.ref;
+  if (isDrawStatement(action)) {
+    const target = action.edge.ref;
     const frame = target ? frameFor(context, state, target) : undefined;
     if (frame?.kind === "edge") {
-      const flowEffect = statement.flow ?? frame.flowEffect ?? "none";
-      tracks.push({ kind: "element-flow-effect", handle: frame.handle, property: "flowEffect", from: frame.flowEffect ?? "none", to: flowEffect, startMs, durationMs: 0, easing: "linear" });
-      tracks.push({ kind: "element-number", handle: frame.handle, property: "drawProgress", from: frame.drawProgress ?? 0, to: 1, startMs, durationMs, easing: "linear" });
-      tracks.push({ kind: "element-number", handle: frame.handle, property: "flowPhase", from: 0, to: 1, startMs, durationMs, easing: "linear" });
+      const flowEffect = action.flow ?? frame.flowEffect ?? "none";
+      tracks.push({ kind: "element-flow-effect", handle: frame.handle, property: "flowEffect", from: frame.flowEffect ?? "none", to: flowEffect, startMs, durationMs: 0, easing: "linear", actionId: currentActionId });
+      tracks.push({ kind: "element-number", handle: frame.handle, property: "drawProgress", from: frame.drawProgress ?? 0, to: 1, startMs, durationMs, easing: "linear", actionId: currentActionId });
+      tracks.push({ kind: "element-number", handle: frame.handle, property: "flowPhase", from: 0, to: 1, startMs, durationMs, easing: "linear", actionId: currentActionId });
       frame.drawProgress = 1;
       frame.flowPhase = 1;
       frame.flowEffect = flowEffect;
@@ -480,24 +557,24 @@ function applySceneStatement(
     return;
   }
 
-  if (isHighlightStatement(statement)) {
-    const target = statement.target.ref;
+  if (isHighlightStatement(action)) {
+    const target = action.target.ref;
     const frame = target ? frameFor(context, state, target) : undefined;
     if (!frame) return;
-    const tone = themeToken(statement.tone);
+    const tone = themeToken(action.tone);
     tracks.push(
-      { kind: "element-token", handle: frame.handle, property: "highlight.tone", from: frame.highlightTone, to: tone, startMs, durationMs: 0, easing: "linear" },
-      { kind: "element-boolean", handle: frame.handle, property: "highlight.active", from: frame.highlightActive, to: true, startMs, durationMs: 0, easing: "linear" },
+      { kind: "element-token", handle: frame.handle, property: "highlight.tone", from: frame.highlightTone, to: tone, startMs, durationMs: 0, easing: "linear", actionId: currentActionId },
+      { kind: "element-boolean", handle: frame.handle, property: "highlight.active", from: frame.highlightActive, to: true, startMs, durationMs: 0, easing: "linear", actionId: currentActionId },
     );
-    if (statement.effect === "pulse") {
+    if (action.effect === "pulse") {
       const quarter = durationMs / 4;
       tracks.push(
-        { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: frame.highlightIntensity, to: 1, startMs, durationMs: quarter, easing: "easeOut" },
-        { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: 1, to: 0.35, startMs: startMs + quarter, durationMs: quarter * 2, easing: "easeInOut" },
-        { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: 0.35, to: 1, startMs: startMs + quarter * 3, durationMs: quarter, easing: "easeOut" },
+        { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: frame.highlightIntensity, to: 1, startMs, durationMs: quarter, easing: "easeOut", actionId: currentActionId },
+        { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: 1, to: 0.35, startMs: startMs + quarter, durationMs: quarter * 2, easing: "easeInOut", actionId: currentActionId },
+        { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: 0.35, to: 1, startMs: startMs + quarter * 3, durationMs: quarter, easing: "easeOut", actionId: currentActionId },
       );
     } else {
-      tracks.push({ kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: frame.highlightIntensity, to: 1, startMs, durationMs, easing: "easeOut" });
+      tracks.push({ kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: frame.highlightIntensity, to: 1, startMs, durationMs, easing: "easeOut", actionId: currentActionId });
     }
     frame.highlightTone = tone;
     frame.highlightActive = true;
@@ -505,22 +582,22 @@ function applySceneStatement(
     return;
   }
 
-  if (isClearHighlightStatement(statement)) {
-    const target = statement.target.ref;
+  if (isClearHighlightStatement(action)) {
+    const target = action.target.ref;
     const frame = target ? frameFor(context, state, target) : undefined;
     if (!frame) return;
     tracks.push(
-      { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: frame.highlightIntensity, to: 0, startMs, durationMs, easing: "easeOut" },
-      { kind: "element-boolean", handle: frame.handle, property: "highlight.active", from: frame.highlightActive, to: false, startMs: startMs + durationMs, durationMs: 0, easing: "linear" },
+      { kind: "element-number", handle: frame.handle, property: "highlight.intensity", from: frame.highlightIntensity, to: 0, startMs, durationMs, easing: "easeOut", actionId: currentActionId },
+      { kind: "element-boolean", handle: frame.handle, property: "highlight.active", from: frame.highlightActive, to: false, startMs: startMs + durationMs, durationMs: 0, easing: "linear", actionId: currentActionId },
     );
     frame.highlightActive = false;
     frame.highlightIntensity = 0;
     return;
   }
 
-  if (isCameraStatement(statement)) {
-    const target = cameraRect(statement, context);
-    tracks.push({ kind: "camera-rect", property: "viewBox", from: state.camera, to: target, startMs, durationMs, easing: "easeInOut" });
+  if (isCameraStatement(action)) {
+    const target = cameraRect(action, context);
+    tracks.push({ kind: "camera-rect", property: "viewBox", from: state.camera, to: target, startMs, durationMs, easing: "easeInOut", actionId: currentActionId });
     state.camera = target;
   }
 }
@@ -533,6 +610,7 @@ function applySlide(
   startMs: number,
   durationMs: number,
   tracks: AnimationTrack[],
+  currentActionId: ActionId | undefined,
 ): void {
   const horizontal = direction === "left" || direction === "right";
   const sign = direction === "left" || direction === "up" ? -1 : 1;
@@ -541,7 +619,7 @@ function applySlide(
   const displaced = sign * distance;
   const from = visible ? displaced : current;
   const to = visible ? 0 : displaced;
-  tracks.push({ kind: "element-number", handle: frame.handle, property, from, to, startMs, durationMs, easing: "easeOut" });
+  tracks.push({ kind: "element-number", handle: frame.handle, property, from, to, startMs, durationMs, easing: "easeOut", actionId: currentActionId });
   if (horizontal) frame.transform.x = to;
   else frame.transform.y = to;
 }
@@ -650,11 +728,13 @@ function requiredHandle(
   return handle;
 }
 
-function* walkStatements(statements: readonly SceneStatement[]): Iterable<SceneStatement> {
+function* walkSceneActions(statements: readonly SceneStatement[]): Iterable<SceneAction> {
   for (const statement of statements) {
-    yield statement;
-    if (isSequenceStatement(statement) || isStaggerStatement(statement)) {
-      yield* walkStatements(statement.statements);
+    if (isSayStatement(statement)) continue;
+    const action = isActionStatement(statement) ? statement.body : statement;
+    yield action;
+    if (isSequenceStatement(action) || isStaggerStatement(action)) {
+      yield* walkSceneActions(action.statements);
     }
   }
 }
@@ -663,12 +743,4 @@ async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
   const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function deepFreeze<T>(value: T): T {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
-    Object.freeze(value);
-  }
-  return value;
 }

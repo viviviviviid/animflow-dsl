@@ -8,6 +8,7 @@ export type DocumentId = Brand<string, "DocumentId">;
 export type GraphId = Brand<string, "GraphId">;
 export type StoryId = Brand<string, "StoryId">;
 export type SceneId = Brand<string, "SceneId">;
+export type ActionId = Brand<string, "ActionId">;
 export type NodeId = Brand<string, "NodeId">;
 export type EdgeId = Brand<string, "EdgeId">;
 export type OverlayId = Brand<string, "OverlayId">;
@@ -41,6 +42,8 @@ export const storyId = (value: string): StoryId =>
   createIdentifier<StoryId>("StoryId", value);
 export const sceneId = (value: string): SceneId =>
   createIdentifier<SceneId>("SceneId", value);
+export const actionId = (value: string): ActionId =>
+  createIdentifier<ActionId>("ActionId", value);
 export const nodeId = (value: string): NodeId =>
   createIdentifier<NodeId>("NodeId", value);
 export const edgeId = (value: string): EdgeId =>

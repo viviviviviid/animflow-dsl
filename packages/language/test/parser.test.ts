@@ -117,6 +117,65 @@ describe("AnimFlow language", () => {
     if (result.ok) return;
     expect(result.diagnostics.some((item) => item.code === "AF405")).toBe(true);
   });
+
+  test("parses v2.1 action identity recursively and exposes a string source version", async () => {
+    const result = await parseAnimFlow(
+      baseDocument({
+        version: "2.1",
+        sceneStatements: `
+          action revealFlow: sequence {
+            action revealClient: show client via fade
+            action traceRequest: draw request via trace
+          }
+          say "Named actions stay scene-scoped."
+        `,
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.version).toBe("2.1");
+    expect(typeof result.value.version).toBe("string");
+    expect(result.value.story.scenes[0]?.statements[0]).toMatchObject({
+      $type: "ActionStatement",
+      name: "revealFlow",
+      body: { $type: "SequenceStatement" },
+    });
+  });
+
+  test("enforces the action identity contract for both source versions", async () => {
+    const missing = await parseAnimFlow(
+      baseDocument({ version: "2.1", sceneStatements: "draw request via trace" }),
+    );
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) {
+      expect(missing.diagnostics.some((item) => item.code === "AF406")).toBe(true);
+    }
+
+    const premature = await parseAnimFlow(
+      baseDocument({ sceneStatements: "action traceRequest: draw request via trace" }),
+    );
+    expect(premature.ok).toBe(false);
+    if (!premature.ok) {
+      expect(premature.diagnostics.some((item) => item.code === "AF406")).toBe(true);
+    }
+  });
+
+  test("keeps action IDs globally unique and rejects unsupported versions", async () => {
+    const duplicate = await parseAnimFlow(
+      baseDocument({ version: "2.1", sceneStatements: "action api: draw request via trace" }),
+    );
+    expect(duplicate.ok).toBe(false);
+    if (!duplicate.ok) {
+      expect(duplicate.diagnostics.filter((item) => item.code === "AF201")).toHaveLength(2);
+    }
+
+    const unsupported = await parseAnimFlow(baseDocument({ version: "3" }));
+    expect(unsupported.ok).toBe(false);
+    if (!unsupported.ok) {
+      expect(unsupported.diagnostics.some((item) => item.code === "AF301")).toBe(true);
+    }
+  });
 });
 
 interface DocumentOverrides {
@@ -125,10 +184,11 @@ interface DocumentOverrides {
   readonly extraNode?: string;
   readonly duration?: string;
   readonly sceneStatements?: string;
+  readonly version?: string;
 }
 
 function baseDocument(overrides: DocumentOverrides = {}): string {
-  return `animflow 2
+  return `animflow ${overrides.version ?? "2"}
 canvas { ${overrides.canvas ?? "size 1280 by 720 theme light background surface"} }
 graph pipeline {
   layout flow right { nodeGap 40 rankGap 60 routing orthogonal }

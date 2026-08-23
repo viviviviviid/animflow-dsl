@@ -1,5 +1,5 @@
 import type { Rect, RgbaColor, Vec2 } from "./geometry";
-import type { ElementHandle, SceneId, ThemeToken } from "./ids";
+import type { ActionId, ElementHandle, SceneId, ThemeToken } from "./ids";
 import type { EdgeFlowEffect } from "./elements";
 
 export type EasingName =
@@ -79,6 +79,7 @@ export type ElementBooleanProperty = "highlight.active";
 export type ElementTokenProperty = "highlight.tone";
 
 interface BaseTrack {
+  readonly actionId?: ActionId;
   readonly startMs: number;
   readonly durationMs: number;
   readonly easing: EasingName;
