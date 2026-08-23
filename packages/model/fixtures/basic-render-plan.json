@@ -1,0 +1,388 @@
+{
+  "version": 2,
+  "documentId": "checkoutDemo",
+  "sourceHash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "storyId": "main",
+  "seed": 42,
+  "durationMs": 1000,
+  "canvas": {
+    "width": 1600,
+    "height": 900,
+    "background": "canvas",
+    "viewport": { "x": 0, "y": 0, "width": 1600, "height": 900 }
+  },
+  "theme": {
+    "name": "paper",
+    "colors": {
+      "canvas": { "r": 250, "g": 249, "b": 246, "a": 1 },
+      "primary": { "r": 33, "g": 150, "b": 243, "a": 1 },
+      "neutral": { "r": 66, "g": 66, "b": 66, "a": 1 },
+      "danger": { "r": 211, "g": 47, "b": 47, "a": 1 }
+    },
+    "fontFamily": "AnimFlow Sans",
+    "fontSize": 16,
+    "fontWeight": 400
+  },
+  "symbols": [
+    { "id": "client", "handle": 0, "kind": "node" },
+    { "id": "api", "handle": 1, "kind": "node" },
+    { "id": "request", "handle": 2, "kind": "edge" },
+    { "id": "retryNote", "handle": 3, "kind": "overlay" }
+  ],
+  "elements": [
+    {
+      "kind": "node",
+      "id": "client",
+      "handle": 0,
+      "graphId": "checkout",
+      "label": "Client",
+      "shape": "pill",
+      "tone": "primary"
+    },
+    {
+      "kind": "node",
+      "id": "api",
+      "handle": 1,
+      "graphId": "checkout",
+      "label": "Order API",
+      "shape": "rounded",
+      "tone": "neutral"
+    },
+    {
+      "kind": "edge",
+      "id": "request",
+      "handle": 2,
+      "graphId": "checkout",
+      "from": { "nodeId": "client", "port": "e" },
+      "to": { "nodeId": "api", "port": "w" },
+      "label": "POST /orders",
+      "routing": "straight",
+      "arrow": "end",
+      "linePattern": "solid",
+      "lineWidth": 2,
+      "tone": "primary"
+    },
+    {
+      "kind": "overlay",
+      "id": "retryNote",
+      "handle": 3,
+      "overlayKind": "callout",
+      "anchor": {
+        "kind": "node",
+        "target": { "nodeId": "api", "port": "n" },
+        "offset": { "x": 0, "y": -24 }
+      },
+      "text": "Retry after 500 ms",
+      "tone": "danger",
+      "width": 260
+    }
+  ],
+  "geometry": [
+    {
+      "kind": "node",
+      "handle": 0,
+      "bounds": { "x": 200, "y": 390, "width": 160, "height": 72 },
+      "outline": {
+        "commands": [
+          { "kind": "move", "to": { "x": 236, "y": 390 } },
+          { "kind": "line", "to": { "x": 324, "y": 390 } },
+          { "kind": "line", "to": { "x": 324, "y": 462 } },
+          { "kind": "line", "to": { "x": 236, "y": 462 } },
+          { "kind": "close" }
+        ],
+        "startTangent": { "x": 1, "y": 0 },
+        "endTangent": { "x": -1, "y": 0 },
+        "length": 320
+      },
+      "label": {
+        "bounds": { "x": 242, "y": 414, "width": 76, "height": 24 },
+        "baseline": 432,
+        "lines": ["Client"],
+        "fontFamily": "AnimFlow Sans",
+        "fontSize": 16,
+        "fontWeight": 400
+      }
+    },
+    {
+      "kind": "node",
+      "handle": 1,
+      "bounds": { "x": 520, "y": 390, "width": 180, "height": 72 },
+      "outline": {
+        "commands": [
+          { "kind": "move", "to": { "x": 532, "y": 390 } },
+          { "kind": "line", "to": { "x": 688, "y": 390 } },
+          { "kind": "line", "to": { "x": 688, "y": 462 } },
+          { "kind": "line", "to": { "x": 532, "y": 462 } },
+          { "kind": "close" }
+        ],
+        "startTangent": { "x": 1, "y": 0 },
+        "endTangent": { "x": -1, "y": 0 },
+        "length": 456
+      },
+      "label": {
+        "bounds": { "x": 566, "y": 414, "width": 88, "height": 24 },
+        "baseline": 432,
+        "lines": ["Order API"],
+        "fontFamily": "AnimFlow Sans",
+        "fontSize": 16,
+        "fontWeight": 400
+      }
+    },
+    {
+      "kind": "edge",
+      "handle": 2,
+      "path": {
+        "commands": [
+          { "kind": "move", "to": { "x": 360, "y": 426 } },
+          { "kind": "line", "to": { "x": 520, "y": 426 } }
+        ],
+        "startTangent": { "x": 1, "y": 0 },
+        "endTangent": { "x": 1, "y": 0 },
+        "length": 160
+      },
+      "label": {
+        "bounds": { "x": 390, "y": 394, "width": 100, "height": 22 },
+        "baseline": 410,
+        "lines": ["POST /orders"],
+        "fontFamily": "AnimFlow Sans",
+        "fontSize": 14,
+        "fontWeight": 400
+      },
+      "markerSize": 10
+    },
+    {
+      "kind": "overlay",
+      "handle": 3,
+      "bounds": { "x": 480, "y": 270, "width": 260, "height": 72 },
+      "connector": {
+        "commands": [
+          { "kind": "move", "to": { "x": 610, "y": 342 } },
+          { "kind": "line", "to": { "x": 610, "y": 390 } }
+        ],
+        "startTangent": { "x": 0, "y": 1 },
+        "endTangent": { "x": 0, "y": 1 },
+        "length": 48
+      },
+      "text": {
+        "bounds": { "x": 500, "y": 294, "width": 220, "height": 24 },
+        "baseline": 312,
+        "lines": ["Retry after 500 ms"],
+        "fontFamily": "AnimFlow Sans",
+        "fontSize": 16,
+        "fontWeight": 400
+      }
+    }
+  ],
+  "initial": {
+    "elements": [
+      {
+        "kind": "node",
+        "handle": 0,
+        "opacity": 0,
+        "transform": {
+          "translate": { "x": 0, "y": 0 },
+          "scale": { "x": 1, "y": 1 },
+          "rotationDeg": 0
+        },
+        "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+      },
+      {
+        "kind": "node",
+        "handle": 1,
+        "opacity": 0,
+        "transform": {
+          "translate": { "x": 0, "y": 0 },
+          "scale": { "x": 1, "y": 1 },
+          "rotationDeg": 0
+        },
+        "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+      },
+      {
+        "kind": "edge",
+        "handle": 2,
+        "opacity": 1,
+        "transform": {
+          "translate": { "x": 0, "y": 0 },
+          "scale": { "x": 1, "y": 1 },
+          "rotationDeg": 0
+        },
+        "highlight": { "active": false, "tone": "primary", "intensity": 0 },
+        "drawProgress": 0,
+        "flowPhase": 0
+      },
+      {
+        "kind": "overlay",
+        "handle": 3,
+        "opacity": 0,
+        "transform": {
+          "translate": { "x": 0, "y": 0 },
+          "scale": { "x": 1, "y": 1 },
+          "rotationDeg": 0
+        },
+        "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+      }
+    ],
+    "camera": {
+      "viewBox": { "x": 120, "y": 220, "width": 700, "height": 400 }
+    }
+  },
+  "scenes": [
+    {
+      "id": "requestScene",
+      "title": "Request",
+      "startMs": 0,
+      "durationMs": 1000,
+      "from": {
+        "elements": [
+          {
+            "kind": "node",
+            "handle": 0,
+            "opacity": 0,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+          },
+          {
+            "kind": "node",
+            "handle": 1,
+            "opacity": 0,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+          },
+          {
+            "kind": "edge",
+            "handle": 2,
+            "opacity": 1,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 },
+            "drawProgress": 0,
+            "flowPhase": 0
+          },
+          {
+            "kind": "overlay",
+            "handle": 3,
+            "opacity": 0,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+          }
+        ],
+        "camera": {
+          "viewBox": { "x": 120, "y": 220, "width": 700, "height": 400 }
+        }
+      },
+      "to": {
+        "elements": [
+          {
+            "kind": "node",
+            "handle": 0,
+            "opacity": 1,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+          },
+          {
+            "kind": "node",
+            "handle": 1,
+            "opacity": 1,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+          },
+          {
+            "kind": "edge",
+            "handle": 2,
+            "opacity": 1,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 },
+            "drawProgress": 1,
+            "flowPhase": 0
+          },
+          {
+            "kind": "overlay",
+            "handle": 3,
+            "opacity": 0,
+            "transform": {
+              "translate": { "x": 0, "y": 0 },
+              "scale": { "x": 1, "y": 1 },
+              "rotationDeg": 0
+            },
+            "highlight": { "active": false, "tone": "primary", "intensity": 0 }
+          }
+        ],
+        "camera": {
+          "viewBox": { "x": 160, "y": 300, "width": 620, "height": 260 }
+        },
+        "narration": {
+          "sceneId": "requestScene",
+          "text": "Client sends an order request."
+        }
+      },
+      "tracks": [
+        {
+          "kind": "element-number",
+          "handle": 0,
+          "property": "opacity",
+          "startMs": 0,
+          "durationMs": 500,
+          "easing": "easeOut",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "kind": "element-number",
+          "handle": 1,
+          "property": "opacity",
+          "startMs": 0,
+          "durationMs": 500,
+          "easing": "easeOut",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "kind": "element-number",
+          "handle": 2,
+          "property": "drawProgress",
+          "startMs": 0,
+          "durationMs": 1000,
+          "easing": "easeInOut",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "kind": "camera-rect",
+          "property": "viewBox",
+          "startMs": 0,
+          "durationMs": 1000,
+          "easing": "easeInOut",
+          "from": { "x": 120, "y": 220, "width": 700, "height": 400 },
+          "to": { "x": 160, "y": 300, "width": 620, "height": 260 }
+        }
+      ]
+    }
+  ]
+}

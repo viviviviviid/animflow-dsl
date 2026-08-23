@@ -1,508 +1,347 @@
-# AnimFlow DSL Comprehensive Guide
+# AnimFlow DSL v2 Reference
 
-This guide covers the complete syntax for AnimFlow DSL. Master this, and you can create any animated diagram you can imagine.
+AnimFlow v2 is a closed, typed language. A valid document compiles completely; invalid source returns diagnostics and no partial render plan.
 
-## Overview
+## Document shape
 
-AnimFlow DSL is composed of **five sections**. Only the diagram section is **required**; all others are optional.
+Every document contains exactly one version declaration, canvas, one or more graphs, zero or more overlays, and one story in that order.
 
-```
-# 1. Diagram definition (REQUIRED)
-flowchart LR
-  nodeId[Label]
-  nodeId --> otherId
+```animflow
+animflow 2
 
-# 2. Animation (optional)
-@animation
-  step 1: show nodeId
-@end
+canvas {
+  size 1600 by 900
+  theme signalDesk
+  background surface
+}
 
-# 3. Style (optional)
-@style
-  nodeId:
-    fill: #e8f5e9
-@end
+graph paymentFlow {
+  layout flow right {
+    nodeGap 52
+    rankGap 110
+    routing orthogonal
+  }
 
-# 4. Narration (optional)
-@narration
-  step 1:
-    title: "Title"
-    text: "Description"
-@end
+  node client "Client" {
+    shape rounded
+    tone primary
+  }
 
-# 5. Config (optional)
-@config
-  autoplay: true
-@end
-```
+  node bank "Issuing Bank" {
+    shape database
+    tone success
+  }
 
-**Pro Tip**: Start with just the diagram section, then add animation, narration, and styling as needed.
+  edge authorize: client.e -> bank.w {
+    label "Authorize"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+    flow particles
+  }
+}
 
----
+overlay decision: callout {
+  anchor bank.s
+  text "The bank returns an approval decision."
+  width 320
+  tone success
+}
 
-## 1. Diagram Definition
+story paymentStory {
+  initial {
+    hide paymentFlow.*
+    hide decision
+    camera fit(paymentFlow) padding 72
+  }
 
-### Flowchart
+  scene reveal "Reveal the actors" duration 1600ms {
+    sequence {
+      show client via slide(from: left, distance: 56)
+      show bank via pop
+    }
+    say "The actors are revealed on one compiled clock."
+  }
 
-```
-flowchart [direction]
-  nodeId[label]
-  nodeId2{decision label}
-  nodeId3(stadium shape)
-  nodeId4[(database)]
-
-  nodeId --> nodeId2
-  nodeId2 -->|Yes| nodeId3
-  nodeId2 -->|No| nodeId4
-```
-
-**Direction**: `LR` (left-right), `RL` (right-left), `TD` (top-down), `TB` (top-bottom, same as TD), `BT` (bottom-top)
-
-> **Mermaid-compatible subset**: The diagram section accepts the flowchart directions, node shapes, and edge forms documented below.
-> Unsupported Mermaid constructs return a parse error. You can add `@animation`, `@style`, `@narration`, and `@config` sections to supported flowcharts.
-> Note: use `flowchart` keyword, not `graph`.
-
-### Node Shapes
-
-| Syntax | Shape |
-|--------|-------|
-| `[label]` | Rectangle |
-| `{label}` | Diamond (decision) |
-| `(label)` | Stadium (rounded) |
-| `([label])` | Terminator (pill shape) |
-| `((label))` | Circle |
-| `[(label)]` | Database (cylinder) |
-| `[[label]]` | Document |
-| `[/label/]` | Parallelogram |
-| `>label]` | Asymmetric |
-
-### Edges
-
-| Syntax | Description |
-|--------|-------------|
-| `A --> B` | Arrow (with arrowhead) |
-| `A --- B` | Line (no arrowhead) |
-| `A -->|text| B` | Arrow with label |
-| `A -- text --> B` | Arrow with label (alternate) |
-| `A ---|text| B` | Line with label |
-| `A --> B --> C` | Chained arrows |
-| `A --> B & C` | Multi-target (B and C both) |
-
-### Multi-line Labels
-
-Use `<br/>` for line breaks inside labels:
-
-```
-node1[Block #1<br/>Hash: a1b2<br/>Prev: 0000]
+  scene authorizeScene "Authorize payment" duration 1400ms {
+    show authorize via fade
+    draw authorize via trace flow particles
+    highlight bank tone success effect pulse
+    show decision via pop
+    say "Seeking this scene produces the same state as playback."
+  }
+}
 ```
 
----
+Whitespace is insignificant. Strings use double quotes and JSON-style escapes. Comments use `//` or `/* ... */`; `#` comments are not valid.
 
-## 2. Animation (`@animation`)
+## Identifiers, references, and colors
 
-Animations are defined as numbered steps. Each step has an **action**, a **target**, and optional **properties**.
+Identifiers match `[_a-zA-Z][\w_]*`, are case-sensitive, and must be unique document-wide across graphs, nodes, edges, overlays, the story, and scenes. Language keywords cannot be used as identifiers.
 
-```
-@animation
-  step 1: show nodeA
-    duration: 1s
-    effect: fadeIn
+All animation targets are linked references. Unknown or wrong-kind references fail compilation instead of being skipped at runtime.
 
-  step 2: connect nodeA->nodeB
-    flow: particles
-    speed: 2s
-@end
-```
+Tone values are identifiers:
 
-### Actions
+- Built-ins: `surface`, `neutral`, `primary`, `accent`, `info`, `success`, `warning`, `danger`.
+- Literal RGB: `hex_2F6FED`.
+- Literal RGBA: `hex_2F6FEDCC`.
+- Any other identifier is converted to a deterministic color.
 
-#### show / hide
+`theme` names the resolved theme but does not load remote assets or arbitrary CSS.
 
-Display or hide nodes.
+## Canvas
 
-```
-step 1: show nodeA
-  duration: 1.5s
-  effect: fadeIn
-  delay: 0s
+All three properties are required exactly once.
 
-step 2: show nodeA, nodeB, nodeC
-  effect: slideInLeft
-  stagger: 0.3s
-
-step 3: hide nodeA
-  effect: fadeOut
+```animflow
+canvas {
+  size 1600 by 900
+  theme signalDesk
+  background surface
+}
 ```
 
-**Bulk targets** — special keywords that match groups of elements:
+Width and height must be greater than zero. Canvas size uses `by`, not `x` or `×`.
 
-| Target | Description |
-|--------|-------------|
-| `all` | All nodes and edges |
-| `nodes` | All nodes only |
-| `edges` | All edges only |
+## Graphs and layout
 
-```
-step 1: hide all          # hides every node and edge
-step 2: hide edges        # hides all edges only
-step 3: show nodes        # reveals all nodes
-```
+Each graph requires one flow layout.
 
-#### highlight / unhighlight
-
-Emphasize nodes visually.
-
-```
-step 1: highlight nodeA
-  color: #FF5722
-  glow: true
-  pulse: true
-  duration: 2s
-
-step 2: unhighlight nodeA
+```animflow
+graph checkout {
+  layout flow right {
+    nodeGap 48
+    rankGap 96
+    routing orthogonal
+  }
+  // nodes and edges
+}
 ```
 
-#### connect
+| Setting | Values | Constraint |
+|---|---|---|
+| direction | `right`, `left`, `down`, `up` | required |
+| `nodeGap` | number | zero or greater |
+| `rankGap` | number | zero or greater |
+| `routing` | `straight`, `orthogonal`, `curve` | graph default |
 
-Animate edges between nodes.
+Each setting may appear at most once. Geometry is compiled before playback and does not depend on DOM measurement.
 
-```
-step 1: connect nodeA->nodeB
-  flow: particles
-  speed: 2s
-  color: #4CAF50
+## Nodes
 
-step 2: connect nodeB->nodeC, nodeC->nodeD
-  flow: dash
-  speed: 1.5s
-```
-
-**Multiple connections in one step animate simultaneously** — all arrows draw at the same time:
-
-```
-step 1: connect A->B, C->D, E->F
-  flow: particles
-  speed: 1.5s
-  # A→B, C→D, E→F all start drawing together
+```animflow
+node api "Order API" {
+  shape rounded
+  tone primary
+}
 ```
 
-#### camera
+Both properties are optional and may appear at most once.
 
-Control the viewport.
+Shapes: `rectangle`, `rounded`, `pill`, `diamond`, `circle`, `database`, `document`, `parallelogram`.
 
-```
-step 1: camera focus nodeA
-  zoom: 2x
-  duration: 1s
+Defaults: `shape rounded`, `tone neutral`.
 
-step 2: camera fitAll
-  padding: 50px
-  duration: 1s
+## Edges
 
-step 3: camera fitNodes nodeA, nodeB, nodeC
-  padding: 50px
-```
+Edges have explicit IDs and endpoint ports. Both endpoint nodes must belong to the same graph as the edge.
 
-#### annotate
-
-Show a temporary tooltip on a node.
-
-```
-step 1: annotate nodeA
-  text: "This is the genesis block"
-  position: top
-  duration: 3s
+```animflow
+edge request: client.e -> api.w {
+  label "POST /orders"
+  line dashed 2
+  arrow end
+  tone primary
+  routing curve
+  flow particles
+}
 ```
 
-### Entrance Effects
+| Property | Values | Default |
+|---|---|---|
+| port | `auto`, `n`, `e`, `s`, `w` | required on each endpoint |
+| `label` | string | none |
+| `line` | `solid`, `dashed`, `dotted` plus positive width | `solid 2` |
+| `arrow` | `none`, `start`, `end`, `both` | `end` |
+| `tone` | tone identifier | `neutral` |
+| `routing` | `straight`, `orthogonal`, `curve` | graph routing, then `orthogonal` |
+| `flow` | `none`, `particles`, `dash`, `glow`, `wave`, `arrow`, `lightning` | `none` |
 
-| Effect | Description |
-|--------|-------------|
-| `fadeIn` | Fade in |
-| `slideInLeft` | Slide from left |
-| `slideInRight` | Slide from right |
-| `slideInTop` | Slide from top |
-| `slideInBottom` | Slide from bottom |
-| `scaleIn` | Scale up |
-| `bounceIn` | Bounce in |
-| `flipIn` | Flip in |
-| `rotateIn` | Rotate in |
+`draw edgeId via trace flow effect` can override the compiled flow effect for that scene. Parallel edges remain independently targetable because animation refers to edge IDs, never `A->B` endpoint strings.
 
-### Exit Effects
+## Overlays
 
-| Effect | Description |
-|--------|-------------|
-| `fadeOut` | Fade out |
-| `slideOutLeft` | Slide out to the left |
-| `slideOutRight` | Slide out to the right |
-| `scaleOut` | Scale down |
-| `bounceOut` | Bounce scale down |
+Overlays are typed canvas elements, not arbitrary HTML.
 
-### Emphasis Effects
-
-Apply on `highlight` via the `pulse`, `shake`, `bounce`, `flash` properties:
-
-```
-step 1: highlight nodeA
-  pulse: true      # Scale up and back (attention-grabbing)
-  duration: 1s
-
-step 2: highlight nodeB
-  flash: true      # Rapid opacity flicker
-  duration: 1s
+```animflow
+overlay retryNote: callout {
+  anchor api.n
+  text "Retry after 500 ms"
+  width 260
+  tone danger
+}
 ```
 
-| Property | Description |
-|----------|-------------|
-| `glow: true` | Drop-shadow glow (uses `color`) |
-| `pulse: true` | Scale 1→1.1→1 once |
-| `flash: true` | Rapid opacity flicker (3 cycles) |
-| `color: #hex` | Override fill/stroke color |
+Kinds: `callout`, `card`, `badge`, `text`.
 
-### Flow Effects (for `connect`)
+`anchor` and `text` are required exactly once. `width` must be positive. `width` and `tone` are optional and may appear at most once.
 
-| Flow | Description |
-|------|-------------|
-| `particles` | Progressive path draw (default) |
-| `dash` | Dashed line animation |
-| `arrow` | Path draw with eased arrow reveal |
-| `glow` | Path draw + pulsing SVG blur filter for a glowing look |
-| `wave` | Path draw + sinusoidal opacity ripple |
-| `lightning` | Instant reveal + rapid strobe flicker |
+## Story and initial state
 
-### Timing
+One story is required. It contains one explicit `initial` block and at least one scene.
 
-**Sequential** - Different step numbers run one after another:
+```animflow
+story main {
+  initial {
+    hide checkout.*
+    show retryNote
+    camera fit(checkout) padding 64
+  }
 
-```
-step 1: show nodeA
-step 2: show nodeB    # runs after step 1 completes
+  scene intro "Introduction" duration 1.2s {
+    show checkout.* via fade
+  }
+}
 ```
 
-**Parallel** - Same step number runs simultaneously:
+Initial state supports `show`, `hide`, and camera statements without transitions. A graph target requires `.*` except when a plain graph is used by `camera fit`.
 
-```
-step 1: show nodeA
-step 1: show nodeB    # runs at the same time as the first step 1
-```
+Durations require `ms` or `s`, for example `800ms`, `1.2s`. Scene duration must be greater than zero.
 
-**Delay** - Wait before executing:
+## Targets
 
-```
-step 1: show nodeA
-  delay: 0.5s
-```
+| Form | Meaning |
+|---|---|
+| `api` | one node, edge, or overlay |
+| `[client, api, request]` | explicit element list |
+| `checkout.*` | every node and edge in a graph |
+| `checkout` | graph itself; only valid for `camera fit` |
 
-**Stagger** - Sequential delay across multiple targets:
+Only graphs support `.*`. `camera focus` requires exactly one element, not a graph or multi-target list.
 
-```
-step 1: show nodeA, nodeB, nodeC
-  stagger: 0.3s    # nodeA at 0s, nodeB at 0.3s, nodeC at 0.6s
-```
+## Scene statements
 
-**Name** - Optional label for the step (used in UI tooltips):
+### Visibility
 
-```
-step 1: show nodeA
-  name: "Genesis block appears"
-  duration: 1s
+```animflow
+show api via fade
+hide [client, request] via pop
+show retryNote via slide(from: up, distance: 24)
+show api via flip
 ```
 
----
+Transitions:
 
-## 3. Style (`@style`)
+- `fade`
+- `pop`
+- `flip`
+- `slide(from: left|right|up|down)`
+- `slide(from: left|right|up|down, distance: NUMBER)`
 
-Customize the appearance of nodes and edges.
+Slide distance defaults to 48 and cannot be negative.
 
-```
-@style
-  nodeA:
-    fill: #e8f5e9
-    stroke: #4CAF50
-    stroke-width: 3px
-    shadow: 0 4px 6px rgba(0,0,0,0.1)
+### Edge drawing
 
-  nodeB, nodeC:
-    fill: #fff3e0
-    stroke: #FF9800
-    stroke-width: 2px
-
-  connection:
-    stroke: #2196F3
-    stroke-width: 2px
-@end
+```animflow
+draw request via trace
+draw request via trace flow particles
 ```
 
-### Available Properties
+Only an edge ID is accepted. Draw progress and flow phase are sampled state, independent from dashed line styling.
 
-| Property | Example |
-|----------|---------|
-| `fill` | `#e8f5e9` |
-| `stroke` | `#4CAF50` |
-| `stroke-width` | `3px` |
-| `color` | `#000000` (text) |
-| `font-size` | `16px` |
-| `font-weight` | `bold` |
-| `shadow` | `0 4px 6px rgba(0,0,0,0.1)` |
+### Highlight
 
----
-
-## 4. Narration (`@narration`)
-
-Add descriptive text that appears during animation playback. Narration steps also define chapter divisions on the progress bar.
-
-```
-@narration
-  step 1:
-    title: "Genesis Block"
-    text: "The first block in the blockchain is created."
-
-  step 3:
-    title: "Chain Link"
-    text: "Each block references the previous block's hash."
-
-  step 6:
-    title: "Chain Complete"
-    text: "The blockchain is now fully formed."
-@end
+```animflow
+highlight api tone success
+highlight api tone danger effect glow
+highlight api tone warning effect pulse
+clearHighlight api
 ```
 
-The progress bar is divided into chapters based on narration steps. Hovering over a chapter segment shows the title and text as a tooltip.
+Highlight effects are `glow` and `pulse`. Clearing a highlight is an explicit state transition.
 
----
+### Camera
 
-## 5. Config (`@config`)
-
-Global settings for playback and rendering.
-
-```
-@config
-  autoplay: true
-  loop: false
-  speed: 1.0
-  controls: true
-  narration: true
-  background: #f5f5f5
-  tts: true
-  tts-voice: Kyunghoon, InJoon, ko-KR
-  tts-rate: 1.0
-  tts-pitch: 1.0
-@end
+```animflow
+camera fit(checkout) padding 64
+camera fit([client, api]) padding 80
+camera focus(api) padding 96
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `autoplay` | boolean | `false` | Auto-play on load |
-| `loop` | boolean | `false` | Loop animation |
-| `speed` | number | `1.0` | Playback speed |
-| `controls` | boolean | `true` | Show playback controls |
-| `narration` | boolean | `true` | Show narration overlay |
-| `background` | string | `#ffffff` | Canvas background color |
-| `tts` | boolean | `false` | Sets initial state of the 🔊/🔇 toggle button |
-| `tts-voice` | string | `""` | Comma-separated voice name substrings or BCP-47 tags, tried in order |
-| `tts-rate` | number | `1.0` | Speech rate (0.1–10) |
-| `tts-pitch` | number | `1.0` | Speech pitch (0–2) |
+Padding defaults to 40 and cannot be negative. Camera is part of `FrameState`; the host and renderer do not maintain a second viewBox state.
 
-### TTS Behavior
+### Narration
 
-When the 🔊 toggle is **ON**, the narration `text` of each step is spoken aloud in sync with animation. The toggle button lives in the playback controls bar and can only be changed while the animation is **stopped**.
-
-- **play** → resumes paused speech
-- **pause** → pauses speech mid-sentence
-- **stop / toggle** → cancels speech and resets to the beginning
-- **seek** → cancels speech (resumes naturally on next step change)
-- **Volume slider** appears next to the toggle when voice is ON; adjusts loudness (0–100%)
-
-Voice pacing mode (when 🔊 is ON):
-- Each step's animation plays normally
-- At the end of each step, if speech is still in progress the timeline **waits** for it to finish before advancing
-- Toggling the button mid-way always resets to the beginning to avoid desync
-
-Voice selection — `tts-voice` is tried left-to-right:
-1. Voice name substring match (e.g. `Kyunghoon` → macOS Korean male)
-2. BCP-47 language prefix match (e.g. `ko-KR` → any Korean voice)
-3. Browser default voice
-
-**Multi-voice fallback example:**
-```
-tts-voice: Kyunghoon, InJoon, ko-KR
-# 1st: macOS Korean male  2nd: Windows Korean male  3rd: any Korean
+```animflow
+say "The request reaches the API."
 ```
 
----
+Narration is scene-scoped. `say` must be a direct scene statement and cannot be nested inside `sequence` or `stagger`. A scene should contain at most one narration write.
 
-## Full Example
+## Timing and conflict rules
 
+Scenes run sequentially in declaration order. Top-level statements inside one scene run in parallel across the full scene duration.
+
+```animflow
+scene example "Timing" duration 1200ms {
+  // These begin together and each receives 1200 ms.
+  show api via fade
+  draw request via trace
+
+  // Children receive equal consecutive slices of 600 ms.
+  sequence {
+    highlight client tone primary
+    highlight api tone success
+  }
+}
 ```
-flowchart LR
-  genesis[Genesis Block<br/>Hash: 0000]
-  block1[Block #1<br/>Hash: a1b2<br/>Prev: 0000]
-  block2[Block #2<br/>Hash: c3d4<br/>Prev: a1b2]
 
-  genesis --> block1
-  block1 --> block2
+`stagger` starts each child after the stated interval. Every child receives `scene duration - interval × (child count - 1)`, clamped at zero, so their executions overlap.
 
-@animation
-  step 1: show genesis
-    duration: 1.5s
-    effect: fadeIn
-
-  step 2: highlight genesis
-    color: #4CAF50
-    glow: true
-    duration: 1s
-
-  step 3: connect genesis->block1
-    flow: particles
-    speed: 2s
-    color: #2196F3
-
-  step 4: show block1
-    effect: slideInRight
-    duration: 1s
-
-  step 5: connect block1->block2
-    flow: particles
-    speed: 2s
-
-  step 6: show block2
-    effect: slideInRight
-    duration: 1s
-
-  step 7: camera fitAll
-    padding: 50px
-    duration: 1.5s
-@end
-
-@style
-  genesis:
-    fill: #e8f5e9
-    stroke: #4CAF50
-    stroke-width: 3px
-
-  block1, block2:
-    fill: #fff3e0
-    stroke: #FF9800
-    stroke-width: 2px
-@end
-
-@narration
-  step 1:
-    title: "Genesis Block"
-    text: "The first block with no previous hash."
-
-  step 3:
-    title: "First Link"
-    text: "Block #1 references the genesis block's hash."
-
-  step 7:
-    title: "Blockchain Formed"
-    text: "Blocks are chained together, making tampering detectable."
-@end
-
-@config
-  autoplay: true
-  controls: true
-  speed: 1.0
-@end
+```animflow
+scene reveal "Reveal" duration 1400ms {
+  stagger 200ms {
+    show client via pop
+    show api via pop
+    show db via pop
+  }
+}
 ```
+
+Two parallel top-level statements cannot write the same property of the same element. This is diagnostic `AF422`. Put intentional repeated writes inside one `sequence` block. A `sequence` or `stagger` block counts as one top-level writer for conflict detection.
+
+## Diagnostics
+
+Compilation returns either a complete immutable `RenderPlan` or diagnostics. Every diagnostic includes a stable code, severity, message, and source range.
+
+| Namespace | Meaning |
+|---|---|
+| `AF1xx` | syntax and token errors |
+| `AF2xx` | duplicate IDs, symbols, and references |
+| `AF3xx` | version, targets, properties, and numeric constraints |
+| `AF4xx` | narration and conflicting scene writes |
+| `AF5xx` | compiler, layout, and geometry |
+| `AF6xx` | v1 migration |
+| `AF7xx` | reserved plugin contracts |
+
+The editor uses the same Langium grammar and validation rules as compilation, so Monaco markers match compiler failures.
+
+## Runtime contract
+
+```ts
+const compiled = await compileAnimFlow(source);
+if (!compiled.ok) return compiled.diagnostics;
+
+const plan = compiled.value;       // deeply frozen RenderPlan
+const frame = sample(plan, 750);   // deeply frozen FrameState
+```
+
+`sample` clamps time to `0..plan.durationMs`. The same plan and timestamp produce the same state whether reached by direct seek, forward playback, backward seek, or restart.
+
+## Migrating v1
+
+Use `migrateV1ToV2(v1Source)` from `@animflow-dsl/migrate`. It parses the frozen Mermaid-extension format, creates explicit edge IDs and named scenes, attaches narration, and returns a manifest plus diagnostics. It never runs v1 syntax through the v2 runtime.
+
+The previous syntax and player are documented in the [v1 legacy guide](dsl-guide-v1.md) and remain available in the demo at `/legacy`.

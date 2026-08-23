@@ -1,0 +1,19 @@
+{
+  "projectName": "AnimFlow",
+  "out": "src/generated",
+  "languages": [
+    {
+      "id": "animflow",
+      "grammar": "src/animflow.langium",
+      "fileExtensions": [".animflow"],
+      "monarch": {
+        "out": "src/generated/animflow.monarch.ts"
+      }
+    }
+  ],
+  "chevrotainParserConfig": {
+    "recoveryEnabled": true,
+    "nodeLocationTracking": "full",
+    "maxLookahead": 4
+  }
+}

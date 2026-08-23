@@ -1,97 +1,81 @@
 # Contributing to AnimFlow DSL
 
-Thank you for your interest in contributing!
+## Development setup
 
-## Development Setup
+Requirements: Node.js 18+, pnpm 9+.
 
 ```bash
-# 1. Fork and clone the repo
 git clone https://github.com/YOUR_USERNAME/animflow-dsl.git
 cd animflow-dsl
-
-# 2. Install dependencies
 pnpm install
-
-# 3. Build the SDK and start the demo
-pnpm --filter @animflow-dsl/react build
+pnpm build
+pnpm test
 pnpm --filter web dev
-# Open http://localhost:3000
 ```
 
-For live SDK development with hot reload:
+Open `/` for the v2 editor and `/legacy` for the frozen v1 demo.
+
+## Before changing the language
+
+Read the [v2 architecture and implementation contract](docs/animflow-dsl-v2-implementation-plan.md). Public grammar or state-model changes require a new ADR in that document before code changes.
+
+Keep the dependency direction one-way:
+
+```text
+model <- language
+model <- compiler <- language
+model <- runtime
+model <- react-v2
+language + model + frozen react/core <- migrate
+```
+
+- `model` contains contracts only: no parser, DOM, React, or GSAP.
+- `language` owns grammar, references, source ranges, and semantic validation.
+- `compiler` owns defaults, layout, geometry, scene snapshots, and tracks.
+- `runtime` samples time-dependent state without parsing or DOM access.
+- `react-v2` renders `RenderPlan` plus `FrameState`; it does not resolve semantic targets.
+- `migrate` is the only v2 package allowed to import the frozen v1 parser.
+
+## Required verification
+
+Run the repository gates before opening a pull request:
 
 ```bash
-# Terminal 1 — watch mode for the SDK
-pnpm --filter @animflow-dsl/react dev
-
-# Terminal 2 — demo app
-pnpm --filter web dev
+pnpm lint
+pnpm test
+pnpm build
+git diff --check
 ```
 
-## Reporting Issues
+When changing a package, add or update its contract tests:
 
-When reporting a bug, please include:
+- Language: valid syntax, negative diagnostics, linking, source ranges.
+- Compiler: repeatable output, routes, ports, markers, scene snapshots.
+- Runtime: direct seek equals stepped playback, including backward seek and restart.
+- Renderer: SVG structure and the absence of parsing, semantic DOM lookup, and an internal clock.
+- Migration: deterministic output and exact action/narration preservation across all legacy templates.
 
-1. The **DSL string** that causes the problem (or a minimal reproduction)
-2. Expected behavior vs. actual behavior
-3. Browser and OS
+Do not accept a change only because the demo looks correct.
 
-Open an issue at: https://github.com/animflow-dsl/animflow-dsl/issues
+## Grammar workflow
 
-## Submitting a Pull Request
+The grammar source is `packages/language/src/animflow.langium`. After editing it:
 
-**Before opening a PR:**
-
-- [ ] `pnpm --filter @animflow-dsl/react build` passes without errors
-- [ ] `pnpm lint` passes
-- [ ] New templates are added to `apps/web/data/templates/` and exported from `apps/web/data/templates/index.ts`
-- [ ] DSL parser changes are validated (see below)
-
-## Validating DSL Parser Changes
-
-If you modify `packages/react/src/core/parser/diagram-parser.ts`, verify these cases parse correctly:
-
-```
-# Node shapes
-A[rect]
-B{diamond}
-C(stadium)
-D([terminator])
-E((circle))
-F[(database)]
-G[[document]]
-H[/parallelogram/]
-I>asymmetric]
-
-# Edges
-A --> B
-A --- B
-A -->|label| B
-A -- label --> B
-A --> B --> C
-A --> B & C
-
-# Directions
-flowchart LR
-flowchart TD
-flowchart TB
-flowchart RL
-flowchart BT
+```bash
+pnpm --filter @animflow-dsl/language langium:generate
+pnpm --filter @animflow-dsl/language test
+pnpm --filter @animflow-dsl/compiler test
 ```
 
-You can test quickly by pasting into the demo app at http://localhost:3000 and verifying the diagram renders the expected shapes and connections.
+Commit generated AST, grammar, module, and Monaco token output with the grammar change.
 
-## Project Structure
+## Reporting issues
 
-```
-packages/react/src/
-├── core/parser/   # DSL text → DiagramData
-├── core/layout/   # Dagre layout calculation
-├── components/    # React components
-├── hooks/         # useTTS, other hooks
-└── store/         # Zustand state
-```
+Include:
 
-## Questions
+1. A minimal DSL document.
+2. Expected and actual behavior.
+3. Full diagnostic code, message, and source range.
+4. Browser, OS, Node.js, and pnpm versions when relevant.
 
-Feel free to open a GitHub Discussion for any questions about the codebase or contribution ideas.
+Open issues at <https://github.com/viviviviviid/animflow-dsl/issues>.

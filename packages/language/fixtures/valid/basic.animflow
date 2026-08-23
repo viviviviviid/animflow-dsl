@@ -1,0 +1,57 @@
+animflow 2
+
+canvas {
+  size 1280 by 720
+  theme light
+  background surface
+}
+
+graph checkout {
+  layout flow right {
+    nodeGap 48
+    rankGap 80
+    routing orthogonal
+  }
+
+  node client "Client" {
+    shape rounded
+    tone neutral
+  }
+
+  node api "API" {
+    shape rectangle
+    tone primary
+  }
+
+  edge request: client.e -> api.w {
+    label "POST /checkout"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+}
+
+overlay apiNote: callout {
+  anchor api.n
+  text "Validates the request"
+  width 280
+  tone info
+}
+
+story checkoutStory {
+  initial {
+    show checkout.*
+    hide apiNote
+    camera fit(checkout) padding 40
+  }
+
+  scene requestScene "Send request" duration 2s {
+    draw request via trace
+    sequence {
+      highlight api tone accent
+      clearHighlight api
+    }
+    say "The client sends a request."
+  }
+}
