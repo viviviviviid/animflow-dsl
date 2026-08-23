@@ -22,3 +22,4 @@ jobs:
       - run: pnpm verify
       - run: pnpm --filter @animflow-dsl/browser-worker test:coverage
       - run: pnpm verify:worker-bundle
+      - run: pnpm eval:skill

@@ -1,0 +1,10 @@
+{"id":"request-overview","prompt":"초급 백엔드 강의용으로 클라이언트 요청이 API 게이트웨이와 주문 서비스를 거쳐 DB에 저장되는 과정을 4개 장면 안팎으로 설명해줘.","fixture":"examples/request-lifecycle.animflow"}
+{"id":"gateway-boundary","prompt":"API Gateway가 인증 경계인 이유를 요청 흐름 애니메이션과 내레이션으로 설명해줘.","fixture":"examples/request-lifecycle.animflow"}
+{"id":"persistence-path","prompt":"주문 생성 요청에서 비즈니스 검증과 영속화의 책임을 구분해서 가르치는 다이어그램을 만들어줘.","fixture":"examples/request-lifecycle.animflow"}
+{"id":"agent-layers","prompt":"AI Agent의 사용자 목표, planner, tool layer, memory 관계를 아키텍처 입문자에게 설명해줘.","fixture":"examples/architecture-walkthrough.animflow"}
+{"id":"tool-execution","prompt":"에이전트가 reasoning과 실제 tool execution을 분리하는 이유를 단계별로 보여줘.","fixture":"examples/architecture-walkthrough.animflow"}
+{"id":"memory-context","prompt":"Agent memory가 다음 의사결정에 필요한 context를 되돌려주는 흐름을 강의 다이어그램으로 만들어줘.","fixture":"examples/architecture-walkthrough.animflow"}
+{"id":"bst-search","prompt":"이진 탐색 트리에서 6을 찾는 과정을 비교와 가지치기 중심으로 설명해줘.","fixture":"examples/algorithm-stepthrough.animflow"}
+{"id":"search-invariant","prompt":"BST 탐색의 정렬 invariant가 매 단계 탐색 공간을 줄이는 방식을 애니메이션으로 가르쳐줘.","fixture":"examples/algorithm-stepthrough.animflow"}
+{"id":"algorithm-step","prompt":"알고리즘 입문 강의에서 비교, 이동, 발견의 teaching beat가 분명한 step-through를 만들어줘.","fixture":"examples/algorithm-stepthrough.animflow"}
+{"id":"causal-flow","prompt":"분산 시스템의 인과 흐름을 한 번에 모두 움직이지 않고 한 경계씩 추적하는 강의 자료를 만들어줘.","fixture":"examples/request-lifecycle.animflow"}

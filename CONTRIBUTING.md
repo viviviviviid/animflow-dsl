@@ -8,8 +8,8 @@ Requirements: Node.js 18+, pnpm 9+.
 git clone https://github.com/YOUR_USERNAME/animflow-dsl.git
 cd animflow-dsl
 pnpm install
-pnpm build
-pnpm test
+pnpm verify
+pnpm eval:skill
 pnpm --filter web dev
 ```
 
@@ -26,7 +26,7 @@ model <- language
 model <- compiler <- language
 model <- runtime
 model <- react-v2
-language + model + frozen react/core <- migrate
+language + model + frozen react/core <- migrate <- cli
 ```
 
 - `model` contains contracts only: no parser, DOM, React, or GSAP.
@@ -35,15 +35,16 @@ language + model + frozen react/core <- migrate
 - `runtime` samples time-dependent state without parsing or DOM access.
 - `react-v2` renders `RenderPlan` plus `FrameState`; it does not resolve semantic targets.
 - `migrate` is the only v2 package allowed to import the frozen v1 parser.
+- `cli` consumes only public package roots and keeps stdout JSON free of logs.
 
 ## Required verification
 
 Run the repository gates before opening a pull request:
 
 ```bash
-pnpm lint
-pnpm test
-pnpm build
+pnpm verify
+pnpm --filter @animflow-dsl/browser-worker test:coverage
+pnpm eval:skill
 git diff --check
 ```
 

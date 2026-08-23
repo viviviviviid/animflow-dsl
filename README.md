@@ -104,8 +104,23 @@ AnimFlow source
 | `@animflow-dsl/compiler` | Deterministic lowering, themes, layout, routes, animation tracks |
 | `@animflow-dsl/runtime` | Pure sampling and explicit playback state machine |
 | `@animflow-dsl/react-v2` | SVG renderer and controlled playback controls |
-| `@animflow-dsl/migrate` | Frozen v1 parser to validated v2 source |
+| `@animflow-dsl/migrate` | Frozen v1 migration, v2→v2.1 migration, and strict Mermaid flowchart import |
+| `@animflow-dsl/cli` | Stable validate, format, compile, migrate, import, version, and capabilities commands |
 | `@animflow-dsl/react` | Legacy Mermaid-extension runtime used by `/legacy` and migration only |
+
+## CLI and AI authoring
+
+Build the workspace, then use the Node CLI directly or through its installed `animflow` bin:
+
+```bash
+pnpm build
+node packages/cli/dist/bin.js validate lesson.animflow --json
+node packages/cli/dist/bin.js format lesson.animflow --write
+node packages/cli/dist/bin.js compile lesson.animflow --out lesson.render-plan.json
+node packages/cli/dist/bin.js import-mermaid graph.mmd --out lesson.animflow
+```
+
+Machine output uses the versioned schema at `packages/cli/schema/report.schema.json`. The repository Agent Skill is at `skills/animflow-authoring`; its examples and 10-prompt semantic eval use the same CLI and compiler.
 
 ## Migration
 
@@ -127,9 +142,8 @@ Requirements: Node.js 18+, pnpm 9+.
 
 ```bash
 pnpm install
-pnpm test
-pnpm lint
-pnpm build
+pnpm verify
+pnpm eval:skill
 pnpm --filter web dev
 ```
 
@@ -140,6 +154,8 @@ Open [http://localhost:3000](http://localhost:3000) for v2 and [http://localhost
 - [v2 DSL reference](docs/dsl-guide.md)
 - [v1 legacy guide](docs/dsl-guide-v1.md)
 - [architecture and implementation contract](docs/animflow-dsl-v2-implementation-plan.md)
+- [authoring platform design and phase gates](docs/designs/animflow-authoring-platform.md)
+- [AnimFlow Agent Skill](skills/animflow-authoring/SKILL.md)
 - [contribution guide](CONTRIBUTING.md)
 - [legacy React SDK API](packages/react/README.md)
 

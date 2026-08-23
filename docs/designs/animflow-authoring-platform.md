@@ -770,6 +770,25 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Verify: new/changed code 100% coverage, sequential verify, bundle/compile/clone+freeze/memory budgets and raw artifacts
   - Shipped: Chromium 151 고정 workflow, 100/150/30/600 상한 fixture, CDP worker heap plateau, raw JSON artifact, worker 전체 module 100% coverage gate
 
+- [x] **T7 (P1)** — CLI와 Mermaid importer — 안정된 JSON envelope, exit code, atomic output, resource cap과 strict flowchart subset을 구현한다.
+  - Files: `packages/cli`, `packages/migrate`
+  - Verify: 실제 Node bin, JSON schema, format/compile/migrate/import contract, package tarball
+
+- [ ] **T8 (P1)** — Agent Skill 평가 — repository Skill과 10 prompt semantic eval을 고정 model로 3회씩 실행한다.
+  - Files: `skills/animflow-authoring`
+  - Shipped: Skill/reference/examples, fixture-mode 30/30 compile 및 semantic assertion, 외부 고정-model runner contract
+  - Remaining gate: `ANIMFLOW_EVAL_COMMAND`와 고정 model/version/temperature를 지정한 실제 30회 생성 평가
+
+- [ ] **T9 (P1)** — Authoring command layer — typed source patch, revision, transaction, undo/redo와 selection 복구를 구현한다.
+
+- [ ] **T10 (P1)** — Studio MVP — Canvas-first Creator, persistence/recovery, inspector와 scene strip을 통합한다.
+
+- [ ] **T11 (P1)** — Presenter와 Publish — full-screen 재생과 immutable revision 공유 계약을 구현한다.
+
+- [ ] **T12 (P1)** — Public SDK — React façade, SSR/diagnostic/version contract와 clean consumer 설치 검증을 구현한다.
+
+- [ ] **T13 (P1)** — Dogfood acceptance — 실제 10분 강의와 cross-browser·보안·복구 인수 기준을 완료한다.
+
 
 ### Completion Summary
 

@@ -1,0 +1,85 @@
+animflow 2.1
+
+canvas {
+  size 1280 by 720
+  theme dark
+  background surface
+}
+
+graph agentStack {
+  layout flow down {
+    nodeGap 52
+    rankGap 88
+    routing orthogonal
+  }
+  node user "User Goal" {
+    shape rounded
+    tone neutral
+  }
+  node planner "Planner" {
+    shape rectangle
+    tone primary
+  }
+  node tools "Tool Layer" {
+    shape parallelogram
+    tone neutral
+  }
+  node memory "Memory" {
+    shape database
+    tone neutral
+  }
+  edge goal: user.s -> planner.n {
+    label "intent"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+  edge execute: planner.s -> tools.n {
+    label "actions"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+  edge recall: memory.w -> planner.e {
+    label "context"
+    line dashed 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+}
+
+story architectureLesson {
+  initial {
+    hide agentStack.*
+    camera fit(agentStack) padding 48
+  }
+  scene establish "Establish the layers" duration 3s {
+    action revealLayers: stagger 400ms {
+      action revealUser: show user via fade
+      action revealPlanner: show planner via fade
+      action revealTools: show tools via fade
+      action revealMemory: show memory via fade
+    }
+    say "An agent separates intent, reasoning, execution, and retained context."
+  }
+  scene plan "Plan from intent" duration 2s {
+    action traceGoal: draw goal via trace
+    action focusPlanner: highlight planner tone accent
+    say "The planner converts the user goal into constrained actions."
+  }
+  scene act "Execute through tools" duration 2s {
+    action clearPlanner: clearHighlight planner
+    action traceExecution: draw execute via trace
+    action focusTools: highlight tools tone accent
+    say "Tools perform observable work outside the model."
+  }
+  scene remember "Bring back context" duration 2s {
+    action clearTools: clearHighlight tools
+    action traceRecall: draw recall via trace
+    action focusMemory: highlight memory tone accent
+    say "Memory returns only the context needed for the next decision."
+  }
+}

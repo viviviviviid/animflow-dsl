@@ -1,0 +1,72 @@
+animflow 2.1
+
+canvas {
+  size 1280 by 720
+  theme light
+  background surface
+}
+
+graph searchTree {
+  layout flow down {
+    nodeGap 56
+    rankGap 84
+    routing straight
+  }
+  node root "8" {
+    shape circle
+    tone primary
+  }
+  node bstLeft "3" {
+    shape circle
+    tone neutral
+  }
+  node bstRight "10" {
+    shape circle
+    tone neutral
+  }
+  node target "6" {
+    shape circle
+    tone neutral
+  }
+  edge inspectLeft: root.s -> bstLeft.n {
+    label "6 < 8"
+    line solid 2
+    arrow end
+    tone primary
+    routing straight
+  }
+  edge inspectRight: bstLeft.s -> target.n {
+    label "6 > 3"
+    line solid 2
+    arrow end
+    tone primary
+    routing straight
+  }
+}
+
+story searchLesson {
+  initial {
+    show searchTree.*
+    camera fit(searchTree) padding 48
+  }
+  scene invariant "Search invariant" duration 3s {
+    action focusRoot: highlight root tone accent
+    say "At each node, the ordering invariant eliminates half of the remaining tree."
+  }
+  scene goLeft "Compare with eight" duration 2s {
+    action clearRoot: clearHighlight root
+    action traceLeft: draw inspectLeft via trace
+    action focusLeft: highlight bstLeft tone accent
+    say "Six is smaller than eight, so the right subtree is discarded."
+  }
+  scene goRight "Compare with three" duration 2s {
+    action clearLeft: clearHighlight bstLeft
+    action traceRight: draw inspectRight via trace
+    action focusTarget: highlight target tone accent
+    say "Six is larger than three, so the search continues to the right."
+  }
+  scene found "Target found" duration 2s {
+    action pulseTarget: highlight target tone accent effect pulse
+    say "The target is found without inspecting every node."
+  }
+}

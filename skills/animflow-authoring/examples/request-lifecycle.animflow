@@ -1,0 +1,80 @@
+animflow 2.1
+
+canvas {
+  size 1280 by 720
+  theme light
+  background surface
+}
+
+graph requestFlow {
+  layout flow right {
+    nodeGap 48
+    rankGap 80
+    routing orthogonal
+  }
+  node client "Client" {
+    shape rounded
+    tone neutral
+  }
+  node gateway "API Gateway" {
+    shape rectangle
+    tone primary
+  }
+  node service "Order Service" {
+    shape rectangle
+    tone neutral
+  }
+  node ordersDb "Orders DB" {
+    shape database
+    tone neutral
+  }
+  edge clientRequest: client.e -> gateway.w {
+    label "POST /orders"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+  edge serviceCall: gateway.e -> service.w {
+    label "Create order"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+  edge persistOrder: service.e -> ordersDb.w {
+    label "INSERT"
+    line solid 2
+    arrow end
+    tone primary
+    routing orthogonal
+  }
+}
+
+story requestLesson {
+  initial {
+    hide requestFlow.*
+    camera fit(requestFlow) padding 40
+  }
+  scene context "System context" duration 2s {
+    action revealSystem: show requestFlow.* via fade
+    say "An order crosses three service boundaries before it is stored."
+  }
+  scene enterGateway "Enter the gateway" duration 2s {
+    action traceClientRequest: draw clientRequest via trace
+    action focusGateway: highlight gateway tone accent
+    say "The gateway receives and authenticates the request."
+  }
+  scene callService "Call the service" duration 2s {
+    action clearGateway: clearHighlight gateway
+    action traceServiceCall: draw serviceCall via trace
+    action focusService: highlight service tone accent
+    say "The order service applies business rules."
+  }
+  scene persist "Persist the order" duration 2s {
+    action clearService: clearHighlight service
+    action tracePersist: draw persistOrder via trace
+    action focusDatabase: highlight ordersDb tone accent
+    say "The validated order is committed to durable storage."
+  }
+}

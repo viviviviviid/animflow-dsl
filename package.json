@@ -9,7 +9,8 @@
     "test": "turbo run test",
     "verify": "pnpm test && pnpm build && pnpm lint",
     "verify:worker-bundle": "node scripts/check-worker-bundle.mjs",
-    "benchmark:browser": "node scripts/run-browser-benchmark.mjs"
+    "benchmark:browser": "node scripts/run-browser-benchmark.mjs",
+    "eval:skill": "node skills/animflow-authoring/evals/run-evals.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
