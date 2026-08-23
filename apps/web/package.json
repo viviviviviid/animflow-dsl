@@ -9,7 +9,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@animflow-dsl/compiler": "workspace:*",
+    "@animflow-dsl/browser-worker": "workspace:*",
     "@animflow-dsl/language": "workspace:*",
     "@animflow-dsl/migrate": "workspace:*",
     "@animflow-dsl/model": "workspace:*",

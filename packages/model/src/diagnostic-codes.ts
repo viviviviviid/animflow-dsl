@@ -25,4 +25,8 @@ export const ANIMFLOW_DIAGNOSTIC_CODES = Object.freeze({
   missingMigrationCst: "AF625",
   generatedMigrationInvalid: "AF699",
   formatterUnavailable: "AF701",
+  resourceLimit: "AF702",
+  workerProtocol: "AF703",
+  workerTimeout: "AF704",
+  workerCrash: "AF705",
 } as const satisfies Readonly<Record<string, DiagnosticCode>>);

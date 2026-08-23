@@ -12,6 +12,8 @@ import type {
 } from "./ids";
 import type { AnimFlowSourceVersion, SourceRange } from "./source";
 
+export const RENDER_PLAN_VERSION = 2 as const;
+
 export interface SymbolEntry {
   readonly id: ElementId;
   readonly handle: ElementHandle;

@@ -759,7 +759,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Files: `packages/migrate`, `packages/language`
   - Verify: pre-order IDs, global collision, nested action, comment preservation, repeat determinism
 
-- [ ] **T5 (P1, human: ~8h / CC: ~60min)** — Browser worker — versioned latest-wins worker client와 terminate/recovery lifecycle을 구현한다.
+- [x] **T5 (P1, human: ~8h / CC: ~60min)** — Browser worker — versioned latest-wins worker client와 terminate/recovery lifecycle을 구현한다.
   - Surfaced by: Architecture — 현재 `V2Player`가 main thread에서 compile하며 message cancellation은 active CPU work를 선점하지 못한다.
   - Files: `packages/browser-worker`, `apps/web`
   - Verify: handshake mismatch, stale result, timeout, crash, next-valid recovery Playwright tests

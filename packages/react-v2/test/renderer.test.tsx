@@ -118,4 +118,28 @@ describe("PlaybackControls", () => {
     expect(markup).toContain('aria-label="Animation time"');
     expect(markup).not.toContain("<svg");
   });
+
+  test("disables transport controls while leaving timeline seek enabled", () => {
+    const markup = renderToStaticMarkup(
+      <PlaybackControls
+        durationMs={2000}
+        loop={false}
+        onLoopChange={() => undefined}
+        onPause={() => undefined}
+        onPlay={() => undefined}
+        onRestart={() => undefined}
+        onSeek={() => undefined}
+        onSpeedChange={() => undefined}
+        speed={1}
+        status="paused"
+        timeMs={500}
+        transportDisabled
+      />,
+    );
+
+    expect(markup).toContain('<button aria-label="Restart animation" disabled=""');
+    expect(markup).toContain('<select aria-label="Playback speed" disabled=""');
+    expect(markup).toContain('<input disabled="" style="accent-color:#4a8cff" type="checkbox"');
+    expect(markup).not.toContain('aria-label="Animation time" disabled');
+  });
 });

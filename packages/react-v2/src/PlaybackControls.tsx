@@ -12,6 +12,8 @@ export interface PlaybackControlsProps {
   readonly onSeek: (timeMs: number) => void;
   readonly onSpeedChange: (speed: number) => void;
   readonly onLoopChange: (loop: boolean) => void;
+  /** Disables transport mutations while retaining timeline seek. */
+  readonly transportDisabled?: boolean;
   readonly className?: string;
   readonly style?: CSSProperties;
 }
@@ -49,8 +51,8 @@ export function PlaybackControls(props: PlaybackControlsProps): ReactElement {
   return (
     <div aria-label="Animation playback" className={props.className} role="group" style={{ ...transportStyle, ...props.style }}>
       <div style={{ display: "flex", gap: 6 }}>
-        <button aria-label="Restart animation" onClick={props.onRestart} style={buttonStyle} type="button">↺</button>
-        <button aria-label={playing ? "Pause animation" : "Play animation"} onClick={playing ? props.onPause : props.onPlay} style={{ ...buttonStyle, background: playing ? "#30405a" : "#215fd1", minWidth: 66 }} type="button">
+        <button aria-label="Restart animation" disabled={props.transportDisabled} onClick={props.onRestart} style={buttonStyle} type="button">↺</button>
+        <button aria-label={playing ? "Pause animation" : "Play animation"} disabled={props.transportDisabled} onClick={playing ? props.onPause : props.onPlay} style={{ ...buttonStyle, background: playing ? "#30405a" : "#215fd1", minWidth: 66 }} type="button">
           {playing ? "Pause" : "Play"}
         </button>
       </div>
@@ -61,12 +63,12 @@ export function PlaybackControls(props: PlaybackControlsProps): ReactElement {
       </label>
       <label style={{ alignItems: "center", display: "flex", gap: 6 }}>
         <span>Speed</span>
-        <select aria-label="Playback speed" onChange={(event) => props.onSpeedChange(Number(event.currentTarget.value))} style={{ ...buttonStyle, minHeight: 34 }} value={props.speed}>
+        <select aria-label="Playback speed" disabled={props.transportDisabled} onChange={(event) => props.onSpeedChange(Number(event.currentTarget.value))} style={{ ...buttonStyle, minHeight: 34 }} value={props.speed}>
           {[0.5, 1, 1.5, 2].map((speed) => <option key={speed} value={speed}>{speed}×</option>)}
         </select>
       </label>
       <label style={{ alignItems: "center", cursor: "pointer", display: "flex", gap: 6 }}>
-        <input checked={props.loop} onChange={(event) => props.onLoopChange(event.currentTarget.checked)} style={{ accentColor: "#4a8cff" }} type="checkbox" />
+        <input checked={props.loop} disabled={props.transportDisabled} onChange={(event) => props.onLoopChange(event.currentTarget.checked)} style={{ accentColor: "#4a8cff" }} type="checkbox" />
         Loop
       </label>
     </div>

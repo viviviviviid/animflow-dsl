@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { compileAnimFlow } from "@animflow-dsl/compiler";
+import {
+  createBrowserCompileClient,
+  type BrowserCompileClient,
+  type BrowserCompileJob,
+} from "@animflow-dsl/browser-worker";
 import type { Diagnostic, RenderPlan } from "@animflow-dsl/model";
 import { AnimFlowCanvas, PlaybackControls } from "@animflow-dsl/react-v2";
 import {
@@ -19,32 +23,48 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
   const [plan, setPlan] = useState<RenderPlan | null>(null);
   const [playback, setPlayback] = useState<PlaybackSnapshot | null>(null);
   const [compiling, setCompiling] = useState(true);
+  const [client, setClient] = useState<BrowserCompileClient | null>(null);
+  const [stale, setStale] = useState(false);
   const controllerRef = useRef<PlaybackController | null>(null);
+  const planRef = useRef<RenderPlan | null>(null);
 
   useEffect(() => {
+    const next = createBrowserCompileClient();
+    setClient(next);
+    return () => next.dispose();
+  }, []);
+
+  useEffect(() => {
+    if (!client) return;
     let cancelled = false;
+    let job: BrowserCompileJob | undefined;
     setCompiling(true);
     const timer = window.setTimeout(async () => {
-      const result = await compileAnimFlow(source);
+      job = client.compile(source);
+      const result = await job.result;
       if (cancelled) return;
+      if (result.status === "superseded") return;
       setCompiling(false);
       onDiagnostics(result.diagnostics);
-      if (!result.ok) {
-        controllerRef.current = null;
-        setPlan(null);
-        setPlayback(null);
+      if (result.status === "failure") {
+        const paused = controllerRef.current?.pause();
+        if (paused) setPlayback(paused);
+        setStale(planRef.current !== null);
         return;
       }
-      const controller = createPlayback(result.value);
+      const controller = createPlayback(result.plan);
       controllerRef.current = controller;
-      setPlan(result.value);
+      planRef.current = result.plan;
+      setPlan(result.plan);
       setPlayback(controller.snapshot());
+      setStale(false);
     }, 180);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      job?.cancel();
     };
-  }, [source, onDiagnostics]);
+  }, [client, source, onDiagnostics]);
 
   useEffect(() => {
     if (playback?.status !== "playing") return;
@@ -84,6 +104,11 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
         <div className="pointer-events-none absolute left-7 top-7 rounded-md border border-slate-600/70 bg-[#101722]/90 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-slate-300">
           {playback.frame.sceneId ?? "initial"} · {Math.round(playback.frame.progress * 100)}%
         </div>
+        {stale ? (
+          <div className="pointer-events-none absolute right-7 top-7 rounded-md border border-amber-400/50 bg-amber-950/90 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-amber-200">
+            Stale preview
+          </div>
+        ) : null}
         {playback.frame.narration ? (
           <div className="pointer-events-none absolute bottom-7 left-1/2 w-[min(680px,calc(100%-4rem))] -translate-x-1/2 rounded-xl border border-slate-600/70 bg-[#101722]/95 px-5 py-3 text-center text-sm leading-6 text-slate-100 shadow-xl">
             {playback.frame.narration.text}
@@ -103,6 +128,7 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
           speed={playback.speed}
           status={playback.status}
           timeMs={playback.timeMs}
+          transportDisabled={stale}
         />
       </div>
     </div>
