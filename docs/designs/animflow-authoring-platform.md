@@ -795,7 +795,10 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Shipped: `@animflow/sdk-react` 0.1.0 façade with bundled compatible compiler worker/runtime/renderer, single-story assertion, controlled transport, SSR placeholder, diagnostic/ready callbacks, self-hosted worker override, API and semver documentation
   - Verify: package tests for invalid source, story and protocol mismatch; tarball install into a non-workspace React fixture; typecheck, esbuild production bundle, SSR test and real Chromium worker/render smoke test with no internal runtime dependency
 
-- [ ] **T13 (P1)** — Dogfood acceptance — 실제 10분 강의와 cross-browser·보안·복구 인수 기준을 완료한다.
+- [x] **T13 (P1)** — Dogfood acceptance — 실제 10분 강의와 cross-browser·보안·복구 인수 기준을 완료한다.
+  - Shipped: 10-scene/41-action/600,000ms AI agent runtime lecture fixture and dated acceptance record; Studio readiness/file-import race fixed from dogfood
+  - Verify: CLI compile, deterministic forward/back/restart contract, 36 Chromium/Firefox/WebKit product E2E, accelerated 600,000ms playback in all engines, 600-second real-time Chromium replay, 320 deterministic parser/importer hostile mutations
+  - External launch evidence, not claimed by engineering: three-person first-use study and credentialed fixed-model Skill evaluation
 
 
 ### Completion Summary

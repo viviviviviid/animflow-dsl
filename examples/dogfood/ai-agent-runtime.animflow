@@ -1,0 +1,214 @@
+animflow 2.1
+
+canvas {
+  size 1600 by 900
+  theme signalDesk
+  background surface
+}
+
+graph agentSystem {
+  layout flow right {
+    nodeGap 46
+    rankGap 92
+    routing orthogonal
+  }
+
+  node learner "Learner" {
+    shape rounded
+    tone hex_2F6FED
+  }
+
+  node orchestrator "Agent loop" {
+    shape rounded
+    tone hex_7457D9
+  }
+
+  node model "Language model" {
+    shape rectangle
+    tone hex_7457D9
+  }
+
+  node tools "Typed tools" {
+    shape database
+    tone hex_138A72
+  }
+
+  node memory "Memory" {
+    shape database
+    tone hex_C47A18
+  }
+
+  node guardrail "Policy gate" {
+    shape diamond
+    tone hex_C4444D
+  }
+
+  node telemetry "Trace + eval" {
+    shape rounded
+    tone hex_138A72
+  }
+
+  edge prompt: learner.e -> orchestrator.w {
+    label "Goal + context"
+    line solid 2
+    arrow end
+    tone hex_2F6FED
+    routing orthogonal
+    flow particles
+  }
+
+  edge reason: orchestrator.e -> model.w {
+    label "Structured turn"
+    line solid 2
+    arrow end
+    tone hex_7457D9
+    routing orthogonal
+    flow dash
+  }
+
+  edge toolCall: model.e -> guardrail.w {
+    label "Tool proposal"
+    line dashed 2
+    arrow end
+    tone hex_C4444D
+    routing curve
+  }
+
+  edge execute: guardrail.e -> tools.w {
+    label "Validated call"
+    line solid 2
+    arrow end
+    tone hex_138A72
+    routing orthogonal
+    flow particles
+  }
+
+  edge remember: tools.s -> memory.n {
+    label "Durable result"
+    line dashed 2
+    arrow end
+    tone hex_C47A18
+    routing curve
+  }
+
+  edge observe: orchestrator.s -> telemetry.n {
+    label "Events"
+    line solid 2
+    arrow end
+    tone hex_138A72
+    routing orthogonal
+  }
+
+  edge feedback: telemetry.w -> orchestrator.s {
+    label "Quality signal"
+    line dashed 2
+    arrow end
+    tone hex_138A72
+    routing curve
+  }
+
+  edge answer: orchestrator.w -> learner.e {
+    label "Grounded answer"
+    line solid 2
+    arrow end
+    tone hex_2F6FED
+    routing curve
+  }
+}
+
+overlay invariant: callout {
+  anchor guardrail.s
+  text "The model proposes. Deterministic code decides and executes."
+  width 390
+  tone hex_C4444D
+}
+
+story agentLecture {
+  initial {
+    hide agentSystem.*
+    hide invariant
+    camera fit(agentSystem) padding 72
+  }
+
+  scene mentalModel "01 — Agent는 루프다" duration 60s {
+    action revealActors: stagger 180ms {
+      action showLearner: show learner via slide(from: left, distance: 52)
+      action showOrchestrator: show orchestrator via pop
+      action showModel: show model via fade
+    }
+    say "첫 1분에는 에이전트를 챗봇이 아니라 목표를 상태 변화로 바꾸는 반복 루프로 정의합니다."
+  }
+
+  scene context "02 — 입력은 계약이다" duration 60s {
+    action revealPrompt: show prompt via fade
+    action tracePrompt: draw prompt via trace flow particles
+    action focusOrchestrator: highlight orchestrator tone hex_7457D9 effect pulse
+    say "두 번째 1분에는 목표, 도구, 메모리, 예산을 명시적인 실행 계약으로 묶는 이유를 설명합니다."
+  }
+
+  scene reasoning "03 — 모델은 제안자다" duration 60s {
+    action revealReason: show reason via fade
+    action traceReason: draw reason via trace flow dash
+    action clearOrchestrator: clearHighlight orchestrator
+    action focusModel: highlight model tone hex_7457D9 effect glow
+    say "세 번째 1분에는 언어 모델이 다음 행동을 제안하지만 권한과 부작용을 직접 소유하지 않는 경계를 강조합니다."
+  }
+
+  scene policy "04 — 권한은 코드가 지킨다" duration 60s {
+    action revealGuardrail: show guardrail via pop
+    action revealToolCall: show toolCall via fade
+    action traceToolCall: draw toolCall via trace
+    action showInvariant: show invariant via slide(from: down, distance: 44)
+    action focusGuardrail: camera focus(guardrail) padding 120
+    say "네 번째 1분에는 스키마 검증, 사용자 승인, 비용 한도, 허용 목록을 모델 밖의 결정적 코드에 둡니다."
+  }
+
+  scene toolsScene "05 — 도구는 작고 타입이 있어야 한다" duration 60s {
+    action revealTools: show tools via pop
+    action revealExecute: show execute via fade
+    action traceExecute: draw execute via trace flow particles
+    action focusTools: highlight tools tone hex_138A72 effect pulse
+    say "다섯 번째 1분에는 좁은 입력과 구조화된 결과를 가진 도구가 재시도, 관찰, 보안을 단순하게 만드는 과정을 다룹니다."
+  }
+
+  scene memoryScene "06 — 메모리는 데이터 제품이다" duration 60s {
+    action revealMemory: show memory via pop
+    action revealRemember: show remember via fade
+    action traceRemember: draw remember via trace
+    action clearTools: clearHighlight tools
+    action focusMemory: highlight memory tone hex_C47A18 effect glow
+    say "여섯 번째 1분에는 대화 전문을 쌓는 대신 출처, 만료, 스키마가 있는 최소 상태만 보존하는 방식을 설명합니다."
+  }
+
+  scene observability "07 — 추적 없이는 개선도 없다" duration 60s {
+    action revealTelemetry: show telemetry via slide(from: down, distance: 48)
+    action revealObserve: show observe via fade
+    action traceObserve: draw observe via trace flow particles
+    action clearMemory: clearHighlight memory
+    action focusTelemetry: highlight telemetry tone hex_138A72 effect pulse
+    say "일곱 번째 1분에는 프롬프트 문자열보다 의사결정, 도구 호출, 지연, 비용을 이벤트로 남겨야 하는 이유를 보여줍니다."
+  }
+
+  scene evaluation "08 — 평가는 실행 전후에 있다" duration 60s {
+    action revealFeedback: show feedback via fade
+    action traceFeedback: draw feedback via trace flow dash
+    action focusLoopAgain: highlight orchestrator tone hex_7457D9 effect glow
+    say "여덟 번째 1분에는 오프라인 회귀 평가와 온라인 품질 신호가 같은 실패 분류를 공유하도록 설계합니다."
+  }
+
+  scene response "09 — 답변은 근거를 품는다" duration 60s {
+    action revealAnswer: show answer via fade
+    action traceAnswer: draw answer via trace flow particles
+    action clearTelemetry: clearHighlight telemetry
+    action focusLearner: highlight learner tone hex_2F6FED effect pulse
+    say "아홉 번째 1분에는 실행 결과와 출처를 최종 답변에 연결하고 불확실한 경우 명시적으로 멈추는 정책을 설명합니다."
+  }
+
+  scene recap "10 — 신뢰성은 경계의 합이다" duration 60s {
+    action clearLearner: clearHighlight learner
+    action clearLoop: clearHighlight orchestrator
+    action clearModel: clearHighlight model
+    action fitSystem: camera fit(agentSystem) padding 72
+    say "마지막 1분에는 모델보다 계약, 격리, 관찰, 복구 경계의 조합이 신뢰할 수 있는 에이전트를 만든다는 결론을 정리합니다."
+  }
+}

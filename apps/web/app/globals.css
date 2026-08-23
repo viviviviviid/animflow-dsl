@@ -85,6 +85,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .studio-status { align-items: center; color: #c8d0dd; display: flex; font-family: var(--font-mono), monospace; font-size: 10px; gap: 7px; white-space: nowrap; }
 .studio-status-dot { background: var(--ready-mint); border-radius: 50%; box-shadow: 0 0 0 4px rgba(66, 197, 154, .1); height: 7px; width: 7px; }
+.studio-status[data-state="opening"] .studio-status-dot { background: var(--muted); box-shadow: 0 0 0 4px rgba(140, 152, 173, .1); }
 .studio-status[data-state="error"] .studio-status-dot { background: var(--danger); box-shadow: 0 0 0 4px rgba(255, 107, 114, .1); }
 .studio-status[data-state="stale"] .studio-status-dot { background: var(--warning); box-shadow: 0 0 0 4px rgba(242, 184, 75, .1); }
 
@@ -104,6 +105,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .studio-top-actions button:hover, .studio-top-actions > a:hover, .studio-file-button:hover { background: var(--booth-raised); border-color: #46536c; }
 .studio-top-actions button:disabled { cursor: not-allowed; opacity: .35; }
+.studio-file-button[aria-disabled="true"] { cursor: not-allowed; opacity: .35; }
 .studio-top-actions button[aria-label="Undo"], .studio-top-actions button[aria-label="Redo"] { font-size: 18px; padding: 0; width: 33px; }
 .studio-file-button input { display: none; }
 .studio-legacy-link { color: var(--muted) !important; font-family: var(--font-mono), monospace; }

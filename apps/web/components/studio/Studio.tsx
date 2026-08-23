@@ -331,19 +331,22 @@ export function Studio() {
   }, []);
 
   const importFile = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
-    void file.text().then(async (text) => {
-      if (/\.(mmd|mermaid)$/i.test(file.name)) await importMermaid(text);
-      else if (authoring) {
-        await applyCommand({
-          type: "source.replace",
-          baseRevision: authoring.documentRevision,
-          source: text,
-        });
-      }
-    });
+    void file.text()
+      .then(async (text) => {
+        if (/\.(mmd|mermaid)$/i.test(file.name)) await importMermaid(text);
+        else if (authoring) {
+          await applyCommand({
+            type: "source.replace",
+            baseRevision: authoring.documentRevision,
+            source: text,
+          });
+        }
+      })
+      .catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)))
+      .finally(() => { input.value = ""; });
   }, [applyCommand, authoring, importMermaid]);
 
   const saveAsCopy = useCallback(async () => {
@@ -415,15 +418,15 @@ export function Studio() {
           <span>Lesson title</span>
           <input disabled={writerLease.status !== "writer"} onChange={(event) => setTitle(event.target.value)} value={title} />
         </label>
-        <div className="studio-status" data-state={errors.length ? "error" : stale ? "stale" : "ready"}>
+        <div className="studio-status" data-state={!authoring ? "opening" : errors.length ? "error" : stale ? "stale" : "ready"}>
           <span className="studio-status-dot" />
-          {errors.length ? `${errors.length} blocking` : stale ? "Stale preview" : "Ready to teach"}
+          {!authoring ? "Opening lesson" : errors.length ? `${errors.length} blocking` : stale ? "Stale preview" : "Ready to teach"}
         </div>
         <div className="studio-top-actions">
           <button disabled={!authoring?.canUndo || busy} onClick={() => void history("undo")} type="button" aria-label="Undo">↶</button>
           <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo">↷</button>
-          <label className="studio-file-button">Open<input accept=".animflow,.mmd,.mermaid,text/plain" onChange={importFile} type="file" /></label>
-          <button onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
+          <label aria-disabled={!authoring} className="studio-file-button">Open<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
+          <button disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
           <button disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
           <button disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
           <button onClick={exportSource} type="button">Export</button>

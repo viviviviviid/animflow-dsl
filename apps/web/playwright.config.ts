@@ -1,3 +1,5 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -24,7 +26,7 @@ export default defineConfig({
     url: "http://127.0.0.1:3100",
     env: {
       ...process.env,
-      ANIMFLOW_PUBLISH_STORAGE_DIR: resolve("apps/web/.playwright-publish"),
+      ANIMFLOW_PUBLISH_STORAGE_DIR: mkdtempSync(resolve(tmpdir(), "animflow-e2e-publish-")),
       ANIMFLOW_TRUST_PROXY_HEADERS: "false",
       ANIMFLOW_ABUSE_CONTACT: "abuse@example.invalid",
     },
