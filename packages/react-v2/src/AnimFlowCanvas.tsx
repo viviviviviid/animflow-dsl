@@ -24,6 +24,15 @@ export interface AnimFlowCanvasProps {
   readonly className?: string;
   readonly style?: CSSProperties;
   readonly ariaLabel?: string;
+  readonly selectedElementIds?: readonly string[];
+  readonly onElementSelect?: (selection: AnimFlowElementSelection) => void;
+  readonly onSelectionClear?: () => void;
+}
+
+export interface AnimFlowElementSelection {
+  readonly id: string;
+  readonly kind: CompiledElement["kind"];
+  readonly additive: boolean;
 }
 
 interface RenderItemProps<Element extends CompiledElement, Geometry extends ElementGeometry> {
@@ -31,6 +40,8 @@ interface RenderItemProps<Element extends CompiledElement, Geometry extends Elem
   readonly geometry: Geometry;
   readonly frame: ElementFrameState;
   readonly plan: RenderPlan;
+  readonly selected: boolean;
+  readonly onSelect?: (selection: AnimFlowElementSelection) => void;
 }
 
 export function AnimFlowCanvas({
@@ -39,6 +50,9 @@ export function AnimFlowCanvas({
   className,
   style,
   ariaLabel = "Animated system diagram",
+  selectedElementIds = [],
+  onElementSelect,
+  onSelectionClear,
 }: AnimFlowCanvasProps): ReactElement {
   const indexedFrame = indexFrame(frame, plan);
   const geometry = new Map(plan.geometry.map((item) => [item.handle, item]));
@@ -51,6 +65,9 @@ export function AnimFlowCanvas({
       className={className}
       preserveAspectRatio="xMidYMid meet"
       role="img"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onSelectionClear?.();
+      }}
       style={{ display: "block", width: "100%", height: "100%", background: rgba(background), ...style }}
       viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
       xmlns="http://www.w3.org/2000/svg"
@@ -68,7 +85,7 @@ export function AnimFlowCanvas({
           if (element.kind !== "edge") return null;
           const item = geometry.get(element.handle);
           return item?.kind === "edge" ? (
-            <Edge key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} plan={plan} />
+            <Edge key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
           ) : null;
         })}
       </g>
@@ -77,7 +94,7 @@ export function AnimFlowCanvas({
           if (element.kind !== "node") return null;
           const item = geometry.get(element.handle);
           return item?.kind === "node" ? (
-            <Node key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} plan={plan} />
+            <Node key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
           ) : null;
         })}
       </g>
@@ -86,7 +103,7 @@ export function AnimFlowCanvas({
           if (element.kind !== "overlay") return null;
           const item = geometry.get(element.handle);
           return item?.kind === "overlay" ? (
-            <Overlay key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} plan={plan} />
+            <Overlay key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
           ) : null;
         })}
       </g>
@@ -94,7 +111,7 @@ export function AnimFlowCanvas({
   );
 }
 
-function Node({ element, geometry, frame, plan }: RenderItemProps<CompiledNode, NodeGeometry>): ReactElement {
+function Node({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledNode, NodeGeometry>): ReactElement {
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const surface = colorFor(plan, plan.canvas.background);
   const highlight = colorFor(plan, frame.highlight.tone);
@@ -104,7 +121,9 @@ function Node({ element, geometry, frame, plan }: RenderItemProps<CompiledNode, 
       data-animflow-handle={element.handle}
       opacity={frame.opacity}
       transform={elementTransform(frame, geometry.bounds)}
+      {...selectableProps(element, selected, onSelect)}
     >
+      {selected ? <path d={path} fill="none" opacity={0.92} stroke="#4c7dff" strokeWidth={6} vectorEffect="non-scaling-stroke" /> : null}
       {frame.highlight.active || frame.highlight.intensity > 0 ? (
         <path
           d={path}
@@ -130,7 +149,7 @@ function Node({ element, geometry, frame, plan }: RenderItemProps<CompiledNode, 
   );
 }
 
-function Edge({ element, geometry, frame, plan }: RenderItemProps<CompiledEdge, EdgeGeometry>): ReactElement {
+function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledEdge, EdgeGeometry>): ReactElement {
   if (frame.kind !== "edge") throw new TypeError(`Handle ${element.handle} must have edge frame state.`);
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const highlight = colorFor(plan, frame.highlight.tone);
@@ -146,7 +165,9 @@ function Edge({ element, geometry, frame, plan }: RenderItemProps<CompiledEdge, 
       data-animflow-handle={element.handle}
       opacity={frame.opacity}
       transform={elementTransform(frame, edgeBounds)}
+      {...selectableProps(element, selected, onSelect)}
     >
+      {selected ? <path d={path} fill="none" opacity={0.25} stroke="#4c7dff" strokeWidth={element.lineWidth + 12} vectorEffect="non-scaling-stroke" /> : null}
       <defs>
         <marker id={markerId} markerHeight={geometry.markerSize} markerUnits="userSpaceOnUse" markerWidth={geometry.markerSize} orient="auto-start-reverse" refX={geometry.markerSize - 1} refY={geometry.markerSize / 2}>
           <path d={`M 0 0 L ${geometry.markerSize} ${geometry.markerSize / 2} L 0 ${geometry.markerSize} z`} fill={rgba(tone)} opacity={markerOpacity} />
@@ -295,12 +316,13 @@ function Particles({ color, frame, path }: { readonly color: RgbaColor; readonly
   );
 }
 
-function Overlay({ element, geometry, frame, plan }: RenderItemProps<CompiledOverlay, OverlayGeometry>): ReactElement {
+function Overlay({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledOverlay, OverlayGeometry>): ReactElement {
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const surface = colorFor(plan, plan.canvas.background);
   const highlight = colorFor(plan, frame.highlight.tone);
   return (
-    <g data-animflow-handle={element.handle} opacity={frame.opacity} transform={elementTransform(frame, geometry.bounds)}>
+    <g data-animflow-handle={element.handle} opacity={frame.opacity} transform={elementTransform(frame, geometry.bounds)} {...selectableProps(element, selected, onSelect)}>
+      {selected ? <rect fill="none" height={geometry.bounds.height + 8} opacity={0.92} rx={16} stroke="#4c7dff" strokeWidth={5} vectorEffect="non-scaling-stroke" width={geometry.bounds.width + 8} x={geometry.bounds.x - 4} y={geometry.bounds.y - 4} /> : null}
       {geometry.connector ? <path d={pathData(geometry.connector)} fill="none" opacity={0.65} stroke={rgba(tone)} strokeDasharray="3 4" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null}
       {frame.highlight.active || frame.highlight.intensity > 0 ? <rect fill="none" height={geometry.bounds.height} opacity={frame.highlight.intensity * 0.36} rx={14} stroke={rgba(highlight)} strokeWidth={12} vectorEffect="non-scaling-stroke" width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} /> : null}
       <rect fill={mix(surface, tone, 0.06)} height={geometry.bounds.height} rx={element.overlayKind === "badge" ? geometry.bounds.height / 2 : 12} stroke={rgba(tone)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} />
@@ -407,6 +429,36 @@ function pointOnPath(path: CompiledPath, progress: number): { x: number; y: numb
 
 function colorFor(plan: RenderPlan, token: ThemeToken): RgbaColor {
   return plan.theme.colors[token] ?? { r: 0.2, g: 0.22, b: 0.28, a: 1 };
+}
+
+function selectableProps(
+  element: CompiledElement,
+  selected: boolean,
+  onSelect: ((selection: AnimFlowElementSelection) => void) | undefined,
+): SVGProps<SVGGElement> & {
+  readonly "data-animflow-id"?: string;
+  readonly "data-animflow-selected"?: string;
+} {
+  if (!onSelect) return {};
+  const select = (additive: boolean) => onSelect({ id: element.id, kind: element.kind, additive });
+  return {
+    "aria-label": `Select ${element.kind} ${element.id}`,
+    "data-animflow-id": element.id,
+    "data-animflow-selected": selected ? "true" : "false",
+    onClick: (event) => {
+      event.stopPropagation();
+      select(event.shiftKey);
+    },
+    onKeyDown: (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      select(event.shiftKey);
+    },
+    role: "button",
+    style: { cursor: "pointer", outline: "none" },
+    tabIndex: 0,
+  };
 }
 
 function rgba(color: RgbaColor): string {

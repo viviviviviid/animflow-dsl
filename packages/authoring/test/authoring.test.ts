@@ -353,6 +353,17 @@ describe("AuthoringSession", () => {
     expect(session.state.planRevision).toBe(3);
   });
 
+  it("maps canvas element IDs to current source ranges", async () => {
+    const session = await AuthoringSession.create(SOURCE);
+    const node = await session.select("server");
+    expect(node).toMatchObject({ id: "server", kind: "node" });
+    expect(SOURCE.slice(node!.range.start.offset, node!.range.end.offset)).toContain('node server "Server"');
+
+    const edge = await session.select("request");
+    expect(edge).toMatchObject({ id: "request", kind: "edge" });
+    expect(SOURCE.slice(edge!.range.start.offset, edge!.range.end.offset)).toContain("edge request:");
+  });
+
   it("requires version 2.1 for semantic visual commands", async () => {
     const v2 = SOURCE.replace("animflow 2.1", "animflow 2").replaceAll(/action [_a-zA-Z][\w_]*: /g, "");
     const session = await AuthoringSession.create(v2);

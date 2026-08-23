@@ -82,7 +82,7 @@ export type AuthoringCommand = { readonly baseRevision: number } & (
 
 export interface AuthoringSelection {
   readonly id: string;
-  readonly kind: "scene" | "action";
+  readonly kind: "graph" | "node" | "edge" | "overlay" | "scene" | "action";
   readonly range: SourceRange;
 }
 

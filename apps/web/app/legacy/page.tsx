@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import Split from "react-split";
 import { AnimflowPlayer } from "@animflow-dsl/react";
-import { DslEditor } from "@/components/editor/DslEditor";
 import { TEMPLATES } from "@/data/templates";
+
+const DslEditor = dynamic(
+  () => import("@/components/editor/DslEditor").then((module) => module.DslEditor),
+  { loading: () => <div className="studio-editor-loading">Loading local source editor…</div>, ssr: false },
+);
 
 export default function LegacyPage() {
   const [dslText, setDslText] = useState(TEMPLATES[0].dsl);

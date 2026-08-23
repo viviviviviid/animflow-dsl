@@ -1,15 +1,30 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
+import { useEffect, useRef, useState } from "react";
+import Editor, { loader, type Monaco, type OnMount } from "@monaco-editor/react";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { animFlowMonarch } from "@animflow-dsl/language";
-import type { Diagnostic } from "@animflow-dsl/model";
+import type { Diagnostic, SourceRange } from "@animflow-dsl/model";
+
+const browserGlobal = globalThis as typeof globalThis & {
+  MonacoEnvironment?: { getWorker: () => Worker };
+};
+
+browserGlobal.MonacoEnvironment = {
+  getWorker: () => new Worker(
+    new URL("monaco-editor/esm/vs/editor/editor.worker.js", import.meta.url),
+    { type: "module" },
+  ),
+};
+loader.config({ monaco });
 
 interface DslEditorProps {
   value: string;
   onChange: (value: string) => void;
   language?: "animflow" | "plaintext";
   diagnostics?: readonly Diagnostic[];
+  selectionRange?: SourceRange;
+  readOnly?: boolean;
 }
 
 export function DslEditor({
@@ -17,9 +32,12 @@ export function DslEditor({
   onChange,
   language = "animflow",
   diagnostics = [],
+  selectionRange,
+  readOnly = false,
 }: DslEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const [editorReady, setEditorReady] = useState(false);
   const handleEditorChange = (value: string | undefined) => {
     onChange(value || "");
   };
@@ -43,6 +61,7 @@ export function DslEditor({
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    setEditorReady(true);
   };
 
   useEffect(() => {
@@ -69,7 +88,20 @@ export function DslEditor({
         startLineNumber: diagnostic.range.start.line + 1,
       })),
     );
-  }, [diagnostics, language]);
+  }, [diagnostics, editorReady, language]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !selectionRange) return;
+    const range = {
+      startLineNumber: selectionRange.start.line + 1,
+      startColumn: selectionRange.start.character + 1,
+      endLineNumber: selectionRange.end.line + 1,
+      endColumn: selectionRange.end.character + 1,
+    };
+    editor.setSelection(range);
+    editor.revealRangeInCenter(range);
+  }, [editorReady, selectionRange]);
 
   return (
     <Editor
@@ -87,6 +119,7 @@ export function DslEditor({
         scrollBeyondLastLine: false,
         wordWrap: "on",
         automaticLayout: true,
+        readOnly,
       }}
     />
   );

@@ -49,6 +49,24 @@ describe("AnimFlowCanvas", () => {
     ).toThrow("Frame is missing");
   });
 
+  test("marks selected elements and exposes keyboard-selectable SVG controls", () => {
+    const selected = String(plan.elements[0]!.id);
+    const markup = renderToStaticMarkup(
+      <AnimFlowCanvas
+        frame={frame}
+        onElementSelect={() => undefined}
+        plan={plan}
+        selectedElementIds={[selected]}
+      />,
+    );
+
+    expect(markup).toContain(`data-animflow-id="${selected}"`);
+    expect(markup).toContain('data-animflow-selected="true"');
+    expect(markup).toContain('role="button"');
+    expect(markup).toContain('tabindex="0"');
+    expect(markup).toContain('stroke="#4c7dff"');
+  });
+
   test.each(["particles", "glow", "wave", "arrow", "lightning"] as const)(
     "renders the sampled %s edge flow effect without a side-effect timeline",
     (effect) => {

@@ -3,6 +3,10 @@ import {
   parseAnimFlow,
   releaseAnimFlowDocument,
   type ActionStatement,
+  type Edge,
+  type Graph,
+  type Node,
+  type Overlay,
   type ParsedAnimFlowDocument,
   type SayStatement,
   type Scene,
@@ -488,6 +492,20 @@ async function resolveSelection(source: string, id: string): Promise<AuthoringSe
   const parsed = await parseAnimFlow(source);
   if (!parsed.ok) return undefined;
   try {
+    for (const graph of parsed.value.graphs) {
+      if (graph.name === id) return selectionFromNode(source, id, "graph", graph);
+      const member = graph.members.find((candidate) => candidate.name === id);
+      if (member) {
+        return selectionFromNode(
+          source,
+          id,
+          member.$type === "Node" ? "node" : "edge",
+          member,
+        );
+      }
+    }
+    const overlay = parsed.value.overlays.find((candidate) => candidate.name === id);
+    if (overlay) return selectionFromNode(source, id, "overlay", overlay);
     const scene = parsed.value.story.scenes.find((candidate) => candidate.name === id);
     if (scene) return selectionFromNode(source, id, "scene", scene);
     const action = findAction(parsed.value, id);
@@ -501,7 +519,7 @@ function selectionFromNode(
   source: string,
   id: string,
   kind: AuthoringSelection["kind"],
-  node: Scene | ActionStatement,
+  node: Graph | Node | Edge | Overlay | Scene | ActionStatement,
 ): AuthoringSelection {
   return { id, kind, range: sourceRange(source, requireCst(node)) };
 }

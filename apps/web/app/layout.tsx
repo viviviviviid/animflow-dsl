@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Comic_Neue } from "next/font/google";
+import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
-const comicNeue = Comic_Neue({
+const display = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["300", "400", "700"],
-  variable: "--font-comic-neue",
+  variable: "--font-display",
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "AnimDiagram - 애니메이션 다이어그램 에디터",
-  description: "Mermaid 기반 애니메이션 다이어그램 DSL 렌더링 엔진",
+  title: "AnimFlow Studio — Animated lecture authoring",
+  description: "Turn Mermaid and AnimFlow source into deterministic animated lectures.",
 };
 
 export default function RootLayout({
@@ -19,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={comicNeue.variable}>
+    <html lang="ko" className={`${display.variable} ${mono.variable}`}>
       <body className="antialiased">{children}</body>
     </html>
   );

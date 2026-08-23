@@ -7,7 +7,11 @@ import {
   type BrowserCompileJob,
 } from "@animflow-dsl/browser-worker";
 import type { Diagnostic, RenderPlan } from "@animflow-dsl/model";
-import { AnimFlowCanvas, PlaybackControls } from "@animflow-dsl/react-v2";
+import {
+  AnimFlowCanvas,
+  PlaybackControls,
+  type AnimFlowElementSelection,
+} from "@animflow-dsl/react-v2";
 import {
   createPlayback,
   type PlaybackController,
@@ -17,15 +21,33 @@ import {
 export interface V2PlayerProps {
   readonly source: string;
   readonly onDiagnostics: (diagnostics: readonly Diagnostic[]) => void;
+  readonly onElementSelect?: (selection: AnimFlowElementSelection) => void;
+  readonly onSelectionClear?: () => void;
+  readonly onPlan?: (plan: RenderPlan) => void;
+  readonly onSceneChange?: (sceneId: string | null) => void;
+  readonly onStaleChange?: (stale: boolean) => void;
+  readonly seekRequest?: { readonly requestId: number; readonly timeMs: number };
+  readonly selectedElementIds?: readonly string[];
 }
 
-export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
+export function V2Player({
+  source,
+  onDiagnostics,
+  onElementSelect,
+  onSelectionClear,
+  onPlan,
+  onSceneChange,
+  onStaleChange,
+  seekRequest,
+  selectedElementIds,
+}: V2PlayerProps) {
   const [plan, setPlan] = useState<RenderPlan | null>(null);
   const [playback, setPlayback] = useState<PlaybackSnapshot | null>(null);
   const [compiling, setCompiling] = useState(true);
   const [client, setClient] = useState<BrowserCompileClient | null>(null);
   const [stale, setStale] = useState(false);
   const controllerRef = useRef<PlaybackController | null>(null);
+  const currentSceneIdRef = useRef<string | null>(null);
   const planRef = useRef<RenderPlan | null>(null);
 
   useEffect(() => {
@@ -53,18 +75,36 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
         return;
       }
       const controller = createPlayback(result.plan);
+      const currentScene = result.plan.scenes.find(
+        (scene) => scene.id === currentSceneIdRef.current,
+      );
       controllerRef.current = controller;
       planRef.current = result.plan;
       setPlan(result.plan);
-      setPlayback(controller.snapshot());
+      setPlayback(currentScene ? controller.seek(currentScene.startMs) : controller.snapshot());
       setStale(false);
+      onPlan?.(result.plan);
     }, 180);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       job?.cancel();
     };
-  }, [client, source, onDiagnostics]);
+  }, [client, source, onDiagnostics, onPlan]);
+
+  useEffect(() => {
+    onStaleChange?.(stale);
+  }, [onStaleChange, stale]);
+
+  useEffect(() => {
+    currentSceneIdRef.current = playback?.frame.sceneId ?? null;
+    onSceneChange?.(playback?.frame.sceneId ?? null);
+  }, [onSceneChange, playback?.frame.sceneId]);
+
+  useEffect(() => {
+    if (!seekRequest || !controllerRef.current) return;
+    setPlayback(controllerRef.current.seek(seekRequest.timeMs));
+  }, [seekRequest]);
 
   useEffect(() => {
     if (playback?.status !== "playing") return;
@@ -73,7 +113,7 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
     const advance = (now: number) => {
       const controller = controllerRef.current;
       if (!controller) return;
-      const next = controller.tick(now - previous);
+      const next = controller.tick(Math.max(0, now - previous));
       previous = now;
       setPlayback(next);
       if (next.status === "playing") request = requestAnimationFrame(advance);
@@ -96,26 +136,33 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#0b0f16]">
-      <div className="relative min-h-0 flex-1 overflow-hidden p-4">
-        <div className="h-full overflow-hidden rounded-2xl border border-slate-700/70 bg-white shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
-          <AnimFlowCanvas ariaLabel="Compiled AnimFlow v2 diagram" frame={playback.frame} plan={plan} />
+    <div className="v2-player">
+      <div className="v2-canvas-stage">
+        <div className="v2-canvas-surface">
+          <AnimFlowCanvas
+            ariaLabel="AnimFlow lecture canvas"
+            frame={playback.frame}
+            onElementSelect={stale ? undefined : onElementSelect}
+            onSelectionClear={stale ? undefined : onSelectionClear}
+            plan={plan}
+            selectedElementIds={selectedElementIds}
+          />
         </div>
-        <div className="pointer-events-none absolute left-7 top-7 rounded-md border border-slate-600/70 bg-[#101722]/90 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-slate-300">
+        <div className="v2-timecode">
           {playback.frame.sceneId ?? "initial"} · {Math.round(playback.frame.progress * 100)}%
         </div>
         {stale ? (
-          <div className="pointer-events-none absolute right-7 top-7 rounded-md border border-amber-400/50 bg-amber-950/90 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-amber-200">
+          <div className="v2-stale-badge">
             Stale preview
           </div>
         ) : null}
         {playback.frame.narration ? (
-          <div className="pointer-events-none absolute bottom-7 left-1/2 w-[min(680px,calc(100%-4rem))] -translate-x-1/2 rounded-xl border border-slate-600/70 bg-[#101722]/95 px-5 py-3 text-center text-sm leading-6 text-slate-100 shadow-xl">
+          <div className="v2-narration">
             {playback.frame.narration.text}
           </div>
         ) : null}
       </div>
-      <div className="border-t border-slate-800 bg-[#0d121a] p-3">
+      <div className="v2-controls">
         <PlaybackControls
           durationMs={plan.durationMs}
           loop={playback.loop}
@@ -137,8 +184,8 @@ export function V2Player({ source, onDiagnostics }: V2PlayerProps) {
 
 function Status({ message, error = false }: { readonly message: string; readonly error?: boolean }) {
   return (
-    <div className="grid h-full place-items-center bg-[#0b0f16] p-8">
-      <div className={`max-w-md rounded-xl border px-5 py-4 font-mono text-sm ${error ? "border-red-400/40 bg-red-950/30 text-red-200" : "border-blue-400/30 bg-blue-950/20 text-blue-100"}`}>
+    <div className="v2-status">
+      <div data-error={error ? "true" : "false"}>
         {message}
       </div>
     </div>
