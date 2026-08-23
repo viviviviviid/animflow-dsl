@@ -20,7 +20,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@animflow-dsl/compiler": "workspace:*",
@@ -28,6 +29,7 @@
     "@animflow-dsl/model": "workspace:*"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
     "typescript": "^5.9.3",
     "vitest": "^2.1.8"
   }

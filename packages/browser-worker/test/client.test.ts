@@ -69,6 +69,38 @@ describe("browser compile client", () => {
     client.dispose();
   });
 
+  test("queues work before ready and forwards compiler failures", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    const job = client.compile(source);
+    expect(workers[0]!.messages).toEqual([]);
+
+    workers[0]!.emit(readyMessage());
+    expect(workers[0]!.messages[0]?.jobId).toBe(job.jobId);
+    workers[0]!.emit({
+      type: "result",
+      jobId: job.jobId,
+      ok: false,
+      diagnostics: [
+        {
+          code: "AF101",
+          severity: "error",
+          message: "synthetic parse failure",
+          range: {
+            start: { offset: 0, line: 0, character: 0 },
+            end: { offset: 0, line: 0, character: 0 },
+          },
+        },
+      ],
+    });
+    const outcome = await job.result;
+    expect(outcome.status).toBe("failure");
+    if (outcome.status === "failure") {
+      expect(outcome.diagnostics[0]?.code).toBe("AF101");
+    }
+    client.dispose();
+  });
+
   test("blocks compilation when worker versions do not match", async () => {
     const workers: FakeWorker[] = [];
     const client = createClient(workers);
@@ -212,6 +244,30 @@ describe("browser compile client", () => {
     client.dispose();
   });
 
+  test("cancels a pending job without terminating the active worker", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers);
+    workers[0]!.emit(readyMessage());
+    const active = client.compile(source);
+    const pending = client.compile(`${source}\n`);
+    pending.cancel();
+
+    await expect(pending.result).resolves.toEqual({
+      status: "superseded",
+      jobId: pending.jobId,
+    });
+    expect(workers[0]!.terminated).toBe(false);
+    workers[0]!.emit({
+      type: "result",
+      jobId: active.jobId,
+      ok: true,
+      plan: structuredClone(plan),
+      diagnostics: [],
+    });
+    expect((await active.result).status).toBe("success");
+    client.dispose();
+  });
+
   test("recovers after a worker crash and enforces the UTF-8 byte cap", async () => {
     const workers: FakeWorker[] = [];
     const client = createClient(workers, { limits: { maxSourceBytes: 3 } });
@@ -257,6 +313,28 @@ describe("browser compile client", () => {
     expect(client.status).toBe("blocked");
     client.dispose();
   });
+
+  test("fails jobs submitted after disposal and clamps limit overrides", async () => {
+    const workers: FakeWorker[] = [];
+    const client = createClient(workers, {
+      limits: { maxNodes: 0, maxEdges: Number.MAX_SAFE_INTEGER },
+    });
+    workers[0]!.emit(readyMessage());
+    const clamped = client.compile("ok");
+    expect(workers[0]!.messages[0]).toMatchObject({
+      limits: { maxNodes: 1, maxEdges: DEFAULT_BROWSER_COMPILE_LIMITS.maxEdges },
+    });
+    clamped.cancel();
+    await clamped.result;
+    client.dispose();
+    client.dispose();
+
+    const disposed = await client.compile(source).result;
+    expect(disposed.status).toBe("failure");
+    if (disposed.status === "failure") {
+      expect(disposed.diagnostics[0]?.code).toBe("AF705");
+    }
+  });
 });
 
 describe("worker resource validation", () => {
@@ -270,6 +348,24 @@ describe("worker resource validation", () => {
 
     const accepted = await compileWorkerSource(source, DEFAULT_BROWSER_COMPILE_LIMITS);
     expect(accepted.ok).toBe(true);
+  });
+
+  test("compiles v2.1 named actions and returns parser diagnostics", async () => {
+    const v21 = source
+      .replace("animflow 2", "animflow 2.1")
+      .replace("    draw request via trace", "    action drawRequest: draw request via trace")
+      .replace("    sequence {", "    action emphasize: sequence {")
+      .replace("      highlight api tone accent", "      action highlightApi: highlight api tone accent")
+      .replace("      clearHighlight api", "      action clearApi: clearHighlight api");
+    const accepted = await compileWorkerSource(v21, DEFAULT_BROWSER_COMPILE_LIMITS);
+    expect(accepted.ok).toBe(true);
+
+    const rejected = await compileWorkerSource(
+      "animflow 2 canvas {",
+      DEFAULT_BROWSER_COMPILE_LIMITS,
+    );
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.diagnostics[0]?.code).toBe("AF101");
   });
 });
 
