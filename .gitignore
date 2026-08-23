@@ -40,3 +40,4 @@ CLAUDE.md
 .gstack/
 apps/web/playwright-report/
 apps/web/test-results/
+apps/web/.playwright-publish/

@@ -14,6 +14,7 @@
     "@animflow-dsl/language": "workspace:*",
     "@animflow-dsl/migrate": "workspace:*",
     "@animflow-dsl/model": "workspace:*",
+    "@animflow-dsl/publish": "workspace:*",
     "@animflow-dsl/react": "workspace:*",
     "@animflow-dsl/react-v2": "workspace:*",
     "@animflow-dsl/runtime": "workspace:*",

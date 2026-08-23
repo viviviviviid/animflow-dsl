@@ -35,6 +35,9 @@ importers:
       '@animflow-dsl/model':
         specifier: workspace:*
         version: link:../../packages/model
+      '@animflow-dsl/publish':
+        specifier: workspace:*
+        version: link:../../packages/publish
       '@animflow-dsl/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -219,6 +222,34 @@ importers:
 
   packages/model:
     devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.11)
+
+  packages/publish:
+    dependencies:
+      '@animflow-dsl/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@animflow-dsl/language':
+        specifier: workspace:*
+        version: link:../language
+      '@animflow-dsl/model':
+        specifier: workspace:*
+        version: link:../model
+      '@animflow-dsl/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.11
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

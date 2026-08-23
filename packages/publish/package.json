@@ -1,0 +1,31 @@
+{
+  "name": "@animflow-dsl/publish",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && esbuild dist/compile-worker.js --bundle --platform=node --format=esm --outfile=dist/compile-worker.bundle.js",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@animflow-dsl/compiler": "workspace:*",
+    "@animflow-dsl/language": "workspace:*",
+    "@animflow-dsl/model": "workspace:*",
+    "@animflow-dsl/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  }
+}

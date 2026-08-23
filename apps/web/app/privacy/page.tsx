@@ -1,0 +1,3 @@
+export default function PrivacyPage() {
+  return <main className="policy-page"><article><span>AnimFlow public service</span><h1>Privacy</h1><p>Drafts stay in your browser until you explicitly publish. A public revision stores the formatted AnimFlow source, compiled render plan, title, integrity metadata, and expiry time for 30 days by default.</p><p>Rate limiting uses a one-way hash of the trusted client address. AnimFlow does not place the full source in abuse logs or analytics. Anyone with a public link can view its revision until it expires or is deleted with its one-time deletion token.</p><a href="/">Return to Studio</a></article></main>;
+}

@@ -787,7 +787,9 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Shipped: browser authoring worker, canvas/source selection, action inspector, cue rail reorder, narration, undo/redo, invalid-draft stale preview, atomic IndexedDB revisions, multi-tab writer lease, local-only lazy Monaco worker
   - Verify: production build, root test/build/lint 순차 gate, Chromium/Firefox/WebKit 24개 E2E (Mermaid → select → action → reorder → preview, reload recovery, invalid repair, quota, writer conflict, offline editor, responsive overflow)
 
-- [ ] **T11 (P1)** — Presenter와 Publish — full-screen 재생과 immutable revision 공유 계약을 구현한다.
+- [x] **T11 (P1)** — Presenter와 Publish — full-screen 재생과 immutable revision 공유 계약을 구현한다.
+  - Shipped: local/public Presenter, keyboard/pointer scene transport, separated speaker notes, create-only 30-day revision store, one-time deletion token, canonical SHA-256, version-gated replay, strict public CSP, persistent cross-process quotas, isolated server compile worker and public privacy/report surfaces
+  - Verify: publish package unit/integration tests and Chromium/Firefox/WebKit E2E for local Presenter, immutable public playback, label/title XSS escaping, CSP, invalid/oversized input, deletion and post-delete replay stop
 
 - [ ] **T12 (P1)** — Public SDK — React façade, SSR/diagnostic/version contract와 clean consumer 설치 검증을 구현한다.
 

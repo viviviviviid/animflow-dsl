@@ -30,6 +30,10 @@ import { useWriterLease } from "@/lib/use-writer-lease";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type ActionTool = "reveal" | "focus" | "trace" | "hide" | "camera";
+type PublishDialogState =
+  | { readonly status: "publishing" }
+  | { readonly status: "error"; readonly message: string }
+  | { readonly status: "published"; readonly url: string; readonly deletionToken: string; readonly expiresAt: string; readonly integrityHash: string };
 
 const DslEditor = dynamic(
   () => import("@/components/editor/DslEditor").then((module) => module.DslEditor),
@@ -55,6 +59,7 @@ export function Studio() {
   const [storageError, setStorageError] = useState<string>();
   const [recovered, setRecovered] = useState(false);
   const [narration, setNarration] = useState("");
+  const [publishDialog, setPublishDialog] = useState<PublishDialogState | null>(null);
   const [editorRange, setEditorRange] = useState<SourceRange>();
   const clientRef = useRef<StudioAuthoringClient | null>(null);
   const sourceDraftRef = useRef(sourceDraft);
@@ -372,8 +377,32 @@ export function Studio() {
     setSourceDraft(source);
   }, []);
 
+  const openPresenter = useCallback(async () => {
+    if (!authoring) return;
+    await saveStudioDraft({ documentId, title, currentRevision: authoring.documentRevision, source: authoring.source, updatedAt: Date.now() });
+    window.open("/present", "_blank", "noopener,noreferrer");
+  }, [authoring, documentId, title]);
+
+  const publishRevision = useCallback(async () => {
+    if (!authoring) return;
+    setPublishDialog({ status: "publishing" });
+    try {
+      const response = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: authoring.source, title, documentId }),
+      });
+      const body = await response.json() as { readonly url?: string; readonly deletionToken?: string; readonly expiresAt?: string; readonly integrityHash?: string; readonly error?: { readonly message?: string } };
+      if (!response.ok || !body.url || !body.deletionToken || !body.expiresAt || !body.integrityHash) throw new Error(body.error?.message ?? "Publishing failed.");
+      setPublishDialog({ status: "published", url: new URL(body.url, window.location.origin).toString(), deletionToken: body.deletionToken, expiresAt: body.expiresAt, integrityHash: body.integrityHash });
+    } catch (error) {
+      setPublishDialog({ status: "error", message: error instanceof Error ? error.message : String(error) });
+    }
+  }, [authoring, documentId, title]);
+
   const errors = previewDiagnostics.filter((diagnostic) => diagnostic.severity === "error");
   const activeRange: SourceRange | undefined = editorRange ?? sourceSelection;
+  const presentationBlocked = errors.length > 0 || stale || draftPending || !authoring;
 
   return (
     <main className="studio-shell">
@@ -395,6 +424,8 @@ export function Studio() {
           <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo">↷</button>
           <label className="studio-file-button">Open<input accept=".animflow,.mmd,.mermaid,text/plain" onChange={importFile} type="file" /></label>
           <button onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
+          <button disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
+          <button disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
           <button onClick={exportSource} type="button">Export</button>
           <Link className="studio-legacy-link" href="/legacy">v1</Link>
         </div>
@@ -506,7 +537,28 @@ export function Studio() {
       ) : null}
 
       {importOpen ? <MermaidImportDialog busy={busy} onClose={() => setImportOpen(false)} onImport={importMermaid} /> : null}
+      {publishDialog ? <PublishDialog onClose={() => setPublishDialog(null)} state={publishDialog} /> : null}
     </main>
+  );
+}
+
+function PublishDialog({ onClose, state }: { readonly onClose: () => void; readonly state: PublishDialogState }) {
+  return (
+    <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && state.status !== "publishing") onClose(); }}>
+      <div aria-labelledby="publish-dialog-title" aria-modal="true" className="studio-modal publish-modal" role="dialog">
+        <div className="studio-modal-head"><div><span>Immutable revision</span><h2 id="publish-dialog-title">{state.status === "publishing" ? "Publishing…" : state.status === "error" ? "Publish stopped" : "Your lesson is public"}</h2></div>{state.status !== "publishing" ? <button aria-label="Close publish dialog" onClick={onClose} type="button">×</button> : null}</div>
+        {state.status === "publishing" ? <p>The server is formatting and compiling this revision in an isolated worker.</p> : null}
+        {state.status === "error" ? <><p role="alert">{state.message}</p><div className="studio-modal-actions"><button onClick={onClose} type="button">Close</button></div></> : null}
+        {state.status === "published" ? <>
+          <p>This URL points to the compiled revision below. Later Studio edits cannot change it.</p>
+          <label>Public URL<input readOnly value={state.url} /></label>
+          <label>Deletion token<input readOnly value={state.deletionToken} /></label>
+          <p className="publish-token-warning">Save the deletion token now. The server stores only its hash and cannot show it again.</p>
+          <dl><div><dt>Expires</dt><dd>{new Date(state.expiresAt).toLocaleString()}</dd></div><div><dt>SHA-256</dt><dd><code>{state.integrityHash}</code></dd></div></dl>
+          <div className="studio-modal-actions"><button onClick={() => void navigator.clipboard.writeText(`${state.url}\nDeletion token: ${state.deletionToken}`)} type="button">Copy receipt</button><a href={state.url} rel="noreferrer" target="_blank">Open public lesson</a></div>
+        </> : null}
+      </div>
+    </div>
   );
 }
 
