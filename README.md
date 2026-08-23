@@ -106,6 +106,7 @@ AnimFlow source
 | `@animflow-dsl/react-v2` | SVG renderer and controlled playback controls |
 | `@animflow-dsl/migrate` | Frozen v1 migration, v2→v2.1 migration, and strict Mermaid flowchart import |
 | `@animflow-dsl/cli` | Stable validate, format, compile, migrate, import, version, and capabilities commands |
+| `@animflow-dsl/authoring` | Revision-checked CST patches, transactions, selection mapping, and exact undo/redo |
 | `@animflow-dsl/react` | Legacy Mermaid-extension runtime used by `/legacy` and migration only |
 
 ## CLI and AI authoring
@@ -121,6 +122,29 @@ node packages/cli/dist/bin.js import-mermaid graph.mmd --out lesson.animflow
 ```
 
 Machine output uses the versioned schema at `packages/cli/schema/report.schema.json`. The repository Agent Skill is at `skills/animflow-authoring`; its examples and 10-prompt semantic eval use the same CLI and compiler.
+
+## Authoring commands
+
+Studio integrations mutate canonical AnimFlow 2.1 source through the typed authoring session instead of editing source with application-owned regular expressions:
+
+```ts
+import { AuthoringSession } from "@animflow-dsl/authoring";
+
+const session = await AuthoringSession.create(source);
+const result = await session.execute({
+  type: "action.update",
+  baseRevision: session.state.documentRevision,
+  actionId: "focusApi",
+  replacement: {
+    kind: "highlight",
+    target: "api",
+    tone: "accent",
+    effect: "pulse",
+  },
+});
+```
+
+Semantic commands are atomic and require a valid 2.1 document. `source.replace` alone may store an invalid draft while retaining the last valid immutable plan. Undo and redo restore exact source snapshots with monotonic revisions.
 
 ## Migration
 

@@ -32,4 +32,8 @@ export const ANIMFLOW_DIAGNOSTIC_CODES = Object.freeze({
   workerProtocol: "AF703",
   workerTimeout: "AF704",
   workerCrash: "AF705",
+  revisionConflict: "AF710",
+  invalidAuthoringCommand: "AF711",
+  authoringTargetNotFound: "AF712",
+  authoringRequiresVersion21: "AF713",
 } as const satisfies Readonly<Record<string, DiagnosticCode>>);

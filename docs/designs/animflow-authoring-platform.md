@@ -779,7 +779,9 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Shipped: Skill/reference/examples, fixture-mode 30/30 compile 및 semantic assertion, 외부 고정-model runner contract
   - Remaining gate: `ANIMFLOW_EVAL_COMMAND`와 고정 model/version/temperature를 지정한 실제 30회 생성 평가
 
-- [ ] **T9 (P1)** — Authoring command layer — typed source patch, revision, transaction, undo/redo와 selection 복구를 구현한다.
+- [x] **T9 (P1)** — Authoring command layer — typed source patch, revision, transaction, undo/redo와 selection 복구를 구현한다.
+  - Shipped: `@animflow-dsl/authoring`의 CST-local scene/action/narration 명령, v2.1 gate, monotonic document/plan revision, atomic rejection, invalid source draft와 last-valid plan, exact snapshot undo/redo, ID selection remap
+  - Verify: 8개 action kind compile round-trip, command valid/rejected/invalid-draft, 30 formatting/comment golden, 동일 100-command sequence의 매 단계 compile 및 최종 source/hash determinism
 
 - [ ] **T10 (P1)** — Studio MVP — Canvas-first Creator, persistence/recovery, inspector와 scene strip을 통합한다.
 
