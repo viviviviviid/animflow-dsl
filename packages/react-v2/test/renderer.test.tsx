@@ -42,6 +42,17 @@ describe("AnimFlowCanvas", () => {
     expect(markup).not.toContain("data-edge-id");
   });
 
+  test("renders high-contrast edges and an opaque label plate", () => {
+    const markup = renderToStaticMarkup(
+      <AnimFlowCanvas frame={frame} plan={plan} />,
+    );
+
+    expect(markup).toContain('data-animflow-edge-line="true"');
+    expect(markup).toContain('stroke-width="3.25"');
+    expect(markup).toContain('data-animflow-edge-label="true"');
+    expect(markup).toContain('stroke-opacity="0.28"');
+  });
+
   test("fails immediately when a frame violates the handle contract", () => {
     const invalidFrame: FrameState = { ...frame, elements: frame.elements.slice(1) };
     expect(() =>

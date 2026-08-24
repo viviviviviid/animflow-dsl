@@ -37,6 +37,7 @@ import { useWriterLease } from "@/lib/use-writer-lease";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type ActionTool = "reveal" | "focus" | "trace" | "hide" | "camera";
+type StudioTheme = "dark" | "light";
 type PublishDialogState =
   | { readonly status: "publishing" }
   | { readonly status: "error"; readonly message: string }
@@ -64,6 +65,7 @@ export function Studio() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [documents, setDocuments] = useState<readonly StudioDocumentMetadata[]>([]);
   const [libraryBusy, setLibraryBusy] = useState(false);
+  const [studioTheme, setStudioTheme] = useState<StudioTheme>("dark");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("Opening your local lesson…");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -80,6 +82,11 @@ export function Studio() {
   useEffect(() => {
     sourceDraftRef.current = sourceDraft;
   }, [sourceDraft]);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("animflow-studio-theme");
+    if (storedTheme === "dark" || storedTheme === "light") setStudioTheme(storedTheme);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -470,6 +477,14 @@ export function Studio() {
     URL.revokeObjectURL(url);
   }, [sourceDraft, title]);
 
+  const toggleStudioTheme = useCallback(() => {
+    setStudioTheme((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      localStorage.setItem("animflow-studio-theme", next);
+      return next;
+    });
+  }, []);
+
   const handleSourceChange = useCallback((source: string) => {
     setEditorRange(undefined);
     setSourceDraft(source);
@@ -503,7 +518,7 @@ export function Studio() {
   const presentationBlocked = errors.length > 0 || stale || draftPending || !authoring;
 
   return (
-    <main className="studio-shell">
+    <main className="studio-shell" data-studio-theme={studioTheme}>
       <header className="studio-topbar">
         <div className="studio-brand" aria-label="AnimFlow Studio">
           <span className="studio-brand-mark">AF</span>
@@ -524,6 +539,14 @@ export function Studio() {
           <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
           <button className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
           <button className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
+          <button
+            aria-label={`Switch to ${studioTheme === "dark" ? "light" : "dark"} mode`}
+            aria-pressed={studioTheme === "light"}
+            className="studio-theme-action"
+            onClick={toggleStudioTheme}
+            title={`Use ${studioTheme === "dark" ? "light" : "dark"} Studio`}
+            type="button"
+          ><span aria-hidden="true">{studioTheme === "dark" ? "☼" : "◐"}</span><span>{studioTheme === "dark" ? "Light" : "Dark"}</span></button>
           <button className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
           <label aria-disabled={!authoring} className="studio-file-button">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
           <button className="studio-import-action" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
@@ -615,6 +638,7 @@ export function Studio() {
               onChange={handleSourceChange}
               readOnly={writerLease.status !== "writer"}
               selectionRange={activeRange}
+              theme={studioTheme}
               value={sourceDraft}
             />
             <div className="studio-diagnostics" aria-label="Diagnostics">

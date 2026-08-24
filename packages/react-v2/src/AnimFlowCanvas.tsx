@@ -152,6 +152,9 @@ function Node({ element, geometry, frame, onSelect, plan, selected }: RenderItem
 function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledEdge, EdgeGeometry>): ReactElement {
   if (frame.kind !== "edge") throw new TypeError(`Handle ${element.handle} must have edge frame state.`);
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
+  const surface = colorFor(plan, plan.canvas.background);
+  const edgeTone = ensureContrast(tone, surface, 3.2);
+  const lineWidth = Math.max(3.25, element.lineWidth + 0.75);
   const highlight = colorFor(plan, frame.highlight.tone);
   const markerOpacity = Math.max(0, Math.min(1, (frame.drawProgress - 0.9) * 10));
   const path = pathData(geometry.path);
@@ -167,10 +170,10 @@ function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItem
       transform={elementTransform(frame, edgeBounds)}
       {...selectableProps(element, selected, onSelect)}
     >
-      {selected ? <path d={path} fill="none" opacity={0.25} stroke="#4c7dff" strokeWidth={element.lineWidth + 12} vectorEffect="non-scaling-stroke" /> : null}
+      {selected ? <path d={path} fill="none" opacity={0.25} stroke="#4c7dff" strokeWidth={lineWidth + 12} vectorEffect="non-scaling-stroke" /> : null}
       <defs>
         <marker id={markerId} markerHeight={geometry.markerSize} markerUnits="userSpaceOnUse" markerWidth={geometry.markerSize} orient="auto-start-reverse" refX={geometry.markerSize - 1} refY={geometry.markerSize / 2}>
-          <path d={`M 0 0 L ${geometry.markerSize} ${geometry.markerSize / 2} L 0 ${geometry.markerSize} z`} fill={rgba(tone)} opacity={markerOpacity} />
+          <path d={`M 0 0 L ${geometry.markerSize} ${geometry.markerSize / 2} L 0 ${geometry.markerSize} z`} fill={rgba(edgeTone)} opacity={markerOpacity} />
         </marker>
         <mask
           height={edgeBounds.height + 48}
@@ -195,26 +198,39 @@ function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItem
         <path d={path} fill="none" opacity={frame.highlight.intensity * 0.42} stroke={rgba(highlight)} strokeLinecap="round" strokeWidth={12} vectorEffect="non-scaling-stroke" />
       ) : null}
       <path
+        aria-hidden="true"
+        d={path}
+        fill="none"
+        mask={`url(#${maskId})`}
+        pathLength={1}
+        stroke={rgba(surface)}
+        strokeDasharray={dash ?? 1}
+        strokeLinecap="round"
+        strokeWidth={lineWidth + 4}
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        data-animflow-edge-line="true"
         d={path}
         fill="none"
         markerEnd={element.arrow === "end" || element.arrow === "both" ? `url(#${markerId})` : undefined}
         markerStart={element.arrow === "start" || element.arrow === "both" ? `url(#${markerId})` : undefined}
         mask={`url(#${maskId})`}
         pathLength={1}
-        stroke={rgba(tone)}
+        stroke={rgba(edgeTone)}
         strokeDasharray={dash ?? 1}
         strokeLinecap="round"
-        strokeWidth={element.lineWidth}
+        strokeWidth={lineWidth}
         vectorEffect="non-scaling-stroke"
       />
       <FlowDecoration
-        color={tone}
+        color={edgeTone}
         effect={flowEffect}
         frame={frame}
         maskId={maskId}
         path={geometry.path}
       />
-      {geometry.label ? <EdgeLabel geometry={geometry.label} plan={plan} tone={tone} /> : null}
+      {geometry.label ? <EdgeLabel geometry={geometry.label} plan={plan} tone={edgeTone} /> : null}
     </g>
   );
 }
@@ -333,10 +349,22 @@ function Overlay({ element, geometry, frame, onSelect, plan, selected }: RenderI
 
 function EdgeLabel({ geometry, plan, tone }: { readonly geometry: EdgeGeometry["label"] & {}; readonly plan: RenderPlan; readonly tone: RgbaColor }): ReactElement {
   const surface = colorFor(plan, plan.canvas.background);
+  const labelTone = ensureContrast(tone, surface, 4.5);
   return (
-    <g>
-      <rect fill={rgba(surface)} height={geometry.bounds.height} opacity={0.94} rx={6} width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} />
-      <Text geometry={geometry} color={tone} />
+    <g data-animflow-edge-label="true">
+      <rect
+        fill={mix(surface, labelTone, 0.07)}
+        height={geometry.bounds.height}
+        rx={7}
+        stroke={rgba(labelTone)}
+        strokeOpacity={0.28}
+        strokeWidth={1.25}
+        vectorEffect="non-scaling-stroke"
+        width={geometry.bounds.width}
+        x={geometry.bounds.x}
+        y={geometry.bounds.y}
+      />
+      <Text geometry={geometry} color={labelTone} />
     </g>
   );
 }
@@ -472,6 +500,39 @@ function mix(background: RgbaColor, foreground: RgbaColor, ratio: number): strin
     b: background.b + (foreground.b - background.b) * ratio,
     a: 1,
   });
+}
+
+function ensureContrast(foreground: RgbaColor, background: RgbaColor, minimum: number): RgbaColor {
+  const opaqueForeground: RgbaColor = { ...foreground, a: 1 };
+  if (contrastRatio(opaqueForeground, background) >= minimum) return opaqueForeground;
+  const target: RgbaColor = relativeLuminance(background) > 0.5
+    ? { r: 0.02, g: 0.03, b: 0.05, a: 1 }
+    : { r: 1, g: 1, b: 1, a: 1 };
+
+  for (let step = 1; step <= 10; step += 1) {
+    const ratio = step / 10;
+    const candidate: RgbaColor = {
+      r: opaqueForeground.r + (target.r - opaqueForeground.r) * ratio,
+      g: opaqueForeground.g + (target.g - opaqueForeground.g) * ratio,
+      b: opaqueForeground.b + (target.b - opaqueForeground.b) * ratio,
+      a: 1,
+    };
+    if (contrastRatio(candidate, background) >= minimum) return candidate;
+  }
+  return target;
+}
+
+function contrastRatio(left: RgbaColor, right: RgbaColor): number {
+  const brighter = Math.max(relativeLuminance(left), relativeLuminance(right));
+  const darker = Math.min(relativeLuminance(left), relativeLuminance(right));
+  return (brighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(color: RgbaColor): number {
+  const linear = (channel: number) => channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4;
+  return linear(color.r) * 0.2126 + linear(color.g) * 0.7152 + linear(color.b) * 0.0722;
 }
 
 function lineDash(pattern: CompiledEdge["linePattern"]): SVGProps<SVGPathElement>["strokeDasharray"] {

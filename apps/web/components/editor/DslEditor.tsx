@@ -22,6 +22,7 @@ interface DslEditorProps {
   value: string;
   onChange: (value: string) => void;
   language?: "animflow" | "plaintext";
+  theme?: "dark" | "light";
   diagnostics?: readonly Diagnostic[];
   selectionRange?: SourceRange;
   readOnly?: boolean;
@@ -31,6 +32,7 @@ export function DslEditor({
   value,
   onChange,
   language = "animflow",
+  theme = "dark",
   diagnostics = [],
   selectionRange,
   readOnly = false,
@@ -109,7 +111,7 @@ export function DslEditor({
       beforeMount={beforeMount}
       language={language}
       onMount={handleMount}
-      theme="vs-dark"
+      theme={theme === "light" ? "vs" : "vs-dark"}
       value={value}
       onChange={handleEditorChange}
       options={{

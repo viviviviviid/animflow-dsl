@@ -119,6 +119,26 @@ test("loads the source editor entirely from the local application", async ({ pag
   expect(externalRequests).toEqual([]);
 });
 
+test("persists light mode and keeps labeled arrows legible", async ({ page }) => {
+  await openStudio(page);
+  const shell = page.locator(".studio-shell");
+
+  await expect(shell).toHaveAttribute("data-studio-theme", "dark");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect(shell).toHaveAttribute("data-studio-theme", "light");
+  await expect(page.getByRole("button", { name: "Switch to dark mode" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("animflow-studio-theme"))).toBe("light");
+
+  const edge = page.locator('[data-animflow-edge-line="true"]').first();
+  await expect(edge).toHaveAttribute("stroke-width", "3.25");
+  await expect(page.locator('[data-animflow-edge-label="true"] rect').first()).toHaveAttribute("stroke-opacity", "0.28");
+
+  await page.reload();
+  await expect(shell).toHaveAttribute("data-studio-theme", "light");
+  await page.getByRole("button", { name: "Source" }).click();
+  await expect(page.locator(".monaco-editor.vs")).toBeVisible();
+});
+
 test("fits the authoring controls without horizontal page overflow", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.locator(".v2-player").waitFor();
