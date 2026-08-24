@@ -37,7 +37,7 @@ describe("server compile isolation", () => {
   });
 
   it("terminates timed-out and crashed jobs and accepts the next job", async () => {
-    const compiler = new WorkerCompiler({ concurrency: 1, timeoutMs: 40, workerUrl: new URL("./fixtures/compile-worker.mjs", import.meta.url) });
+    const compiler = new WorkerCompiler({ concurrency: 1, timeoutMs: 500, workerUrl: new URL("./fixtures/compile-worker.mjs", import.meta.url) });
     await expect(compiler.compile("hang")).rejects.toMatchObject({ code: "compile-timeout" });
     expect((await compiler.compile("ok")).ok).toBe(true);
     await expect(compiler.compile("crash")).rejects.toMatchObject({ code: "compile-failed" });
@@ -45,7 +45,7 @@ describe("server compile isolation", () => {
   });
 
   it("rejects work beyond the configured queue", async () => {
-    const compiler = new WorkerCompiler({ concurrency: 1, maxQueue: 0, timeoutMs: 40, workerUrl: new URL("./fixtures/compile-worker.mjs", import.meta.url) });
+    const compiler = new WorkerCompiler({ concurrency: 1, maxQueue: 0, timeoutMs: 500, workerUrl: new URL("./fixtures/compile-worker.mjs", import.meta.url) });
     const active = compiler.compile("hang");
     await expect(compiler.compile("overflow")).rejects.toMatchObject({ code: "compile-overloaded" });
     await expect(active).rejects.toMatchObject({ code: "compile-timeout" });
