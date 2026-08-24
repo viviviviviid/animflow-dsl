@@ -108,7 +108,7 @@ story lessonStory {
 }
 `;
 
-export const STUDIO_EXAMPLES: readonly StudioExample[] = [
+const STUDIO_EXAMPLE_CATALOG: readonly StudioExample[] = [
   {
     id: "agent-tool-loop",
     title: "AI agent tool routing",
@@ -124,7 +124,7 @@ canvas {
 
 graph agentRouting {
   layout flow right {
-    nodeGap 54
+    nodeGap 104
     rankGap 112
     routing curve
   }
@@ -236,6 +236,7 @@ story agentStory {
     action showPrompt: show prompt via fade
     action tracePrompt: draw prompt via trace flow particles
     action focusAgent: highlight agent tone hex_7457D9 effect pulse
+    action frameIntent: camera fit([user, agent]) padding 132
     say "The prompt becomes a decision about what to do next."
   }
 
@@ -246,6 +247,7 @@ story agentStory {
     action traceCodeCall: draw codeCall via trace flow dash
     action focusSearch: highlight search tone hex_138A72 effect glow
     action focusCode: highlight code tone hex_D97732 effect pulse
+    action frameTools: camera fit([agent, search, code, evidence]) padding 104
     say "Search and code execution form two explicit branches instead of one opaque tool step."
   }
 
@@ -259,6 +261,7 @@ story agentStory {
     action showAnswer: show answer via fade
     action traceAnswer: draw answer via trace flow glow
     action focusResponse: highlight response tone hex_138A72 effect glow
+    action frameResponse: camera fit([search, code, evidence, response]) padding 104
     say "Both branches merge into inspectable evidence before the grounded response is written."
   }
 }
@@ -431,4 +434,17 @@ story conceptStory {
 `,
   },
   ...COMPLEX_STUDIO_EXAMPLES,
+];
+
+export const STUDIO_EXAMPLES: readonly StudioExample[] = [
+  {
+    id: "flowchart-starter",
+    title: "Flowchart starter",
+    category: "Getting started",
+    description: "Learn one clean split-and-merge lesson before opening the full production showcases.",
+    source: BLANK_STUDIO_SOURCE,
+  },
+  ...STUDIO_EXAMPLE_CATALOG.filter(({ id }) =>
+    id !== "api-request-lifecycle" && id !== "course-concept-map" && id !== "oauth-pkce"
+  ),
 ];

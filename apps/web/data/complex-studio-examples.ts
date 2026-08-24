@@ -16,7 +16,7 @@ canvas {
 
 graph ragPipeline {
   layout flow right {
-    nodeGap 46
+    nodeGap 104
     rankGap 92
     routing curve
   }
@@ -166,6 +166,7 @@ story ragStory {
     action revealRewrite: show rewriteQuery via fade
     action drawRewrite: draw rewriteQuery via trace flow particles
     action focusRewriter: highlight rewriter tone hex_7457D9 effect pulse
+    action frameRewrite: camera fit([question, rewriter]) padding 132
     say "The rewriter converts conversational intent into a searchable query."
   }
 
@@ -177,6 +178,7 @@ story ragStory {
     action drawTerms: draw retrieveTerms via trace flow dash
     action focusStore: highlight vectorStore tone hex_138A72 effect glow
     action focusKeywordIndex: highlight keywordIndex tone hex_2F6FED effect pulse
+    action frameRetrieval: camera fit([question, rewriter, vectorStore, keywordIndex, reranker]) padding 104
     say "Semantic and keyword retrieval run in parallel so meaning and exact terms both survive."
   }
 
@@ -196,6 +198,7 @@ story ragStory {
     action revealGroundPrompt: show groundPrompt via fade
     action drawGroundPrompt: draw groundPrompt via trace flow particles
     action focusModel: highlight model tone hex_7457D9 effect glow
+    action frameGeneration: camera fit([reranker, model, guardrail]) padding 116
     say "The model receives both the selected passages and their citation identities."
   }
 
@@ -207,6 +210,7 @@ story ragStory {
       action focusGuardrail: highlight guardrail tone hex_D97732 effect pulse
       action showGroundingRule: show groundingRule via pop
     }
+    action frameGuardrail: camera fit([model, guardrail, answer]) padding 116
     say "A grounding check rejects unsupported claims before the answer leaves the system."
   }
 
@@ -236,7 +240,7 @@ canvas {
 
 graph researchRoom {
   layout flow right {
-    nodeGap 44
+    nodeGap 104
     rankGap 88
     routing orthogonal
   }
@@ -385,6 +389,7 @@ story researchStory {
     action drawDecompose: draw decompose via trace flow particles
     action focusPlanner: highlight planner tone hex_7457D9 effect pulse
     action revealParallelRule: show parallelNote via pop
+    action framePlan: camera fit([brief, planner]) padding 132
     say "The planner turns one vague request into independent, verifiable work packages."
   }
 
@@ -396,6 +401,7 @@ story researchStory {
       action showAssignData: show assignData via fade
       action traceAssignData: draw assignData via trace flow particles
     }
+    action frameParallel: camera fit([planner, webResearcher, dataAnalyst, sourceLibrary]) padding 104
     say "Researchers work concurrently, but each task has a distinct evidence contract."
   }
 
@@ -407,6 +413,7 @@ story researchStory {
       action traceCollectData: draw collectData via trace flow dash
       action focusLibrary: highlight sourceLibrary tone hex_138A72 effect glow
     }
+    action frameEvidence: camera fit([webResearcher, dataAnalyst, sourceLibrary, critic]) padding 104
     say "Primary sources and computed findings meet in one traceable evidence set."
   }
 
@@ -415,6 +422,7 @@ story researchStory {
     action revealChallenge: show challenge via fade
     action drawChallenge: draw challenge via trace flow wave
     action focusCritic: highlight critic tone hex_D97732 effect pulse
+    action frameCritique: camera fit([sourceLibrary, critic, writer]) padding 116
     say "The critic looks for missing evidence, contradictions, and claims that exceed the sources."
   }
 
@@ -425,6 +433,7 @@ story researchStory {
       action drawRevise: draw revise via trace
       action focusWriter: highlight writer tone hex_7457D9 effect glow
     }
+    action frameWriting: camera fit([critic, writer, report]) padding 116
     say "The writer receives a verified outline instead of an unfiltered pile of notes."
   }
 
@@ -454,7 +463,7 @@ canvas {
 
 graph rollingRelease {
   layout flow right {
-    nodeGap 42
+    nodeGap 104
     rankGap 86
     routing orthogonal
   }
@@ -593,6 +602,7 @@ story releaseStory {
     action showPushImage: show pushImage via fade
     action drawPushImage: draw pushImage via trace flow particles
     action focusRegistry: highlight registry tone hex_7457D9 effect glow
+    action frameImage: camera fit([developer, registry, controller]) padding 116
     say "The release starts with an immutable image that every new pod can reproduce."
   }
 
@@ -611,6 +621,7 @@ story releaseStory {
       action drawCreateReplica: draw createReplica via trace flow wave
       action focusNewPods: highlight newPods tone hex_138A72 effect glow
     }
+    action frameReplicas: camera fit([controller, newPods, healthGate]) padding 116
     say "New replicas arrive gradually instead of replacing every healthy pod at once."
   }
 
@@ -621,6 +632,7 @@ story releaseStory {
     action drawProbeReplica: draw probeReplica via trace flow dash
     action focusHealthGate: highlight healthGate tone hex_D97732 effect pulse
     action showAvailabilityRule: show availabilityRule via pop
+    action frameReadiness: camera fit([newPods, healthGate, service]) padding 116
     say "A running process receives no traffic until its readiness contract succeeds."
   }
 
@@ -658,7 +670,7 @@ canvas {
 
 graph sagaFlow {
   layout flow right {
-    nodeGap 46
+    nodeGap 104
     rankGap 90
     routing curve
   }
@@ -795,6 +807,7 @@ story sagaStory {
     action showReserve: show reserve via fade
     action drawReserve: draw reserve via trace flow particles
     action focusInventory: highlight inventory tone hex_138A72 effect glow
+    action frameReserve: camera fit([order, inventory, payment]) padding 116
     say "The first durable effect reserves stock for this order."
   }
 
@@ -815,6 +828,7 @@ story sagaStory {
       action drawFinish: draw finish via trace flow glow
       action focusCompleted: highlight completed tone hex_138A72 effect glow
     }
+    action frameSuccess: camera fit([payment, shipping, completed]) padding 116
     say "When shipment succeeds, the Saga reaches a completed business state."
   }
 
@@ -827,6 +841,7 @@ story sagaStory {
       action focusRefund: highlight refund tone hex_D97732 effect pulse
       action showSagaRule: show sagaRule via pop
     }
+    action frameFailure: camera fit([shipping, refund, releaseStock, failed]) padding 104
     say "A failed shipment starts compensation rather than a distributed database rollback."
   }
 
@@ -839,6 +854,7 @@ story sagaStory {
       action drawCancelOrder: draw cancelOrder via trace
       action focusFailed: highlight failed tone hex_D34B5B effect glow
     }
+    action frameCompensation: camera fit([refund, releaseStock, failed]) padding 116
     say "The Saga refunds payment, releases stock, and records a visible cancelled outcome."
   }
 
@@ -865,7 +881,7 @@ canvas {
 
 graph oauthFlow {
   layout flow right {
-    nodeGap 42
+    nodeGap 104
     rankGap 86
     routing curve
   }
@@ -1068,7 +1084,7 @@ canvas {
 
 graph checkoutEvents {
   layout flow right {
-    nodeGap 44
+    nodeGap 104
     rankGap 88
     routing orthogonal
   }
@@ -1220,6 +1236,7 @@ story checkoutStory {
       action showPublishOrder: show publishOrder via fade
       action drawPublishOrder: draw publishOrder via trace flow glow
     }
+    action frameAccept: camera fit([shopper, checkoutApi, eventBus]) padding 116
     say "The API validates once, persists the decision, and publishes an immutable event."
   }
 
@@ -1234,6 +1251,7 @@ story checkoutStory {
       action drawDispatchAnalytics: draw dispatchAnalytics via trace flow dash
     }
     action showFanoutRule: show fanoutRule via pop
+    action frameFanout: camera fit([eventBus, paymentWorker, inventoryWorker, analyticsWorker]) padding 104
     say "Payment, inventory, and analytics consume the same fact without blocking one another."
   }
 
@@ -1245,6 +1263,7 @@ story checkoutStory {
       action drawInventoryReady: draw inventoryReady via trace flow particles
       action focusFulfillment: highlight fulfillment tone hex_D97732 effect pulse
     }
+    action frameJoin: camera fit([paymentWorker, inventoryWorker, fulfillment]) padding 116
     say "Fulfillment waits for the business prerequisites, not for unrelated analytics work."
   }
 
@@ -1275,7 +1294,7 @@ canvas {
 
 graph queryPlanner {
   layout flow right {
-    nodeGap 44
+    nodeGap 104
     rankGap 90
     routing curve
   }
@@ -1423,6 +1442,7 @@ story plannerStory {
     action showProposePlan: show proposePlan via fade
     action drawProposePlan: draw proposePlan via trace
     action focusPlanner: highlight planner tone hex_D97732 effect pulse
+    action frameParse: camera fit([sql, parser, planner, catalog]) padding 104
     say "Parsing proves the query is valid and produces a logical description of the requested work."
   }
 
@@ -1443,6 +1463,7 @@ story plannerStory {
       action showChooseTable: show chooseTable via fade
       action drawChooseTable: draw chooseTable via trace flow dash
     }
+    action frameCandidates: camera fit([planner, indexScan, tableScan, joinNode]) padding 104
     say "An index scan wins for selective predicates, while a table scan can win when most rows are needed."
   }
 
@@ -1454,6 +1475,7 @@ story plannerStory {
       action drawJoinTable: draw joinTable via trace flow dash
       action focusJoin: highlight joinNode tone hex_7457D9 effect pulse
     }
+    action frameExecution: camera fit([indexScan, tableScan, joinNode, rows]) padding 104
     say "Physical operators pull pages, produce tuples, and feed the selected join strategy."
   }
 
@@ -1484,7 +1506,7 @@ canvas {
 
 graph incidentFlow {
   layout flow right {
-    nodeGap 42
+    nodeGap 104
     rankGap 86
     routing orthogonal
   }
@@ -1654,6 +1676,7 @@ story incidentStory {
     action showFailingRequest: show failingRequest via fade
     action drawFailingRequest: draw failingRequest via trace flow lightning
     action focusCheckout: highlight checkout tone hex_D34B5B effect pulse
+    action frameFailure: camera fit([users, gateway, checkout, telemetry]) padding 104
     say "A latency and timeout spike identifies the affected service before anyone guesses at a cause."
   }
 
@@ -1676,6 +1699,7 @@ story incidentStory {
       action drawRouteTraces: draw routeTraces via trace flow dash
     }
     action showTriageRule: show triageRule via pop
+    action frameSignals: camera fit([telemetry, logs, metrics, traces, oncall]) padding 96
     say "Logs provide context, metrics quantify the blast radius, and traces expose the slow dependency."
   }
 
@@ -1689,6 +1713,7 @@ story incidentStory {
       action drawInvestigateTraces: draw investigateTraces via trace flow dash
       action focusOncall: highlight oncall tone hex_D97732 effect pulse
     }
+    action frameCorrelation: camera fit([logs, metrics, traces, oncall]) padding 104
     say "The on-call engineer combines all three signals before choosing the lowest-risk mitigation."
   }
 

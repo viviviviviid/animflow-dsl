@@ -1,9 +1,36 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { STUDIO_EXAMPLES } from "../data/studio-examples";
 import { DEFAULT_V2_SOURCE } from "../data/v2-default";
 
 test.beforeEach(async ({ page }) => {
   await resetStudio(page);
+});
+
+test("curates one starter followed by feature-complete branching showcases", () => {
+  expect(STUDIO_EXAMPLES[0]?.title).toBe("Flowchart starter");
+  expect(STUDIO_EXAMPLES.map(({ title }) => title)).not.toContain("OAuth 2.1 with PKCE");
+
+  for (const example of STUDIO_EXAMPLES.slice(1)) {
+    const edges = [...example.source.matchAll(/^  edge \w+: (\w+)\.\w+ -> (\w+)\.\w+ \{/gm)];
+    const outgoing = new Map<string, number>();
+    const incoming = new Map<string, number>();
+    for (const [, from, to] of edges) {
+      outgoing.set(from!, (outgoing.get(from!) ?? 0) + 1);
+      incoming.set(to!, (incoming.get(to!) ?? 0) + 1);
+    }
+    const branches = [...outgoing.values()].some((count) => count > 1);
+    const merges = [...incoming.values()].some((count) => count > 1);
+    const sceneCount = example.source.match(/^  scene /gm)?.length ?? 0;
+    const subtitleCount = example.source.match(/^    say /gm)?.length ?? 0;
+    const cameraMoves = example.source.match(/^    action \w+: camera /gm)?.length ?? 0;
+
+    expect(branches || merges, example.title).toBe(true);
+    expect(subtitleCount, example.title).toBe(sceneCount);
+    expect(cameraMoves, example.title).toBeGreaterThanOrEqual(2);
+    expect(example.source, example.title).toMatch(/draw \w+ via trace/);
+    expect(example.source, example.title).toMatch(/highlight \w+ tone/);
+  }
 });
 
 test("adds an action, reorders its cue, and previews it with one undo history", async ({ page }) => {
@@ -131,7 +158,10 @@ test("persists light mode and keeps labeled arrows legible", async ({ page }) =>
 
   const edge = page.locator('[data-animflow-edge-line="true"]').first();
   await expect(edge).toHaveAttribute("stroke-width", "3.25");
-  await expect(page.locator('[data-animflow-edge-label="true"] rect').first()).toHaveAttribute("stroke-opacity", "0.28");
+  const label = page.locator('[data-animflow-edge-label="true"]').first();
+  await expect(label).toHaveAttribute("paint-order", "stroke");
+  await expect(label.locator("rect")).toHaveCount(0);
+  await expect(page.locator('marker[markerUnits="strokeWidth"]').first()).toHaveAttribute("markerWidth", "4.25");
 
   await page.reload();
   await expect(shell).toHaveAttribute("data-studio-theme", "light");

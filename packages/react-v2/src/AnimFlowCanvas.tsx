@@ -172,8 +172,8 @@ function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItem
     >
       {selected ? <path d={path} fill="none" opacity={0.25} stroke="#4c7dff" strokeWidth={lineWidth + 12} vectorEffect="non-scaling-stroke" /> : null}
       <defs>
-        <marker id={markerId} markerHeight={geometry.markerSize} markerUnits="userSpaceOnUse" markerWidth={geometry.markerSize} orient="auto-start-reverse" refX={geometry.markerSize - 1} refY={geometry.markerSize / 2}>
-          <path d={`M 0 0 L ${geometry.markerSize} ${geometry.markerSize / 2} L 0 ${geometry.markerSize} z`} fill={rgba(edgeTone)} opacity={markerOpacity} />
+        <marker id={markerId} markerHeight={4.25} markerUnits="strokeWidth" markerWidth={4.25} orient="auto-start-reverse" refX={9} refY={5} viewBox="0 0 10 10">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={rgba(edgeTone)} opacity={markerOpacity} />
         </marker>
         <mask
           height={edgeBounds.height + 48}
@@ -351,19 +351,13 @@ function EdgeLabel({ geometry, plan, tone }: { readonly geometry: EdgeGeometry["
   const surface = colorFor(plan, plan.canvas.background);
   const labelTone = ensureContrast(tone, surface, 4.5);
   return (
-    <g data-animflow-edge-label="true">
-      <rect
-        fill={mix(surface, labelTone, 0.07)}
-        height={geometry.bounds.height}
-        rx={7}
-        stroke={rgba(labelTone)}
-        strokeOpacity={0.28}
-        strokeWidth={1.25}
-        vectorEffect="non-scaling-stroke"
-        width={geometry.bounds.width}
-        x={geometry.bounds.x}
-        y={geometry.bounds.y}
-      />
+    <g
+      data-animflow-edge-label="true"
+      paintOrder="stroke"
+      stroke={rgba(surface)}
+      strokeLinejoin="round"
+      strokeWidth={5}
+    >
       <Text geometry={geometry} color={labelTone} />
     </g>
   );
