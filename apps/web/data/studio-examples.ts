@@ -1,3 +1,5 @@
+import { COMPLEX_STUDIO_EXAMPLES } from "./complex-studio-examples";
+
 export interface StudioExample {
   readonly id: string;
   readonly title: string;
@@ -312,4 +314,5 @@ story conceptStory {
 }
 `,
   },
+  ...COMPLEX_STUDIO_EXAMPLES,
 ];

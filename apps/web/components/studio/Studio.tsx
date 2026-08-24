@@ -749,13 +749,13 @@ function ProjectLibraryDialog({
 
         <section className="studio-library-section studio-example-library" aria-labelledby="examples-title">
           <div className="studio-library-section-head">
-            <div><span>03</span><h3 id="examples-title">Start from an example</h3></div>
+            <div><span>{String(examples.length).padStart(2, "0")}</span><h3 id="examples-title">Start from an example</h3></div>
             <small>Each example becomes an independent local project.</small>
           </div>
           <div className="studio-example-grid">
             {examples.map((example, index) => (
               <article className="studio-example-card" key={example.id}>
-                <div className="studio-example-signal" data-variant={index + 1} aria-hidden="true"><i /><span /><span /><span /></div>
+                <div className="studio-example-signal" data-variant={(index % 3) + 1} aria-hidden="true"><i /><span /><span /><span /></div>
                 <span>{example.category}</span>
                 <strong>{example.title}</strong>
                 <p>{example.description}</p>

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { STUDIO_EXAMPLES } from "../data/studio-examples";
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async () => {
@@ -18,7 +20,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("creates independent projects from every bundled example", async ({ page }) => {
-  for (const title of ["AI agent tool loop", "API request lifecycle", "Course concept map"]) {
+  for (const { title } of STUDIO_EXAMPLES) {
     await page.getByRole("button", { name: "Projects", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Choose the lesson to direct" });
     const example = dialog.locator(".studio-example-card").filter({ hasText: title });
@@ -32,11 +34,9 @@ test("creates independent projects from every bundled example", async ({ page })
 
   await page.getByRole("button", { name: "Projects", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Choose the lesson to direct" });
-  await expect(dialog.locator(".studio-project-card")).toHaveCount(4);
+  await expect(dialog.locator(".studio-project-card")).toHaveCount(STUDIO_EXAMPLES.length + 1);
   await expect(dialog).toContainText("Payment signal walkthrough");
-  await expect(dialog).toContainText("AI agent tool loop");
-  await expect(dialog).toContainText("API request lifecycle");
-  await expect(dialog).toContainText("Course concept map");
+  for (const { title } of STUDIO_EXAMPLES) await expect(dialog).toContainText(title);
 });
 
 test("switches, duplicates, and deletes local projects without mixing their source", async ({ page }) => {
