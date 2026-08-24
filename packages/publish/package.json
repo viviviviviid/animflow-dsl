@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && esbuild dist/compile-worker.js --bundle --platform=node --format=esm --outfile=dist/compile-worker.bundle.js",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "pnpm build && vitest run"
   },
   "dependencies": {
     "@animflow-dsl/compiler": "workspace:*",
