@@ -1,4 +1,6 @@
 import { Worker } from "node:worker_threads";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { ANIMFLOW_DIAGNOSTIC_CODES, ZERO_RANGE, freezeRenderPlan, type Diagnostic } from "@animflow-dsl/model";
 
@@ -31,7 +33,7 @@ export class WorkerCompiler implements ServerCompiler {
     this.#concurrency = options.concurrency ?? 2;
     this.#maxQueue = options.maxQueue ?? 50;
     this.#timeoutMs = options.timeoutMs ?? 2_000;
-    this.#workerUrl = options.workerUrl ?? new URL("./compile-worker.bundle.js", import.meta.url);
+    this.#workerUrl = options.workerUrl ?? resolveDefaultWorkerUrl(new URL("./compile-worker.bundle.js", import.meta.url));
   }
 
   compile(source: string): Promise<ServerCompileResult> {
@@ -88,6 +90,13 @@ export class WorkerCompiler implements ServerCompiler {
     });
     worker.postMessage({ type: "compile", source: job.source } satisfies CompileWorkerRequest);
   }
+}
+
+function resolveDefaultWorkerUrl(candidate: URL): URL {
+  if (candidate.protocol) return candidate;
+  const nextAsset = candidate.pathname.match(/^\/_next\/(.+)$/);
+  if (!nextAsset) throw new PublishError("storage-unavailable", "Bundled compile worker path is invalid.", 503);
+  return pathToFileURL(resolve(process.cwd(), ".next/server/chunks", nextAsset[1]!));
 }
 
 function workerDiagnostic(code: "workerCrash" | "workerTimeout", message: string): Diagnostic {

@@ -179,6 +179,8 @@ Open [http://localhost:3000](http://localhost:3000) for v2 and [http://localhost
 - [v1 legacy guide](docs/dsl-guide-v1.md)
 - [architecture and implementation contract](docs/animflow-dsl-v2-implementation-plan.md)
 - [authoring platform design and phase gates](docs/designs/animflow-authoring-platform.md)
+- [Vercel + Supabase public deployment](docs/public-deployment.md)
+- [deployment readiness evidence](docs/acceptance/2026-08-24-vercel-supabase-readiness.md)
 - [AnimFlow Agent Skill](skills/animflow-authoring/SKILL.md)
 - [contribution guide](CONTRIBUTING.md)
 - [legacy React SDK API](packages/react/README.md)

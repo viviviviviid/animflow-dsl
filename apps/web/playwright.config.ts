@@ -29,6 +29,7 @@ export default defineConfig({
       ANIMFLOW_PUBLISH_STORAGE_DIR: mkdtempSync(resolve(tmpdir(), "animflow-e2e-publish-")),
       ANIMFLOW_TRUST_PROXY_HEADERS: "false",
       ANIMFLOW_ABUSE_CONTACT: "abuse@example.invalid",
+      ANIMFLOW_RATE_LIMIT_PEPPER: "playwright-only-pepper-32-characters",
     },
   },
 });

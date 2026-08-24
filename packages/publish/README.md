@@ -6,4 +6,6 @@ It formats and compiles untrusted source in a fresh `worker_threads` worker, enf
 
 The included `FilePublishStore` is for a Node deployment with a persistent volume. It never overwrites a revision, keeps deletion tokens as hashes, persists anonymous rate-limit buckets with file locks, and removes expired revisions opportunistically. Do not point it at an ephemeral or publicly served directory.
 
+`SupabasePublishStore` is the production Vercel adapter. It uses a server-only Supabase secret key, create-only PostgREST writes, bounded reads/deletes, and transactional quota/cleanup RPCs installed by the repository migration. It never sends raw quota keys to Supabase. See [`docs/public-deployment.md`](../../docs/public-deployment.md) for the schema and deployment contract.
+
 The web application is the supported integration boundary. This package is private because the published artifact is a versioned viewer contract, not the public SDK.

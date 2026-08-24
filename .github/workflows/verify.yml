@@ -20,8 +20,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+      - run: pnpm verify:supabase-migration
       - run: pnpm --filter @animflow-dsl/browser-worker test:coverage
       - run: pnpm verify:worker-bundle
+      - run: pnpm verify:deployment-bundle
       - run: pnpm eval:skill
       - run: pnpm verify:sdk-consumer
 

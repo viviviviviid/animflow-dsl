@@ -579,7 +579,9 @@ Phase 0에서 새로 추가하거나 분기 조건을 바꾼 module은 statement
 
 ## 16. 배포 전략
 
-- Studio와 공개 viewer: 기존 Next.js 앱을 기반으로 배포하되 authoring logic은 패키지로 분리
+- Studio와 공개 viewer: Vercel의 기존 Next.js 앱으로 배포하되 authoring logic은 패키지로 분리
+- 익명 Publish 저장소: Supabase Postgres의 RLS 차단 테이블, service-role-only RPC, Cron retention으로 운영하고 브라우저의 직접 DB 접근을 금지
+- 서버 compile: Vercel Node Function의 추적된 `worker_threads` asset에서 실행하며 별도 2초 timeout과 in-instance concurrency/queue cap을 유지
 - SDK/CLI: npm package와 GitHub release
 - Agent Skill: 저장소 버전과 DSL/compiler compatibility를 명시해 설치 가능하게 배포
 - 문서: public playground의 예제와 같은 source를 SDK 문서·Skill eval에서 재사용
@@ -591,7 +593,7 @@ Phase 0 package 경계는 `@animflow-dsl/model`, `language`, `compiler`, `migrat
 
 아래 결정은 Phase 0을 막지 않으며 각 소비 단계에서 확정한다.
 
-- anonymous publish 저장소 provider와, 검증 후 기본 30일 보존 기간을 늘릴지 여부
+- 기본 30일 보존 기간을 실제 사용량 검증 후 늘릴지 여부
 - Mermaid importer를 `migrate`에 둘지 별도 package로 둘지
 - 공개 artifact 입력 API는 첫 SDK 이후 실제 수요와 compatibility 비용을 보고 결정
 
@@ -799,6 +801,11 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Shipped: 10-scene/41-action/600,000ms AI agent runtime lecture fixture and dated acceptance record; Studio readiness/file-import race fixed from dogfood
   - Verify: CLI compile, deterministic forward/back/restart contract, 36 Chromium/Firefox/WebKit product E2E, accelerated 600,000ms playback in all engines, 600-second real-time Chromium replay, 320 deterministic parser/importer hostile mutations
   - External launch evidence, not claimed by engineering: three-person first-use study and credentialed fixed-model Skill evaluation
+
+- [ ] **T14 (P1)** — Vercel + Supabase live deployment — Studio와 immutable Publish를 Preview에서 검증한 뒤 동일 deployment를 production으로 승격한다.
+  - Shipped: `SupabasePublishStore`, RLS/immutable/quota/cleanup migration, daily Cron definition, Vercel client-IP hashing, server worker output tracing and deployment-bundle gate
+  - Verify: 13 publish tests, temporary-PostgreSQL migration contract, local Next.js production publish/play/delete smoke, traced 780,674-byte server worker asset
+  - Remaining external gate: Supabase project provisioning/secret, Vercel Preview canary, explicit production promotion approval
 
 
 ### Completion Summary
