@@ -12,7 +12,7 @@ The browser never receives a Supabase key or accesses the database directly. Ver
 
 ## 1. Provision Supabase
 
-Create a Supabase project in the same geographic region as the Vercel Function whenever possible. Apply [`supabase/migrations/20260824000000_animflow_publish.sql`](../supabase/migrations/20260824000000_animflow_publish.sql) through the Supabase CLI or SQL editor.
+Create a Supabase project in the same geographic region as the Vercel Function whenever possible. Apply the versioned files under [`supabase/migrations`](../supabase/migrations) through the Supabase CLI. The first migration installs the publish schema; the second enables Supabase Cron and registers retention cleanup.
 
 The migration creates:
 
@@ -23,7 +23,7 @@ The migration creates:
 
 Create a new `sb_secret_...` key for AnimFlow. Do not use a publishable key and never create a `NEXT_PUBLIC_` variable for it. The legacy `service_role` key is not required.
 
-Enable Supabase Cron (`pg_cron`) in Dashboard > Integrations, then run [`supabase/cron/animflow_cleanup.sql`](../supabase/cron/animflow_cleanup.sql). The job removes expired rows daily at 03:15 UTC. Publishing and reads also perform opportunistic expiry cleanup.
+The Cron migration removes expired rows daily at 03:15 UTC. Publishing and reads also perform opportunistic expiry cleanup. [`supabase/cron/animflow_cleanup.sql`](../supabase/cron/animflow_cleanup.sql) is retained only as a manual recovery command.
 
 ## 2. Configure Vercel
 

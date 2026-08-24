@@ -19,7 +19,7 @@ create index if not exists animflow_published_revisions_expires_at_idx
   on public.animflow_published_revisions (expires_at);
 
 alter table public.animflow_published_revisions enable row level security;
-revoke all on table public.animflow_published_revisions from public, anon, authenticated;
+revoke all on table public.animflow_published_revisions from public, anon, authenticated, service_role;
 grant select, insert, delete on table public.animflow_published_revisions to service_role;
 
 create or replace function animflow_private.animflow_reject_revision_update()
