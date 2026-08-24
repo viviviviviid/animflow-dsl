@@ -1,6 +1,6 @@
 {
   "name": "animflow-authoring-skill",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Self-contained AnimFlow authoring skill and CLI for Codex and Claude Code",
   "type": "module",
   "license": "MIT",
