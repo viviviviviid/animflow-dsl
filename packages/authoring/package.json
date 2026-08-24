@@ -21,7 +21,8 @@
   "dependencies": {
     "@animflow-dsl/compiler": "workspace:*",
     "@animflow-dsl/language": "workspace:*",
-    "@animflow-dsl/model": "workspace:*"
+    "@animflow-dsl/model": "workspace:*",
+    "langium": "4.3.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

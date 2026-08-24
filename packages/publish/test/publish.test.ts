@@ -79,7 +79,7 @@ describe("immutable publish revisions", () => {
     const root = await temporaryRoot();
     const store = new FilePublishStore(root);
     const plan = await validPlan();
-    const artifact = signArtifact({ schemaVersion: 1, revisionId: "a".repeat(32), createdAt: new Date(0).toISOString(), expiresAt: new Date(10_000).toISOString(), title: "first", source: SOURCE, storyId: "main", versions: { source: "2.1", compiler: "0.0.0", runtime: "0.1.0", renderPlan: 2 }, plan });
+    const artifact = signArtifact({ schemaVersion: 1, revisionId: "a".repeat(32), createdAt: new Date(0).toISOString(), expiresAt: new Date(10_000).toISOString(), title: "first", source: SOURCE, storyId: "main", versions: { source: "2.1", compiler: "0.1.0", runtime: "0.1.0", renderPlan: 2 }, plan });
     await store.create({ artifact, deletionTokenHash: sha256("token") });
     await expect(store.create({ artifact: { ...artifact, title: "second" }, deletionTokenHash: sha256("token") })).rejects.toMatchObject({ code: "storage-unavailable" });
     expect((await store.get(artifact.revisionId))?.artifact.title).toBe("first");

@@ -13,6 +13,7 @@ export const ANIMFLOW_DIAGNOSTIC_CODES = Object.freeze({
   invalidTarget: "AF305",
   invalidNarration: "AF405",
   invalidActionIdentity: "AF406",
+  invalidSchedule: "AF407",
   parallelWrite: "AF422",
   compileInvariant: "AF501",
   legacyParse: "AF601",

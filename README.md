@@ -2,9 +2,9 @@
 
 AnimFlow is a typed scene language for deterministic animated diagrams. Source is compiled once into an immutable `RenderPlan`; any timestamp is then sampled into a complete `FrameState` and rendered as SVG.
 
-The default demo and editor use v2. The original Mermaid-extension player remains available at `/legacy` while consumers migrate.
+The default authoring language is v2.1. The compatibility compiler still accepts v2, and the original Mermaid-extension player remains available at `/legacy` while consumers migrate.
 
-## Why v2
+## Why v2.1
 
 - Invalid IDs, references, properties, units, targets, and conflicting scene writes fail before rendering.
 - Nodes, edges, overlays, camera, and narration share one compiled timeline.
@@ -14,10 +14,10 @@ The default demo and editor use v2. The original Mermaid-extension player remain
 
 ## Quick start
 
-The v2 workspace packages are currently private and intended for use inside this monorepo.
+The v2.1 workspace packages are currently private and intended for use inside this monorepo.
 
 ```animflow
-animflow 2
+animflow 2.1
 
 canvas {
   size 1600 by 900
@@ -58,9 +58,9 @@ story main {
   }
 
   scene requestScene "Send request" duration 1200ms {
-    show [client, api] via fade
-    draw request via trace flow particles
-    highlight api tone success effect pulse
+    action revealActors: show [client, api] via fade
+    action traceRequest: draw request via trace flow particles
+    action pulseApi: highlight api tone success effect pulse
     say "The client sends an order request."
   }
 }
@@ -100,7 +100,7 @@ AnimFlow source
 | Package | Responsibility |
 |---|---|
 | `@animflow-dsl/model` | IDs, diagnostics, elements, geometry, `RenderPlan`, `FrameState` |
-| `@animflow-dsl/language` | Grammar, generated AST, linking, validation, Monaco tokens |
+| `@animflow-dsl/language` | Grammar, generated AST, linking, validation, Monaco tokens and language intelligence |
 | `@animflow-dsl/compiler` | Deterministic lowering, themes, layout, routes, animation tracks |
 | `@animflow-dsl/runtime` | Pure sampling and explicit playback state machine |
 | `@animflow-dsl/react-v2` | SVG renderer and controlled playback controls |
@@ -160,9 +160,11 @@ Semantic commands are atomic and require a valid 2.1 document. `source.replace` 
 
 ```ts
 import { compileAnimFlow } from "@animflow-dsl/compiler";
-import { migrateV1ToV2 } from "@animflow-dsl/migrate";
+import { migrateV1ToV2, migrateV2ToV21 } from "@animflow-dsl/migrate";
 
-const migrated = await migrateV1ToV2(v1Source);
+const v2 = await migrateV1ToV2(v1Source);
+if (!v2.ok) throw new Error(v2.diagnostics[0].message);
+const migrated = await migrateV2ToV21(v2.value.source);
 if (!migrated.ok) throw new Error(migrated.diagnostics[0].message);
 
 const compiled = await compileAnimFlow(migrated.value.source);
@@ -181,11 +183,11 @@ pnpm eval:skill
 pnpm --filter web dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for v2 and [http://localhost:3000/legacy](http://localhost:3000/legacy) for v1.
+Open [http://localhost:3000](http://localhost:3000) for the v2.1 Studio and [http://localhost:3000/legacy](http://localhost:3000/legacy) for v1.
 
 ## Documentation
 
-- [v2 DSL reference](docs/dsl-guide.md)
+- [v2.1 DSL reference](docs/dsl-guide.md)
 - [v1 legacy guide](docs/dsl-guide-v1.md)
 - [architecture and implementation contract](docs/animflow-dsl-v2-implementation-plan.md)
 - [authoring platform design and phase gates](docs/designs/animflow-authoring-platform.md)

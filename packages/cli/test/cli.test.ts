@@ -81,7 +81,7 @@ describe("AnimFlow CLI contract", () => {
       command: "version",
       ok: true,
       diagnostics: [],
-      data: { cliVersion: "0.1.0", languageVersion: "2.1", compilerVersion: "0.0.0" },
+      data: { cliVersion: "0.1.0", languageVersion: "2.1", compilerVersion: "0.1.0" },
     });
 
     const capabilities = jsonReport((await invoke(["capabilities", "--json"])).stdout);

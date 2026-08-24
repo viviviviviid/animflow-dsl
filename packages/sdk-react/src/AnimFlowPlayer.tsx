@@ -98,7 +98,14 @@ export function AnimFlowPlayer({
 }
 
 function toPublicDiagnostic(diagnostic: Diagnostic): AnimFlowDiagnostic {
-  return { code: diagnostic.code, severity: diagnostic.severity, message: diagnostic.message, range: diagnostic.range };
+  return {
+    code: diagnostic.code,
+    severity: diagnostic.severity,
+    message: diagnostic.message,
+    range: diagnostic.range,
+    ...(diagnostic.related ? { related: diagnostic.related } : {}),
+    ...(diagnostic.fixes ? { fixes: diagnostic.fixes } : {}),
+  };
 }
 
 function storyDiagnostic(expected: string, received: string): AnimFlowDiagnostic {

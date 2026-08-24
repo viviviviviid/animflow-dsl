@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { AuthoringSession } from "@animflow-dsl/authoring";
+import { completeAnimFlow, defineAnimFlow, hoverAnimFlow } from "@animflow-dsl/language";
 import { importMermaidFlowchart } from "@animflow-dsl/migrate";
 
 import type {
@@ -11,9 +12,13 @@ import type {
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 let session: AuthoringSession | undefined;
+let requestQueue = Promise.resolve();
 
 scope.onmessage = (event: MessageEvent<StudioAuthoringRequest>) => {
-  void handle(event.data);
+  requestQueue = requestQueue.then(
+    () => handle(event.data),
+    () => handle(event.data),
+  );
 };
 
 async function handle(request: StudioAuthoringRequest): Promise<void> {
@@ -24,6 +29,27 @@ async function handle(request: StudioAuthoringRequest): Promise<void> {
       return;
     }
     if (!session) throw new Error("Authoring session is not initialized.");
+
+    if (request.type === "complete") {
+      const completions = await completeAnimFlow(request.source, request.position);
+      respond({ type: "result", requestId: request.requestId, state: snapshot(session), completions });
+      return;
+    }
+    if (request.type === "define") {
+      const definitions = await defineAnimFlow(request.source, request.position);
+      respond({ type: "result", requestId: request.requestId, state: snapshot(session), definitions });
+      return;
+    }
+    if (request.type === "hover") {
+      const hover = await hoverAnimFlow(request.source, request.position);
+      respond({
+        type: "result",
+        requestId: request.requestId,
+        state: snapshot(session),
+        ...(hover ? { hover } : {}),
+      });
+      return;
+    }
 
     if (request.type === "select") {
       await session.select(request.id);

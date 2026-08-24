@@ -21,8 +21,18 @@ import {
   type SourcePosition,
   type SourceRange,
 } from "@animflow-dsl/model";
+import { AstUtils, GrammarUtils, type AstNode } from "langium";
 
-import { renderDuration, renderNamedAction } from "./render.js";
+import {
+  renderCanvas,
+  renderDuration,
+  renderEdge,
+  renderFlowLayout,
+  renderGraph,
+  renderNamedAction,
+  renderNode,
+  renderOverlay,
+} from "./render.js";
 import type {
   ActionDraft,
   AppliedAuthoringResult,
@@ -32,6 +42,7 @@ import type {
   AuthoringState,
   HistoryRequest,
   RejectedAuthoringResult,
+  RenamableDeclarationKind,
 } from "./types.js";
 
 interface HistoryEntry {
@@ -155,11 +166,14 @@ export class AuthoringSession {
       }
       const patched = patchCommand(this.sourceText, parsed.value, command);
       if (!patched.ok) return this.reject("invalid-semantic-command", [patched.diagnostic]);
+      const afterSelectionId = command.type === "declaration.rename" && beforeSelectionId === command.id
+        ? command.newId
+        : beforeSelectionId;
       return await this.applyCandidate(patched.source, false, {
         beforeSource,
         afterSource: patched.source,
         beforeSelectionId,
-        afterSelectionId: beforeSelectionId,
+        afterSelectionId,
       });
     } finally {
       await releaseAnimFlowDocument(parsed.value);
@@ -302,6 +316,20 @@ function patchCommand(
   command: Exclude<AuthoringCommand, { readonly type: "source.replace" }>,
 ): PatchResult {
   switch (command.type) {
+    case "canvas.update": return updateCanvas(source, document, command.replacement);
+    case "graph.add": return addGraph(source, document, command);
+    case "graph.update": return updateGraph(source, document, command.graphId, command.layout);
+    case "graph.remove": return removeGraph(source, document, command.graphId);
+    case "node.add": return addNode(source, document, command);
+    case "node.update": return updateNode(source, document, command.nodeId, command.replacement);
+    case "node.remove": return removeNode(source, document, command.nodeId);
+    case "edge.add": return addEdge(source, document, command);
+    case "edge.update": return updateEdge(source, document, command.edgeId, command.replacement);
+    case "edge.remove": return removeEdge(source, document, command.edgeId);
+    case "overlay.add": return addOverlay(source, document, command);
+    case "overlay.update": return updateOverlay(source, document, command.overlayId, command.replacement);
+    case "overlay.remove": return removeOverlay(source, document, command.overlayId);
+    case "declaration.rename": return renameDeclaration(source, document, command);
     case "scene.add": return addScene(source, document, command);
     case "scene.move": return moveScene(source, document, command.sceneId, command.index);
     case "scene.remove": return removeScene(source, document, command.sceneId);
@@ -310,6 +338,238 @@ function patchCommand(
     case "action.remove": return removeAction(source, document, command.actionId);
     case "narration.set": return setNarration(source, document, command.sceneId, command.text);
   }
+}
+
+function updateCanvas(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  replacement: Extract<AuthoringCommand, { readonly type: "canvas.update" }>["replacement"],
+): PatchResult {
+  const range = requireCst(document.canvas);
+  const indent = indentationAt(source, range.start);
+  return {
+    ok: true,
+    source: replaceRange(source, range, renderCanvas(replacement, indent).slice(indent.length)),
+  };
+}
+
+function addGraph(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  command: Extract<AuthoringCommand, { readonly type: "graph.add" }>,
+): PatchResult {
+  if (!identifier(command.graphId)) return invalidIdentifier("graph", command.graphId);
+  const index = normalizeInsertionIndex(command.index, document.graphs.length);
+  if (index === undefined) return invalidIndex(command.index);
+  const target = document.graphs[index];
+  const nextDeclaration = target ?? document.overlays[0] ?? document.story;
+  const insertionOffset = leadingCommentStart(source, requireCst(nextDeclaration).start);
+  return { ok: true, source: insertAt(source, insertionOffset, `${renderGraph(command.graphId, command.layout)}\n\n`) };
+}
+
+function updateGraph(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  graphId: string,
+  layout: Extract<AuthoringCommand, { readonly type: "graph.update" }>["layout"],
+): PatchResult {
+  const graph = document.graphs.find((candidate) => candidate.name === graphId);
+  if (!graph) return targetNotFound("graph", graphId);
+  const range = requireCst(graph.layout);
+  const indent = indentationAt(source, range.start);
+  return {
+    ok: true,
+    source: replaceRange(source, range, renderFlowLayout(layout, indent).slice(indent.length)),
+  };
+}
+
+function removeGraph(source: string, document: ParsedAnimFlowDocument, graphId: string): PatchResult {
+  const graph = document.graphs.find((candidate) => candidate.name === graphId);
+  if (!graph) return targetNotFound("graph", graphId);
+  return { ok: true, source: replaceRange(source, lineBlockRange(source, requireCst(graph)), "") };
+}
+
+function addNode(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  command: Extract<AuthoringCommand, { readonly type: "node.add" }>,
+): PatchResult {
+  if (!identifier(command.nodeId)) return invalidIdentifier("node", command.nodeId);
+  return addGraphMember(
+    source,
+    document,
+    command.graphId,
+    command.index,
+    (indent) => renderNode(command.nodeId, command.node, indent),
+  );
+}
+
+function updateNode(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  nodeId: string,
+  replacement: Extract<AuthoringCommand, { readonly type: "node.update" }>["replacement"],
+): PatchResult {
+  const node = findNode(document, nodeId);
+  if (!node) return targetNotFound("node", nodeId);
+  return replaceDeclaration(source, node, renderNode(nodeId, replacement, indentationAt(source, requireCst(node).start)));
+}
+
+function removeNode(source: string, document: ParsedAnimFlowDocument, nodeId: string): PatchResult {
+  const node = findNode(document, nodeId);
+  if (!node) return targetNotFound("node", nodeId);
+  return { ok: true, source: replaceRange(source, lineBlockRange(source, requireCst(node)), "") };
+}
+
+function addEdge(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  command: Extract<AuthoringCommand, { readonly type: "edge.add" }>,
+): PatchResult {
+  if (!identifier(command.edgeId)) return invalidIdentifier("edge", command.edgeId);
+  return addGraphMember(
+    source,
+    document,
+    command.graphId,
+    command.index,
+    (indent) => renderEdge(command.edgeId, command.edge, indent),
+  );
+}
+
+function updateEdge(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  edgeId: string,
+  replacement: Extract<AuthoringCommand, { readonly type: "edge.update" }>["replacement"],
+): PatchResult {
+  const edge = findEdge(document, edgeId);
+  if (!edge) return targetNotFound("edge", edgeId);
+  return replaceDeclaration(source, edge, renderEdge(edgeId, replacement, indentationAt(source, requireCst(edge).start)));
+}
+
+function removeEdge(source: string, document: ParsedAnimFlowDocument, edgeId: string): PatchResult {
+  const edge = findEdge(document, edgeId);
+  if (!edge) return targetNotFound("edge", edgeId);
+  return { ok: true, source: replaceRange(source, lineBlockRange(source, requireCst(edge)), "") };
+}
+
+function addGraphMember(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  graphId: string,
+  requestedIndex: number | undefined,
+  render: (indent: string) => string,
+): PatchResult {
+  const graph = document.graphs.find((candidate) => candidate.name === graphId);
+  if (!graph) return targetNotFound("graph", graphId);
+  const index = normalizeInsertionIndex(requestedIndex, graph.members.length);
+  if (index === undefined) return invalidIndex(requestedIndex);
+  const target = graph.members[index];
+  const graphRange = requireCst(graph);
+  const close = closingBraceOffset(source, graphRange);
+  if (close === undefined) return missingCst("graph closing brace");
+  const insertionOffset = target ? leadingCommentStart(source, requireCst(target).start) : lineStart(source, close);
+  const indent = target ? indentationAt(source, requireCst(target).start) : `${indentationAt(source, close)}  `;
+  return { ok: true, source: insertAt(source, insertionOffset, `${render(indent)}\n`) };
+}
+
+function addOverlay(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  command: Extract<AuthoringCommand, { readonly type: "overlay.add" }>,
+): PatchResult {
+  if (!identifier(command.overlayId)) return invalidIdentifier("overlay", command.overlayId);
+  const index = normalizeInsertionIndex(command.index, document.overlays.length);
+  if (index === undefined) return invalidIndex(command.index);
+  const target = document.overlays[index];
+  const nextDeclaration = target ?? document.story;
+  const insertionOffset = leadingCommentStart(source, requireCst(nextDeclaration).start);
+  return { ok: true, source: insertAt(source, insertionOffset, `${renderOverlay(command.overlayId, command.overlay)}\n\n`) };
+}
+
+function updateOverlay(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  overlayId: string,
+  replacement: Extract<AuthoringCommand, { readonly type: "overlay.update" }>["replacement"],
+): PatchResult {
+  const overlay = document.overlays.find((candidate) => candidate.name === overlayId);
+  if (!overlay) return targetNotFound("overlay", overlayId);
+  return replaceDeclaration(source, overlay, renderOverlay(overlayId, replacement, indentationAt(source, requireCst(overlay).start)));
+}
+
+function removeOverlay(source: string, document: ParsedAnimFlowDocument, overlayId: string): PatchResult {
+  const overlay = document.overlays.find((candidate) => candidate.name === overlayId);
+  if (!overlay) return targetNotFound("overlay", overlayId);
+  return { ok: true, source: replaceRange(source, lineBlockRange(source, requireCst(overlay)), "") };
+}
+
+function replaceDeclaration(
+  source: string,
+  declaration: { readonly $cstNode?: { readonly offset: number; readonly end: number } },
+  rendered: string,
+): PatchResult {
+  const range = requireCst(declaration);
+  const indent = indentationAt(source, range.start);
+  return { ok: true, source: replaceRange(source, range, rendered.slice(indent.length)) };
+}
+
+function renameDeclaration(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  command: Extract<AuthoringCommand, { readonly type: "declaration.rename" }>,
+): PatchResult {
+  if (!identifier(command.newId)) return invalidIdentifier(command.kind, command.newId);
+  const declaration = findDeclaration(document, command.kind, command.id);
+  if (!declaration) return targetNotFound(command.kind, command.id);
+  const nameNode = GrammarUtils.findNodeForProperty(declaration.$cstNode, "name");
+  if (!nameNode) return missingCst(`${command.kind} name`);
+
+  const edits: Array<{ readonly start: number; readonly end: number; readonly newText: string }> = [
+    { start: nameNode.offset, end: nameNode.end, newText: command.newId },
+  ];
+  for (const node of AstUtils.streamAst(document)) {
+    for (const info of AstUtils.streamReferences(node)) {
+      if (!AstUtils.getReferenceNodes(info.reference).includes(declaration)) continue;
+      const referenceNode = info.reference.$refNode;
+      if (referenceNode) {
+        edits.push({ start: referenceNode.offset, end: referenceNode.end, newText: command.newId });
+      }
+    }
+  }
+  return { ok: true, source: applyTextEdits(source, edits) };
+}
+
+function findDeclaration(
+  document: ParsedAnimFlowDocument,
+  kind: RenamableDeclarationKind,
+  id: string,
+): AstNode | undefined {
+  switch (kind) {
+    case "graph": return document.graphs.find((candidate) => candidate.name === id);
+    case "node": return findNode(document, id);
+    case "edge": return findEdge(document, id);
+    case "overlay": return document.overlays.find((candidate) => candidate.name === id);
+    case "story": return document.story.name === id ? document.story : undefined;
+    case "scene": return document.story.scenes.find((candidate) => candidate.name === id);
+    case "action": return findAction(document, id)?.action;
+  }
+}
+
+function findNode(document: ParsedAnimFlowDocument, id: string): Node | undefined {
+  for (const graph of document.graphs) {
+    const node = graph.members.find((candidate): candidate is Node => candidate.$type === "Node" && candidate.name === id);
+    if (node) return node;
+  }
+  return undefined;
+}
+
+function findEdge(document: ParsedAnimFlowDocument, id: string): Edge | undefined {
+  for (const graph of document.graphs) {
+    const edge = graph.members.find((candidate): candidate is Edge => candidate.$type === "Edge" && candidate.name === id);
+    if (edge) return edge;
+  }
+  return undefined;
 }
 
 function addScene(
@@ -594,6 +854,18 @@ function removableStatementRange(source: string, range: TextRange): TextRange {
 
 function replaceRange(source: string, range: TextRange, replacement: string): string {
   return `${source.slice(0, range.start)}${replacement}${source.slice(range.end)}`;
+}
+
+function applyTextEdits(
+  source: string,
+  edits: readonly { readonly start: number; readonly end: number; readonly newText: string }[],
+): string {
+  return [...edits]
+    .sort((left, right) => right.start - left.start || right.end - left.end)
+    .reduce(
+      (current, edit) => replaceRange(current, edit, edit.newText),
+      source,
+    );
 }
 
 function insertAt(source: string, offset: number, text: string): string {

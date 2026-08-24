@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vitest";
+import type { Diagnostic } from "@animflow-dsl/model";
 
 import { parseAnimFlow } from "../src/index.js";
 
@@ -109,6 +110,66 @@ describe("AnimFlow language", () => {
     expect(sequence.ok).toBe(true);
   });
 
+  test("rejects overlapping writes inside a stagger and permits adjacent writes", async () => {
+    const overlapping = await parseAnimFlow(
+      baseDocument({
+        duration: "2s",
+        sceneStatements: `
+          stagger 500ms {
+            hide client via fade
+            show client via fade
+          }
+        `,
+      }),
+    );
+    expect(overlapping.ok).toBe(false);
+    if (!overlapping.ok) {
+      expect(overlapping.diagnostics.some((item) => item.code === "AF422")).toBe(true);
+    }
+
+    const adjacent = await parseAnimFlow(
+      baseDocument({
+        duration: "2s",
+        sceneStatements: `
+          stagger 1s {
+            hide client via fade
+            show client via fade
+          }
+        `,
+      }),
+    );
+    expect(adjacent.ok).toBe(true);
+  });
+
+  test("rejects stagger schedules outside their containing duration", async () => {
+    const result = await parseAnimFlow(
+      baseDocument({
+        duration: "1s",
+        sceneStatements: `
+          stagger 2s {
+            show client via fade
+            show api via fade
+          }
+        `,
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.diagnostics.some((item) => item.code === "AF407")).toBe(true);
+    }
+  });
+
+  test("rejects non-finite numeric literals during validation", async () => {
+    const result = await parseAnimFlow(
+      baseDocument({ duration: `${"9".repeat(400)}s` }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.diagnostics.some((item) => item.code === "AF304")).toBe(true);
+      expect(result.diagnostics.some((item) => item.code === "AF501")).toBe(false);
+    }
+  });
+
   test("keeps narration scene-scoped", async () => {
     const result = await parseAnimFlow(
       baseDocument({ sceneStatements: 'sequence { say "Not scene-scoped" }' }),
@@ -176,6 +237,38 @@ describe("AnimFlow language", () => {
       expect(unsupported.diagnostics.some((item) => item.code === "AF301")).toBe(true);
     }
   });
+
+  test("returns directly applicable fixes for version, target, and action identity errors", async () => {
+    const cases = [
+      baseDocument({ version: "3", sceneStatements: "action traceRequest: draw request via trace" }),
+      baseDocument({ sceneStatements: "show pipeline via fade" }),
+      baseDocument({ version: "2.1", sceneStatements: "draw request via trace" }),
+      baseDocument({ sceneStatements: "action traceRequest: draw request via trace" }),
+    ];
+
+    for (const source of cases) {
+      const invalid = await parseAnimFlow(source);
+      expect(invalid.ok).toBe(false);
+      if (invalid.ok) continue;
+      const diagnostic = invalid.diagnostics.find((item) => item.fixes?.length);
+      expect(diagnostic?.fixes?.[0]?.edits.length).toBeGreaterThan(0);
+      const fixed = applyFix(source, diagnostic!);
+      const reparsed = await parseAnimFlow(fixed);
+      expect(reparsed.ok, JSON.stringify(reparsed.diagnostics)).toBe(true);
+    }
+  });
+
+  test("suggests a unique nearest declaration for unresolved references", async () => {
+    const source = baseDocument({ edgeTo: "ap" });
+    const invalid = await parseAnimFlow(source);
+    expect(invalid.ok).toBe(false);
+    if (invalid.ok) return;
+
+    const diagnostic = invalid.diagnostics.find((item) => item.code === "AF210");
+    expect(diagnostic?.fixes?.[0]).toMatchObject({ title: "Replace with api" });
+    const fixed = applyFix(source, diagnostic!);
+    expect((await parseAnimFlow(fixed)).ok).toBe(true);
+  });
 });
 
 interface DocumentOverrides {
@@ -207,4 +300,15 @@ story demo {
   }
 }
 `;
+}
+
+function applyFix(source: string, diagnostic: Diagnostic): string {
+  const edits = diagnostic.fixes?.[0]?.edits ?? [];
+  return [...edits]
+    .sort((left, right) => right.range.start.offset - left.range.start.offset)
+    .reduce(
+      (current, edit) =>
+        `${current.slice(0, edit.range.start.offset)}${edit.newText}${current.slice(edit.range.end.offset)}`,
+      source,
+    );
 }

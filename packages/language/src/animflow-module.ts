@@ -18,7 +18,9 @@ import {
   AnimFlowValidator,
   registerValidationChecks,
 } from "./animflow-validator.js";
+import { AnimFlowCompletionProvider } from "./animflow-completion-provider.js";
 import { AnimFlowFormatter } from "./animflow-formatter.js";
+import { AnimFlowHoverProvider } from "./animflow-hover-provider.js";
 import { AnimFlowScopeProvider } from "./animflow-scope-provider.js";
 
 export interface AnimFlowAddedServices {
@@ -34,7 +36,9 @@ export const AnimFlowModule: Module<
   PartialLangiumServices & AnimFlowAddedServices
 > = {
   lsp: {
+    CompletionProvider: (services) => new AnimFlowCompletionProvider(services),
     Formatter: () => new AnimFlowFormatter(),
+    HoverProvider: (services) => new AnimFlowHoverProvider(services),
   },
   references: {
     ScopeProvider: (services) => new AnimFlowScopeProvider(services),

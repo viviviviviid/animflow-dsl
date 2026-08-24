@@ -1,13 +1,13 @@
-# AnimFlow DSL v2 Reference
+# AnimFlow DSL v2.1 Reference
 
-AnimFlow v2 is a closed, typed language. A valid document compiles completely; invalid source returns diagnostics and no partial render plan.
+AnimFlow v2.1 is the canonical authoring language. It is closed and typed: a valid document compiles completely; invalid source returns diagnostics and no partial render plan. The compatibility compiler accepts v2 only to migrate existing source; new source should use v2.1.
 
 ## Document shape
 
 Every document contains exactly one version declaration, canvas, one or more graphs, zero or more overlays, and one story in that order.
 
 ```animflow
-animflow 2
+animflow 2.1
 
 canvas {
   size 1600 by 900
@@ -57,18 +57,18 @@ story paymentStory {
   }
 
   scene reveal "Reveal the actors" duration 1600ms {
-    sequence {
-      show client via slide(from: left, distance: 56)
-      show bank via pop
+    action revealActors: sequence {
+      action revealClient: show client via slide(from: left, distance: 56)
+      action revealBank: show bank via pop
     }
     say "The actors are revealed on one compiled clock."
   }
 
   scene authorizeScene "Authorize payment" duration 1400ms {
-    show authorize via fade
-    draw authorize via trace flow particles
-    highlight bank tone success effect pulse
-    show decision via pop
+    action revealAuthorize: show authorize via fade
+    action traceAuthorize: draw authorize via trace flow particles
+    action pulseBank: highlight bank tone success effect pulse
+    action revealDecision: show decision via pop
     say "Seeking this scene produces the same state as playback."
   }
 }
@@ -201,7 +201,7 @@ story main {
   }
 
   scene intro "Introduction" duration 1.2s {
-    show checkout.* via fade
+    action revealCheckout: show checkout.* via fade
   }
 }
 ```
@@ -223,13 +223,22 @@ Only graphs support `.*`. `camera focus` requires exactly one element, not a gra
 
 ## Scene statements
 
+Every v2.1 scene action except `say` has a document-wide unique identity:
+
+```animflow
+action revealApi: show api via fade
+action traceRequest: draw request via trace
+```
+
+The `action <id>:` prefix is required recursively inside `sequence` and `stagger`. `say` remains unnamed because narration belongs to the scene. Stable action IDs are the mutation and selection key used by Studio and AI authoring commands.
+
 ### Visibility
 
 ```animflow
-show api via fade
-hide [client, request] via pop
-show retryNote via slide(from: up, distance: 24)
-show api via flip
+action showApi: show api via fade
+action hideClientAndRequest: hide [client, request] via pop
+action slideRetryNote: show retryNote via slide(from: up, distance: 24)
+action flipApi: show api via flip
 ```
 
 Transitions:
@@ -245,8 +254,8 @@ Slide distance defaults to 48 and cannot be negative.
 ### Edge drawing
 
 ```animflow
-draw request via trace
-draw request via trace flow particles
+action traceRequest: draw request via trace
+action animateRequest: draw request via trace flow particles
 ```
 
 Only an edge ID is accepted. Draw progress and flow phase are sampled state, independent from dashed line styling.
@@ -254,10 +263,10 @@ Only an edge ID is accepted. Draw progress and flow phase are sampled state, ind
 ### Highlight
 
 ```animflow
-highlight api tone success
-highlight api tone danger effect glow
-highlight api tone warning effect pulse
-clearHighlight api
+action markSuccess: highlight api tone success
+action glowFailure: highlight api tone danger effect glow
+action pulseWarning: highlight api tone warning effect pulse
+action clearApi: clearHighlight api
 ```
 
 Highlight effects are `glow` and `pulse`. Clearing a highlight is an explicit state transition.
@@ -265,9 +274,9 @@ Highlight effects are `glow` and `pulse`. Clearing a highlight is an explicit st
 ### Camera
 
 ```animflow
-camera fit(checkout) padding 64
-camera fit([client, api]) padding 80
-camera focus(api) padding 96
+action frameCheckout: camera fit(checkout) padding 64
+action frameActors: camera fit([client, api]) padding 80
+action focusApi: camera focus(api) padding 96
 ```
 
 Padding defaults to 40 and cannot be negative. Camera is part of `FrameState`; the host and renderer do not maintain a second viewBox state.
@@ -287,46 +296,46 @@ Scenes run sequentially in declaration order. Top-level statements inside one sc
 ```animflow
 scene example "Timing" duration 1200ms {
   // These begin together and each receives 1200 ms.
-  show api via fade
-  draw request via trace
+  action showApi: show api via fade
+  action traceRequest: draw request via trace
 
   // Children receive equal consecutive slices of 600 ms.
-  sequence {
-    highlight client tone primary
-    highlight api tone success
+  action highlightActors: sequence {
+    action highlightClient: highlight client tone primary
+    action highlightApi: highlight api tone success
   }
 }
 ```
 
-`stagger` starts each child after the stated interval. Every child receives `scene duration - interval × (child count - 1)`, clamped at zero, so their executions overlap.
+`stagger` starts each child after the stated interval. Every child receives `containing duration - interval × (child count - 1)`, so executions can overlap. A last start beyond the containing duration is rejected with `AF407`.
 
 ```animflow
 scene reveal "Reveal" duration 1400ms {
-  stagger 200ms {
-    show client via pop
-    show api via pop
-    show db via pop
+  action revealActors: stagger 200ms {
+    action revealClient: show client via pop
+    action revealApi: show api via pop
+    action revealDb: show db via pop
   }
 }
 ```
 
-Two parallel top-level statements cannot write the same property of the same element. This is diagnostic `AF422`. Put intentional repeated writes inside one `sequence` block. A `sequence` or `stagger` block counts as one top-level writer for conflict detection.
+Parallel statements cannot write the same property of the same element while their time ranges overlap. This is diagnostic `AF422`, including overlapping children inside `stagger`. Put intentional repeated writes inside one `sequence` block.
 
 ## Diagnostics
 
-Compilation returns either a complete immutable `RenderPlan` or diagnostics. Every diagnostic includes a stable code, severity, message, and source range.
+Compilation returns either a complete immutable `RenderPlan` or diagnostics. Every diagnostic includes a stable code, severity, message, and source range. When a deterministic repair exists, it also includes machine-applicable `fixes` containing titled source edits; consumers should apply all edits in one fix atomically.
 
 | Namespace | Meaning |
 |---|---|
 | `AF1xx` | syntax and token errors |
 | `AF2xx` | duplicate IDs, symbols, and references |
 | `AF3xx` | version, targets, properties, and numeric constraints |
-| `AF4xx` | narration and conflicting scene writes |
+| `AF4xx` | narration, schedules, action identity, and conflicting writes |
 | `AF5xx` | compiler, layout, and geometry |
 | `AF6xx` | v1 migration |
 | `AF7xx` | reserved plugin contracts |
 
-The editor uses the same Langium grammar and validation rules as compilation, so Monaco markers match compiler failures.
+The editor uses the same Langium grammar and validation rules as compilation. Monaco markers and quick fixes therefore match compiler failures and CLI JSON, while completion, hover, and go-to-definition resolve through the same typed AST and linker.
 
 ## Runtime contract
 

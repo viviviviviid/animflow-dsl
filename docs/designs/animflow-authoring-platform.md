@@ -786,7 +786,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Verify: 8개 action kind compile round-trip, command valid/rejected/invalid-draft, 30 formatting/comment golden, 동일 100-command sequence의 매 단계 compile 및 최종 source/hash determinism
 
 - [x] **T10 (P1)** — Studio MVP — Canvas-first Creator, persistence/recovery, inspector와 scene strip을 통합한다.
-  - Shipped: browser authoring worker, canvas/source selection, action inspector, cue rail reorder, narration, undo/redo, invalid-draft stale preview, atomic IndexedDB revisions, multi-tab writer lease, local-only lazy Monaco worker
+  - Shipped: browser authoring worker, canvas/source selection, action inspector, cue rail reorder, narration, undo/redo, invalid-draft stale preview, atomic IndexedDB revisions, multi-tab writer lease, local-only lazy Monaco worker, grammar-aware completion/hover/definition
   - Verify: production build, root test/build/lint 순차 gate, Chromium/Firefox/WebKit 24개 E2E (Mermaid → select → action → reorder → preview, reload recovery, invalid repair, quota, writer conflict, offline editor, responsive overflow)
 
 - [x] **T11 (P1)** — Presenter와 Publish — full-screen 재생과 immutable revision 공유 계약을 구현한다.

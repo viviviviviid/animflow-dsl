@@ -489,6 +489,30 @@ export function Studio() {
     setSourceDraft(source);
   }, []);
 
+  const completeSource = useCallback((
+    source: string,
+    position: { readonly line: number; readonly character: number },
+  ) => clientRef.current?.complete(source, position).catch((error: unknown) => {
+    console.error("AnimFlow completion failed.", error);
+    return [];
+  }) ?? Promise.resolve([]), []);
+
+  const defineSource = useCallback((
+    source: string,
+    position: { readonly line: number; readonly character: number },
+  ) => clientRef.current?.define(source, position).catch((error: unknown) => {
+    console.error("AnimFlow definition failed.", error);
+    return [];
+  }) ?? Promise.resolve([]), []);
+
+  const hoverSource = useCallback((
+    source: string,
+    position: { readonly line: number; readonly character: number },
+  ) => clientRef.current?.hover(source, position).catch((error: unknown) => {
+    console.error("AnimFlow hover failed.", error);
+    return undefined;
+  }) ?? Promise.resolve(undefined), []);
+
   const openPresenter = useCallback(async () => {
     if (!authoring) return;
     await saveStudioDraft({ documentId, title, currentRevision: authoring.documentRevision, source: authoring.source, updatedAt: Date.now() });
@@ -584,7 +608,10 @@ export function Studio() {
             <div className="studio-source-grid">
               <div className="studio-source-editor">
                 <DslEditor
+                  complete={completeSource}
+                  define={defineSource}
                   diagnostics={previewDiagnostics}
+                  hover={hoverSource}
                   onChange={handleSourceChange}
                   readOnly={writerLease.status !== "writer"}
                   selectionRange={activeRange}

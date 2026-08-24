@@ -62,6 +62,149 @@ const HIGHLIGHT = {
 };
 
 describe("AuthoringSession", () => {
+  it("applies canvas and topology CRUD commands as compiler-validated transactions", async () => {
+    const session = await AuthoringSession.create(SOURCE);
+
+    await expectApplied(session, {
+      type: "canvas.update",
+      baseRevision: 0,
+      replacement: { width: 1920, height: 1080, theme: "dark", background: "surface" },
+    });
+    await expectApplied(session, {
+      type: "graph.add",
+      baseRevision: 1,
+      graphId: "details",
+      layout: { direction: "down" },
+    });
+    await expectApplied(session, {
+      type: "graph.update",
+      baseRevision: 2,
+      graphId: "details",
+      layout: { direction: "left", nodeGap: 24, rankGap: 40, routing: "curve" },
+    });
+    await expectApplied(session, {
+      type: "node.add",
+      baseRevision: 3,
+      graphId: "lesson",
+      nodeId: "cache",
+      node: { label: "Cache", shape: "database", tone: "accent" },
+    });
+    await expectApplied(session, {
+      type: "edge.add",
+      baseRevision: 4,
+      graphId: "lesson",
+      edgeId: "cacheWrite",
+      edge: {
+        from: { node: "server", port: "e" },
+        to: { node: "cache", port: "w" },
+        label: "write",
+        line: { pattern: "dashed", width: 3 },
+        arrow: "end",
+        tone: "accent",
+        routing: "curve",
+        flow: "particles",
+      },
+    });
+    await expectApplied(session, {
+      type: "node.update",
+      baseRevision: 5,
+      nodeId: "cache",
+      replacement: { label: "Shared Cache", shape: "database", tone: "primary" },
+    });
+    await expectApplied(session, {
+      type: "edge.update",
+      baseRevision: 6,
+      edgeId: "cacheWrite",
+      replacement: {
+        from: { node: "client", port: "s" },
+        to: { node: "cache", port: "n" },
+        arrow: "both",
+        flow: "glow",
+      },
+    });
+    await expectApplied(session, {
+      type: "overlay.add",
+      baseRevision: 7,
+      overlayId: "cacheNote",
+      overlay: {
+        kind: "callout",
+        anchor: { node: "cache", port: "e" },
+        text: "Warm path",
+        width: 280,
+        tone: "accent",
+      },
+    });
+    await expectApplied(session, {
+      type: "overlay.update",
+      baseRevision: 8,
+      overlayId: "cacheNote",
+      replacement: {
+        kind: "badge",
+        anchor: { node: "cache", port: "s" },
+        text: "HIT",
+      },
+    });
+    await expectApplied(session, { type: "overlay.remove", baseRevision: 9, overlayId: "cacheNote" });
+    await expectApplied(session, { type: "edge.remove", baseRevision: 10, edgeId: "cacheWrite" });
+    await expectApplied(session, { type: "node.remove", baseRevision: 11, nodeId: "cache" });
+    await expectApplied(session, { type: "graph.remove", baseRevision: 12, graphId: "details" });
+
+    expect(session.state.documentRevision).toBe(13);
+    expect(session.state.source).toContain("size 1920 by 1080");
+    expect(session.state.source).not.toContain("graph details");
+    expect(session.state.source).not.toContain("cacheWrite");
+    expect((await compileAnimFlow(session.state.source)).ok).toBe(true);
+  });
+
+  it("renames a declaration and every linked reference atomically", async () => {
+    const session = await AuthoringSession.create(SOURCE);
+    await session.select("server");
+
+    await expectApplied(session, {
+      type: "declaration.rename",
+      baseRevision: 0,
+      kind: "node",
+      id: "server",
+      newId: "apiServer",
+    });
+
+    expect(session.state.selection).toMatchObject({ id: "apiServer", kind: "node" });
+    expect(session.state.source).toContain('node apiServer "Server"');
+    expect(session.state.source).toContain("client.e -> apiServer.w");
+    expect(session.state.source).toContain("clearHighlight apiServer");
+    expect(session.state.source).not.toMatch(/\bserver\b/);
+    expect((await compileAnimFlow(session.state.source)).ok).toBe(true);
+
+    const undone = await session.undo({ baseRevision: 1 });
+    expect(undone.status).toBe("applied-valid");
+    expect(session.state.selection).toMatchObject({ id: "server", kind: "node" });
+    expect(session.state.source).toBe(SOURCE);
+  });
+
+  it("rejects topology mutations that would leave dangling or duplicate references", async () => {
+    const session = await AuthoringSession.create(SOURCE);
+    const initial = session.state.source;
+
+    const referencedRemoval = await session.execute({
+      type: "node.remove",
+      baseRevision: 0,
+      nodeId: "server",
+    });
+    expect(referencedRemoval.status).toBe("rejected");
+    expect(referencedRemoval.diagnostics.some((diagnostic) => diagnostic.code === "AF210")).toBe(true);
+
+    const duplicateRename = await session.execute({
+      type: "declaration.rename",
+      baseRevision: 0,
+      kind: "node",
+      id: "server",
+      newId: "client",
+    });
+    expect(duplicateRename.status).toBe("rejected");
+    expect(duplicateRename.diagnostics.some((diagnostic) => diagnostic.code === "AF201")).toBe(true);
+    expect(session.state).toMatchObject({ source: initial, documentRevision: 0, canUndo: false });
+  });
+
   it("applies all top-level scene, action, and narration commands as valid transactions", async () => {
     const session = await AuthoringSession.create(SOURCE);
     expect(Object.isFrozen(session.state.plan)).toBe(true);

@@ -1,4 +1,5 @@
 import type { AuthoringCommand, AuthoringResult, HistoryRequest } from "@animflow-dsl/authoring";
+import type { AnimFlowCompletion, AnimFlowDefinition, AnimFlowHover } from "@animflow-dsl/language";
 
 import type {
   StudioAuthoringRequest,
@@ -61,6 +62,27 @@ export class StudioAuthoringClient {
 
   public async importMermaid(source: string): Promise<{ state: StudioAuthoringState; result?: AuthoringResult }> {
     return this.send({ type: "import-mermaid", source });
+  }
+
+  public async complete(
+    source: string,
+    position: { readonly line: number; readonly character: number },
+  ): Promise<readonly AnimFlowCompletion[]> {
+    return (await this.send({ type: "complete", source, position })).completions ?? [];
+  }
+
+  public async define(
+    source: string,
+    position: { readonly line: number; readonly character: number },
+  ): Promise<readonly AnimFlowDefinition[]> {
+    return (await this.send({ type: "define", source, position })).definitions ?? [];
+  }
+
+  public async hover(
+    source: string,
+    position: { readonly line: number; readonly character: number },
+  ): Promise<AnimFlowHover | undefined> {
+    return (await this.send({ type: "hover", source, position })).hover;
   }
 
   public dispose(): void {

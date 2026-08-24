@@ -1,4 +1,5 @@
 import { ANIMFLOW_DIAGNOSTIC_CODES } from "@animflow-dsl/model";
+import { AstUtils } from "langium";
 import type { AstNode, ValidationAcceptor, ValidationChecks } from "langium";
 
 import type {
@@ -69,6 +70,48 @@ interface WriteOwner {
   readonly key: string;
 }
 
+interface FixData {
+  readonly fixes: readonly {
+    readonly title: string;
+    readonly edits: readonly {
+      readonly range?: {
+        readonly start: { readonly line: number; readonly character: number };
+        readonly end: { readonly line: number; readonly character: number };
+      };
+      readonly newText: string;
+    }[];
+  }[];
+}
+
+function replacementFix(title: string, newText: string): FixData {
+  return { fixes: [{ title, edits: [{ newText }] }] };
+}
+
+function insertionFix(
+  title: string,
+  newText: string,
+  position: { readonly line: number; readonly character: number },
+): FixData {
+  return {
+    fixes: [{
+      title,
+      edits: [{ range: { start: position, end: position }, newText }],
+    }],
+  };
+}
+
+function isFiniteGreaterThanZero(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: number): boolean {
+  return Number.isFinite(value) && value >= 0;
+}
+
+function durationMs(duration: { readonly value: number; readonly unit: string }): number {
+  return duration.unit === "s" ? duration.value * 1_000 : duration.value;
+}
+
 export class AnimFlowValidator {
   checkDocument(document: AnimFlowDocument, accept: ValidationAcceptor): void {
     this.checkVersion(document, accept);
@@ -110,6 +153,7 @@ export class AnimFlowValidator {
         node: document,
         property: "version",
         code: code.invalidVersion,
+        data: replacementFix("Use AnimFlow 2.1", "2.1"),
       });
     }
   }
@@ -156,7 +200,7 @@ export class AnimFlowValidator {
 
     const size = canvas.properties.find((property) => property.$type === "CanvasSizeProperty");
     if (size?.$type === "CanvasSizeProperty") {
-      if (!(size.width > 0 && size.height > 0)) {
+      if (!(isFiniteGreaterThanZero(size.width) && isFiniteGreaterThanZero(size.height))) {
         accept("error", "Canvas width and height must be greater than zero.", {
           node: size,
           property: "width",
@@ -169,7 +213,10 @@ export class AnimFlowValidator {
   private checkLayout(layout: FlowLayout, accept: ValidationAcceptor): void {
     this.checkDuplicateProperties(layout, layout.settings, accept);
     for (const setting of layout.settings) {
-      if ((isNodeGapSetting(setting) || isRankGapSetting(setting)) && setting.value < 0) {
+      if (
+        (isNodeGapSetting(setting) || isRankGapSetting(setting)) &&
+        !isFiniteNonNegative(setting.value)
+      ) {
         accept("error", `${setting.$type === "NodeGapSetting" ? "nodeGap" : "rankGap"} must not be negative.`, {
           node: setting,
           property: "value",
@@ -183,7 +230,7 @@ export class AnimFlowValidator {
     this.checkDuplicateProperties(edge, edge.properties, accept);
 
     for (const property of edge.properties) {
-      if (isEdgeLineProperty(property) && property.width <= 0) {
+      if (isEdgeLineProperty(property) && !isFiniteGreaterThanZero(property.width)) {
         accept("error", "Edge line width must be greater than zero.", {
           node: property,
           property: "width",
@@ -221,7 +268,7 @@ export class AnimFlowValidator {
     this.checkDuplicateProperties(overlay, overlay.properties, accept);
 
     for (const property of overlay.properties) {
-      if (isOverlayWidthProperty(property) && property.value <= 0) {
+      if (isOverlayWidthProperty(property) && !isFiniteGreaterThanZero(property.value)) {
         accept("error", "Overlay width must be greater than zero.", {
           node: property,
           property: "value",
@@ -232,7 +279,7 @@ export class AnimFlowValidator {
   }
 
   private checkScene(scene: Scene, accept: ValidationAcceptor): void {
-    if (scene.duration.value <= 0) {
+    if (!isFiniteGreaterThanZero(scene.duration.value)) {
       accept("error", "Scene duration must be greater than zero.", {
         node: scene.duration,
         property: "value",
@@ -245,7 +292,11 @@ export class AnimFlowValidator {
       const action = this.unwrapStatement(statement);
       if (isSceneVisibilityStatement(action)) {
         this.checkTarget(action.targets, accept);
-        if (isSlideTransition(action.transition) && (action.transition.distance ?? 0) < 0) {
+        if (
+          isSlideTransition(action.transition) &&
+          action.transition.distance !== undefined &&
+          !isFiniteNonNegative(action.transition.distance)
+        ) {
           accept("error", "Slide distance must not be negative.", {
             node: action.transition,
             property: "distance",
@@ -262,13 +313,20 @@ export class AnimFlowValidator {
           node: action,
           code: code.invalidNarration,
         });
-      } else if (isStaggerStatement(action) && action.interval.value < 0) {
+      } else if (
+        isStaggerStatement(action) &&
+        !isFiniteNonNegative(action.interval.value)
+      ) {
         accept("error", "Stagger interval must not be negative.", {
           node: action.interval,
           property: "value",
           code: code.invalidNumber,
         });
       }
+    }
+
+    if (isFiniteGreaterThanZero(scene.duration.value)) {
+      this.checkNestedSchedule(scene.statements, durationMs(scene.duration), accept);
     }
 
     const owners = new Map<string, WriteOwner>();
@@ -289,7 +347,10 @@ export class AnimFlowValidator {
 
   private checkCamera(statement: CameraStatement, accept: ValidationAcceptor): void {
     this.checkTarget(statement.targets, accept);
-    if ((statement.padding ?? 0) < 0) {
+    if (
+      statement.padding !== undefined &&
+      !isFiniteNonNegative(statement.padding)
+    ) {
       accept("error", "Camera padding must not be negative.", {
         node: statement,
         property: "padding",
@@ -322,6 +383,7 @@ export class AnimFlowValidator {
           node: target,
           property: "target",
           code: code.invalidTarget,
+          data: replacementFix(`Target all elements in ${resolved.name}`, `${resolved.name}.*`),
         });
       }
     } else if (target.wildcard) {
@@ -329,6 +391,7 @@ export class AnimFlowValidator {
         node: target,
         property: "wildcard",
         code: code.invalidTarget,
+        data: replacementFix("Remove the graph wildcard", ""),
       });
     }
   }
@@ -413,6 +476,55 @@ export class AnimFlowValidator {
     return new Set();
   }
 
+  private checkNestedSchedule(
+    statements: readonly SceneStatement[],
+    availableMs: number,
+    accept: ValidationAcceptor,
+  ): void {
+    for (const statement of statements) {
+      const action = this.unwrapStatement(statement);
+      if (isSequenceStatement(action)) {
+        const childDuration = action.statements.length === 0
+          ? 0
+          : availableMs / action.statements.length;
+        for (const child of action.statements) {
+          this.checkNestedSchedule([child], childDuration, accept);
+        }
+        continue;
+      }
+      if (!isStaggerStatement(action) || !isFiniteNonNegative(action.interval.value)) {
+        continue;
+      }
+
+      const gapMs = durationMs(action.interval);
+      const lastStartMs = gapMs * Math.max(0, action.statements.length - 1);
+      if (!Number.isFinite(lastStartMs) || lastStartMs > availableMs) {
+        accept("error", "Stagger schedule exceeds its containing duration.", {
+          node: action.interval,
+          code: code.invalidSchedule,
+        });
+        continue;
+      }
+
+      const childDuration = Math.max(0, availableMs - lastStartMs);
+      for (let index = 0; index < action.statements.length; index += 1) {
+        this.checkNestedSchedule([action.statements[index]!], childDuration, accept);
+        if (childDuration <= 0) continue;
+        const leftWrites = this.statementWrites(action.statements[index]!);
+        for (let other = index + 1; other < action.statements.length; other += 1) {
+          if ((other - index) * gapMs >= childDuration) break;
+          const rightWrites = this.statementWrites(action.statements[other]!);
+          const conflict = [...leftWrites].find((key) => rightWrites.has(key));
+          if (!conflict) continue;
+          accept("error", `Stagger writes ${conflict} in overlapping actions.`, {
+            node: action.statements[other]!,
+            code: code.parallelWrite,
+          });
+        }
+      }
+    }
+  }
+
   private checkActionIdentity(
     version: AnimFlowDocument["version"],
     statement: SceneStatement,
@@ -420,17 +532,66 @@ export class AnimFlowValidator {
   ): void {
     const sourceVersion = String(version);
     if (sourceVersion === "2.1" && !isSayStatement(statement) && !isActionStatement(statement)) {
+      const actionId = this.generatedActionId(statement);
+      const position = statement.$cstNode?.range.start;
       accept("error", "AnimFlow 2.1 requires action <id>: before every scene action.", {
         node: statement,
         code: code.invalidActionIdentity,
+        data: position
+          ? insertionFix(`Add action identity ${actionId}`, `action ${actionId}: `, position)
+          : undefined,
       });
     } else if (sourceVersion === "2" && isActionStatement(statement)) {
+      const document = AstUtils.findRootNode(statement) as AnimFlowDocument;
+      const position = document.$cstNode?.range.start;
+      const versionStart = position
+        ? { line: position.line, character: position.character + "animflow ".length }
+        : undefined;
       accept("error", "Named actions require animflow 2.1.", {
         node: statement,
         property: "name",
         code: code.invalidActionIdentity,
+        data: versionStart
+          ? {
+              fixes: [{
+                title: "Upgrade the document to AnimFlow 2.1",
+                edits: [{
+                  range: {
+                    start: versionStart,
+                    end: { line: versionStart.line, character: versionStart.character + 1 },
+                  },
+                  newText: "2.1",
+                }],
+              }],
+            } satisfies FixData
+          : undefined,
       });
     }
+  }
+
+  private generatedActionId(statement: SceneStatement): string {
+    const document = AstUtils.findRootNode(statement) as AnimFlowDocument;
+    const statements = document.story.scenes.flatMap((scene) => [...this.walkStatements(scene.statements)]);
+    const statementIndex = statements.indexOf(statement);
+    const ordinal = statements
+      .slice(0, statementIndex + 1)
+      .filter((candidate) => !isSayStatement(candidate)).length;
+    const action = this.unwrapStatement(statement);
+    const verb = action.$type
+      .replace(/Statement$/, "")
+      .replace(/^SceneVisibility$/, action.$type === "SceneVisibilityStatement" ? action.action : "visibility")
+      .replace(/^ClearHighlight$/, "clearHighlight")
+      .replace(/^./, (character) => character.toLowerCase());
+    const used = new Set(
+      statements
+        .filter(isActionStatement)
+        .map((candidate) => candidate.name),
+    );
+    const base = `${verb}${ordinal}`;
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate)) candidate = `${base}_${suffix++}`;
+    return candidate;
   }
 
   private unwrapStatement(statement: SceneStatement): SceneAction | SayStatement {

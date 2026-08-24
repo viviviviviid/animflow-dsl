@@ -8,10 +8,21 @@ export interface AnimFlowDiagnostic {
     readonly start: { readonly offset: number; readonly line: number; readonly character: number };
     readonly end: { readonly offset: number; readonly line: number; readonly character: number };
   };
+  readonly related?: readonly {
+    readonly message: string;
+    readonly range: AnimFlowDiagnostic["range"];
+  }[];
+  readonly fixes?: readonly {
+    readonly title: string;
+    readonly edits: readonly {
+      readonly range: AnimFlowDiagnostic["range"];
+      readonly newText: string;
+    }[];
+  }[];
 }
 
 export interface AnimFlowPlayerProps {
-  /** Native AnimFlow 2 or 2.1 source. */
+  /** Native AnimFlow 2.1 source. AnimFlow 2 remains a compatibility input. */
   readonly source: string;
   /** Optional assertion for the source's single story ID. */
   readonly story?: string;
