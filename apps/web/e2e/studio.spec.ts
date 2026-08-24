@@ -140,10 +140,23 @@ test("loads the source editor entirely from the local application", async ({ pag
     }
   });
   await openStudio(page);
-  await page.getByRole("button", { name: "Source" }).click();
 
+  await expect(page.getByRole("region", { name: "AnimFlow source" })).toBeVisible();
   await expect(page.locator(".monaco-editor")).toBeVisible();
   expect(externalRequests).toEqual([]);
+});
+
+test("opens the current project source first and lets authors hide it", async ({ page }) => {
+  await openStudio(page);
+  const source = page.getByRole("region", { name: "AnimFlow source" });
+
+  await expect(source).toBeVisible();
+  await expect(source).toContainText("payment-signal-walkthrough.animflow");
+  await page.getByRole("button", { name: "Hide source panel" }).click();
+  await expect(source).toHaveCount(0);
+  await page.getByRole("button", { name: "Show source" }).click();
+  await expect(source).toBeVisible();
+  await expect(page.locator(".monaco-editor")).toBeVisible();
 });
 
 test("persists light mode and keeps labeled arrows legible", async ({ page }) => {
@@ -165,7 +178,6 @@ test("persists light mode and keeps labeled arrows legible", async ({ page }) =>
 
   await page.reload();
   await expect(shell).toHaveAttribute("data-studio-theme", "light");
-  await page.getByRole("button", { name: "Source" }).click();
   await expect(page.locator(".monaco-editor.vs")).toBeVisible();
 });
 

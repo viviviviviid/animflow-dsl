@@ -59,7 +59,7 @@ export function Studio() {
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [seekRequest, setSeekRequest] = useState<{ requestId: number; timeMs: number }>();
   const [stale, setStale] = useState(false);
-  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -392,7 +392,6 @@ export function Studio() {
     setSelectedElementIds([]);
     setActiveSceneId(null);
     setRecovered(false);
-    setSourceOpen(false);
     setNotice("Opening your local lesson…");
     setDocumentId(nextDocumentId);
   }, [documentId]);
@@ -538,7 +537,7 @@ export function Studio() {
           <button className="studio-mobile-action" onClick={() => setLibraryOpen(true)} type="button">Projects</button>
           <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
           <button className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
-          <button className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
+          <button aria-expanded={sourceOpen} className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
           <button
             aria-label={`Switch to ${studioTheme === "dark" ? "light" : "dark"} mode`}
             aria-pressed={studioTheme === "light"}
@@ -564,14 +563,55 @@ export function Studio() {
       ) : null}
       {storageError ? <div className="studio-storage-error" role="alert">{storageError}<button onClick={exportSource} type="button">Export source</button></div> : null}
 
-      <div className="studio-workspace">
+      <div className="studio-workspace" data-source-open={sourceOpen}>
         <aside className="studio-toolrail" aria-label="Workspace tools">
           <button className="is-active" type="button"><ToolGlyph label="Canvas" glyph="◇" /></button>
           <button onClick={() => setLibraryOpen(true)} type="button"><ToolGlyph label="Projects" glyph="▦" /></button>
-          <button onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
+          <button aria-label={sourceOpen ? "Hide source" : "Show source"} aria-pressed={sourceOpen} className={sourceOpen ? "is-active" : undefined} onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
           <span className="studio-toolrail-spacer" />
           <button onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" glyph="?" /></button>
         </aside>
+
+        {sourceOpen ? (
+          <section className="studio-source-panel" aria-label="AnimFlow source">
+            <div className="studio-drawer-head">
+              <div><span>Project DSL</span><strong title={`${slug(title) || "lesson"}.animflow`}>{slug(title) || "lesson"}.animflow</strong></div>
+              <div>
+                <span>{draftPending ? "Checking…" : `${sourceDraft.split("\n").length} lines`}</span>
+                <button aria-label="Hide source panel" onClick={() => setSourceOpen(false)} title="Hide source" type="button">‹</button>
+              </div>
+            </div>
+            <div className="studio-source-grid">
+              <div className="studio-source-editor">
+                <DslEditor
+                  diagnostics={previewDiagnostics}
+                  onChange={handleSourceChange}
+                  readOnly={writerLease.status !== "writer"}
+                  selectionRange={activeRange}
+                  theme={studioTheme}
+                  value={sourceDraft}
+                />
+              </div>
+              <div className="studio-diagnostics" aria-label="Diagnostics">
+                <h3>Compiler · {previewDiagnostics.length === 0 ? "Clean" : `${previewDiagnostics.length} issue${previewDiagnostics.length === 1 ? "" : "s"}`}</h3>
+                {previewDiagnostics.length === 0 ? <p>No compiler diagnostics.</p> : previewDiagnostics.map((diagnostic, index) => (
+                  <button
+                    key={`${diagnostic.code}-${diagnostic.range.start.offset}-${index}`}
+                    onClick={() => setEditorRange({
+                      end: { ...diagnostic.range.end },
+                      start: { ...diagnostic.range.start },
+                    })}
+                    type="button"
+                  >
+                    <span data-severity={diagnostic.severity}>{diagnostic.code}</span>
+                    <strong>Line {diagnostic.range.start.line + 1}</strong>
+                    <small>{diagnostic.message}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="studio-stage" aria-label="Lecture canvas">
           <div className="studio-stage-head">
@@ -622,45 +662,6 @@ export function Studio() {
         onSelect={selectScene}
         plan={plan}
       />
-
-      {sourceOpen ? (
-        <section className="studio-source-drawer" aria-label="AnimFlow source">
-          <div className="studio-drawer-head">
-            <div><span>Native source</span><strong>lesson.animflow</strong></div>
-            <div>
-              <span>{draftPending ? "Checking draft…" : `${sourceDraft.split("\n").length} lines`}</span>
-              <button onClick={() => setSourceOpen(false)} type="button">Close</button>
-            </div>
-          </div>
-          <div className="studio-source-grid">
-            <DslEditor
-              diagnostics={previewDiagnostics}
-              onChange={handleSourceChange}
-              readOnly={writerLease.status !== "writer"}
-              selectionRange={activeRange}
-              theme={studioTheme}
-              value={sourceDraft}
-            />
-            <div className="studio-diagnostics" aria-label="Diagnostics">
-              <h3>Diagnostics</h3>
-              {previewDiagnostics.length === 0 ? <p>No compiler diagnostics.</p> : previewDiagnostics.map((diagnostic, index) => (
-                <button
-                  key={`${diagnostic.code}-${diagnostic.range.start.offset}-${index}`}
-                  onClick={() => setEditorRange({
-                    end: { ...diagnostic.range.end },
-                    start: { ...diagnostic.range.start },
-                  })}
-                  type="button"
-                >
-                  <span data-severity={diagnostic.severity}>{diagnostic.code}</span>
-                  <strong>Line {diagnostic.range.start.line + 1}</strong>
-                  <small>{diagnostic.message}</small>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       {importOpen ? <MermaidImportDialog busy={busy} onClose={() => setImportOpen(false)} onImport={importMermaid} /> : null}
       {libraryOpen ? (
