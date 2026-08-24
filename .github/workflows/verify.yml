@@ -25,6 +25,7 @@ jobs:
       - run: pnpm verify:worker-bundle
       - run: pnpm verify:deployment-bundle
       - run: pnpm eval:skill
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify:sdk-consumer
 
   studio-e2e:
