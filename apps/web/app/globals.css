@@ -109,6 +109,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .studio-top-actions button[aria-label="Undo"], .studio-top-actions button[aria-label="Redo"] { font-size: 18px; padding: 0; width: 33px; }
 .studio-file-button input { display: none; }
 .studio-legacy-link { color: var(--muted) !important; font-family: var(--font-mono), monospace; }
+.studio-mobile-action { display: none !important; }
 
 .studio-conflict, .studio-storage-error {
   align-items: center;
@@ -252,7 +253,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 1180px) {
   .studio-topbar { gap: 10px; grid-template-columns: auto minmax(160px, 1fr) auto; }
   .studio-status { display: none; }
-  .studio-top-actions button:nth-of-type(n+5), .studio-legacy-link { display: none; }
+  .studio-file-button, .studio-import-action, .studio-export-action, .studio-legacy-link { display: none; }
   .studio-workspace { grid-template-columns: 52px minmax(0, 1fr) 280px; }
   .studio-source-drawer { left: 52px; right: 280px; }
 }
@@ -260,10 +261,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 860px) {
   body { overflow: auto; }
   .studio-shell { height: auto; min-height: 100dvh; overflow: visible; }
-  .studio-topbar { grid-template-columns: auto 1fr; }
+  .studio-topbar { gap: 8px; grid-template-columns: auto 1fr; padding-bottom: 9px; }
   .studio-title-field { display: none; }
-  .studio-top-actions { justify-content: flex-end; }
-  .studio-top-actions button:not([aria-label]), .studio-file-button, .studio-legacy-link { display: none; }
+  .studio-top-actions { grid-column: 1 / -1; justify-content: flex-start; overflow-x: auto; padding: 2px 0 1px; scrollbar-width: none; width: 100%; }
+  .studio-top-actions::-webkit-scrollbar { display: none; }
+  .studio-top-actions button, .studio-top-actions > a, .studio-file-button { flex: 0 0 auto; }
+  .studio-file-button, .studio-import-action, .studio-export-action { display: inline-flex; }
+  .studio-mobile-action { display: inline-flex !important; }
+  .studio-legacy-link { display: none !important; }
   .studio-workspace { display: flex; flex-direction: column; min-height: 780px; }
   .studio-toolrail { display: none; }
   .studio-stage { min-height: 520px; }
