@@ -132,11 +132,13 @@ export class SupabasePublishStore implements PublishStore {
     headers.set("apikey", this.#secretKey);
     if (init.body) headers.set("Content-Type", "application/json");
     try {
-      return await this.#fetch(typeof path === "string" ? this.#url(path) : path, {
+      const uncachedInit = {
         ...init,
+        cache: "no-store" as const,
         signal,
         headers,
-      });
+      };
+      return await this.#fetch(typeof path === "string" ? this.#url(path) : path, uncachedInit as RequestInit);
     } catch {
       throw storageFailure("Supabase publish storage is unreachable.");
     }

@@ -41,6 +41,7 @@ describe("SupabasePublishStore", () => {
     await store.delete(stored.artifact.revisionId);
     expect(requests[0]?.url).toContain(`revision_id=eq.${stored.artifact.revisionId}`);
     expect(requests[0]?.url).toContain("select=artifact%2Cdeletion_token_hash");
+    expect((requests[0]?.init as RequestInit & { cache?: string }).cache).toBe("no-store");
     expect(requests[1]?.init.method).toBe("DELETE");
   });
 
