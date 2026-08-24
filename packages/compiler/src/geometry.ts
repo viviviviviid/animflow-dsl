@@ -55,16 +55,21 @@ export function compileGeometry(
         nodeGeometry(placement.node, placement.bounds, theme),
       );
     }
-    const bounds = unionRects(placements.map((placement) => placement.bounds));
-    graphBounds.set(graph.id, bounds);
-    graphOffsetY = bounds.y + bounds.height + 120;
-
+    const labelBounds: Rect[] = [];
     for (const edge of graph.edges) {
       const fromBounds = nodeBounds.get(edge.from.nodeId);
       const toBounds = nodeBounds.get(edge.to.nodeId);
       if (!fromBounds || !toBounds) continue;
-      geometryByHandle.set(edge.handle, edgeGeometry(edge, fromBounds, toBounds, theme));
+      const geometry = edgeGeometry(edge, fromBounds, toBounds, theme);
+      geometryByHandle.set(edge.handle, geometry);
+      if (geometry.label) labelBounds.push(geometry.label.bounds);
     }
+    const bounds = unionRects([
+      ...placements.map((placement) => placement.bounds),
+      ...labelBounds,
+    ]);
+    graphBounds.set(graph.id, bounds);
+    graphOffsetY = bounds.y + bounds.height + 120;
   }
 
   for (const overlay of overlays) {
@@ -203,10 +208,53 @@ function edgeGeometry(
     handle: edge.handle,
     path,
     label: edge.label
-      ? textGeometry(edge.label, { x: middle.x - 80, y: middle.y - 16, width: 160, height: 32 }, theme)
+      ? edgeLabelGeometry(edge.label, edge, path, middle, fromBounds, toBounds, theme)
       : undefined,
     markerSize: 8 + edge.lineWidth,
   };
+}
+
+function edgeLabelGeometry(
+  label: string,
+  edge: CompiledEdge,
+  path: CompiledPath,
+  middle: Vec2,
+  fromBounds: Rect,
+  toBounds: Rect,
+  theme: ResolvedTheme,
+): TextGeometry {
+  const characterWidth = theme.fontSize * 0.62;
+  const maximumWidth = 220;
+  const horizontalPadding = 12;
+  const lines = wrapText(
+    label,
+    Math.max(8, Math.floor((maximumWidth - horizontalPadding) / characterWidth)),
+  );
+  const longestLine = Math.max(1, ...lines.map((line) => line.length));
+  const width = round(Math.min(maximumWidth, longestLine * characterWidth + horizontalPadding));
+  const height = round(Math.max(24, lines.length * theme.fontSize * 1.28 + 8));
+  const markerCount = edge.arrow === "both" ? 2 : edge.arrow === "none" ? 0 : 1;
+  const markerReserve = markerCount * (8 + edge.lineWidth) * 1.5;
+  const inlineAvailable = Math.max(0, path.length - markerReserve - 24);
+  const vertical = Math.abs(path.endTangent.y) > Math.abs(path.endTangent.x);
+  const projectedLabelSize = vertical ? height : width;
+  const fitsInline = projectedLabelSize <= inlineAvailable;
+  const x = fitsInline
+    ? middle.x - width / 2
+    : vertical
+      ? Math.max(fromBounds.x + fromBounds.width, toBounds.x + toBounds.width) + 8
+      : middle.x - width / 2;
+  const y = fitsInline
+    ? middle.y - height / 2
+    : vertical
+      ? middle.y - height / 2
+      : Math.max(fromBounds.y + fromBounds.height, toBounds.y + toBounds.height) + 8;
+  return textGeometry(label, {
+    x: round(x),
+    y: round(y),
+    width,
+    height,
+  }, theme, lines);
 }
 
 function overlayGeometry(

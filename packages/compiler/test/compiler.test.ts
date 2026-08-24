@@ -46,6 +46,68 @@ describe("AnimFlow compiler", () => {
     expect(first.value.sourceHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  test("moves labels below adjacent nodes when the edge cannot fit the text and arrow", async () => {
+    const result = await compileAnimFlow(await readFile(fixturePath, "utf8"));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const nodes = result.value.geometry.filter((item) => item.kind === "node");
+    const edge = result.value.geometry.find((item) => item.kind === "edge");
+    expect(edge?.kind).toBe("edge");
+    if (edge?.kind !== "edge" || !edge.label) return;
+
+    const nodeBottom = Math.max(...nodes.map((node) => node.bounds.y + node.bounds.height));
+    expect(edge.path.length).toBe(80);
+    expect(edge.label.bounds.y).toBeGreaterThanOrEqual(nodeBottom + 8);
+  });
+
+  test("keeps a compact label inline when a longer edge has safe arrow clearance", async () => {
+    const source = (await readFile(fixturePath, "utf8"))
+      .replace("rankGap 80", "rankGap 220")
+      .replace('label "POST /checkout"', 'label "OK"');
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const nodes = result.value.geometry.filter((item) => item.kind === "node");
+    const edge = result.value.geometry.find((item) => item.kind === "edge");
+    expect(edge?.kind).toBe("edge");
+    if (edge?.kind !== "edge" || !edge.label) return;
+
+    const nodeBottom = Math.max(...nodes.map((node) => node.bounds.y + node.bounds.height));
+    expect(edge.label.bounds.width).toBeLessThan(80);
+    expect(edge.label.bounds.y).toBeLessThan(nodeBottom);
+  });
+
+  test("wraps long fallback labels instead of letting them run into nodes", async () => {
+    const source = (await readFile(fixturePath, "utf8"))
+      .replace(
+        'label "POST /checkout"',
+        'label "Validate the request and forward the verified payment decision"',
+      )
+      .replace("draw request via trace", "camera fit(checkout) padding 0");
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const edge = result.value.geometry.find((item) => item.kind === "edge");
+    expect(edge?.kind).toBe("edge");
+    if (edge?.kind !== "edge" || !edge.label) return;
+
+    expect(edge.label.lines.length).toBeGreaterThan(1);
+    expect(edge.label.bounds.width).toBeLessThanOrEqual(220);
+
+    const camera = result.value.scenes[0]?.tracks.find((track) => track.kind === "camera-rect");
+    expect(camera?.kind).toBe("camera-rect");
+    if (camera?.kind !== "camera-rect") return;
+    expect(camera.to.y + camera.to.height).toBeGreaterThanOrEqual(
+      edge.label.bounds.y + edge.label.bounds.height,
+    );
+  });
+
   test("normalizes sequence timing inside the owning scene", async () => {
     const source = await readFile(fixturePath, "utf8");
     const result = await compileAnimFlow(source);
