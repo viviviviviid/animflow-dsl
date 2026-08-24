@@ -5,7 +5,7 @@ export const COMPLEX_STUDIO_EXAMPLES: readonly StudioExample[] = [
     id: "rag-grounded-answer",
     title: "RAG grounded answer pipeline",
     category: "AI systems",
-    description: "Trace query rewriting, vector retrieval, reranking, generation, and a guarded answer.",
+    description: "Trace hybrid retrieval branches, reranking, generation, and a guarded cited answer.",
     source: `animflow 2.1
 
 canvas {
@@ -34,6 +34,11 @@ graph ragPipeline {
   node vectorStore "Vector store" {
     shape database
     tone hex_138A72
+  }
+
+  node keywordIndex "Keyword index" {
+    shape database
+    tone hex_2F6FED
   }
 
   node reranker "Reranker" {
@@ -74,11 +79,29 @@ graph ragPipeline {
     flow dash
   }
 
+  edge retrieveTerms: rewriter.e -> keywordIndex.w {
+    label "Keyword search"
+    line dashed 2
+    arrow end
+    tone hex_2F6FED
+    routing curve
+    flow dash
+  }
+
   edge rankCandidates: vectorStore.e -> reranker.w {
     label "Top candidates"
     line solid 2
     arrow end
     tone hex_D97732
+    routing curve
+    flow wave
+  }
+
+  edge rankKeywords: keywordIndex.e -> reranker.w {
+    label "Exact matches"
+    line solid 2
+    arrow end
+    tone hex_2F6FED
     routing curve
     flow wave
   }
@@ -130,12 +153,13 @@ story ragStory {
       action showQuestion: show question via slide(from: left, distance: 64)
       action showRewriter: show rewriter via pop
       action showVectorStore: show vectorStore via pop
+      action showKeywordIndex: show keywordIndex via pop
       action showReranker: show reranker via pop
       action showModel: show model via pop
       action showGuardrail: show guardrail via pop
       action showAnswer: show answer via slide(from: right, distance: 64)
     }
-    say "A grounded answer is a pipeline, not a single model call."
+    say "A grounded answer is a branching retrieval graph, not a single model call."
   }
 
   scene ragRewrite "Rewrite the question" duration 1900ms {
@@ -149,16 +173,22 @@ story ragStory {
     action clearRewriter: clearHighlight rewriter
     action revealRetrieve: show retrieveDocs via fade
     action drawRetrieve: draw retrieveDocs via trace flow dash
+    action revealTerms: show retrieveTerms via fade
+    action drawTerms: draw retrieveTerms via trace flow dash
     action focusStore: highlight vectorStore tone hex_138A72 effect glow
-    say "Vector search returns plausible evidence, including some noisy candidates."
+    action focusKeywordIndex: highlight keywordIndex tone hex_2F6FED effect pulse
+    say "Semantic and keyword retrieval run in parallel so meaning and exact terms both survive."
   }
 
   scene ragRank "Rerank the context" duration 2100ms {
     action clearStore: clearHighlight vectorStore
+    action clearKeywordIndex: clearHighlight keywordIndex
     action revealRank: show rankCandidates via fade
     action drawRank: draw rankCandidates via trace flow wave
+    action revealKeywordRank: show rankKeywords via fade
+    action drawKeywordRank: draw rankKeywords via trace flow wave
     action focusReranker: highlight reranker tone hex_D97732 effect pulse
-    say "The reranker spends extra computation to keep only the most useful context."
+    say "Both retrieval branches converge at the reranker, which keeps the most useful context."
   }
 
   scene ragGenerate "Generate with citations" duration 2200ms {

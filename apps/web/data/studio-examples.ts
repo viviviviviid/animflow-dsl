@@ -24,20 +24,54 @@ graph lessonMap {
   }
 
   node idea "Core idea" {
-    shape rounded
+    shape diamond
     tone hex_2F6FED
+  }
+
+  node example "Worked example" {
+    shape rounded
+    tone hex_7457D9
+  }
+
+  node misconception "Common misconception" {
+    shape rounded
+    tone hex_D97732
   }
 
   node outcome "Learning outcome" {
-    shape rounded
+    shape document
     tone hex_138A72
   }
 
-  edge explains: idea.e -> outcome.w {
-    label "Explain"
+  edge applies: idea.e -> example.w {
+    label "Apply"
     line solid 2
     arrow end
     tone hex_2F6FED
+    routing curve
+  }
+
+  edge contrasts: idea.e -> misconception.w {
+    label "Contrast"
+    line dashed 2
+    arrow end
+    tone hex_D97732
+    routing curve
+  }
+
+  edge exampleOutcome: example.e -> outcome.w {
+    label "Demonstrate"
+    line solid 2
+    arrow end
+    tone hex_7457D9
+    routing curve
+  }
+
+  edge misconceptionOutcome: misconception.e -> outcome.w {
+    label "Correct"
+    line dashed 2
+    arrow end
+    tone hex_D97732
     routing curve
   }
 }
@@ -53,11 +87,23 @@ story lessonStory {
     say "Start with the one idea your audience should remember."
   }
 
-  scene outcomeScene "Connect the outcome" duration 1800ms {
+  scene branches "Build two teaching paths" duration 1900ms {
+    action showExample: show example via slide(from: up, distance: 48)
+    action showMisconception: show misconception via slide(from: down, distance: 48)
+    action showApplies: show applies via fade
+    action traceApplies: draw applies via trace flow particles
+    action showContrasts: show contrasts via fade
+    action traceContrasts: draw contrasts via trace flow dash
+    say "Use one branch for a worked example and another for the misconception it corrects."
+  }
+
+  scene outcomeScene "Merge the lesson" duration 1800ms {
     action showOutcome: show outcome via slide(from: right, distance: 56)
-    action showExplains: show explains via fade
-    action traceExplains: draw explains via trace flow particles
-    say "Connect the idea to a concrete learning outcome."
+    action showExampleOutcome: show exampleOutcome via fade
+    action traceExampleOutcome: draw exampleOutcome via trace flow particles
+    action showMisconceptionOutcome: show misconceptionOutcome via fade
+    action traceMisconceptionOutcome: draw misconceptionOutcome via trace flow dash
+    say "Merge both paths into the one learning outcome your audience should retain."
   }
 }
 `;
@@ -65,9 +111,9 @@ story lessonStory {
 export const STUDIO_EXAMPLES: readonly StudioExample[] = [
   {
     id: "agent-tool-loop",
-    title: "AI agent tool loop",
+    title: "AI agent tool routing",
     category: "AI systems",
-    description: "Teach how a request moves through reasoning, a tool call, and a grounded response.",
+    description: "Teach how an agent routes work across tools and merges their evidence into one response.",
     source: `animflow 2.1
 
 canvas {
@@ -76,7 +122,7 @@ canvas {
   background surface
 }
 
-graph agentLoop {
+graph agentRouting {
   layout flow right {
     nodeGap 54
     rankGap 112
@@ -93,8 +139,23 @@ graph agentLoop {
     tone hex_7457D9
   }
 
-  node tool "Tool" {
+  node search "Search tool" {
     shape database
+    tone hex_138A72
+  }
+
+  node code "Code sandbox" {
+    shape rounded
+    tone hex_D97732
+  }
+
+  node evidence "Evidence" {
+    shape document
+    tone hex_2F6FED
+  }
+
+  node response "Grounded response" {
+    shape document
     tone hex_138A72
   }
 
@@ -107,29 +168,68 @@ graph agentLoop {
     flow particles
   }
 
-  edge call: agent.e -> tool.w {
-    label "Tool call"
+  edge searchCall: agent.e -> search.w {
+    label "Retrieve"
     line dashed 2
     arrow end
     tone hex_138A72
     routing curve
     flow dash
   }
+
+  edge codeCall: agent.e -> code.w {
+    label "Execute"
+    line dashed 2
+    arrow end
+    tone hex_D97732
+    routing curve
+    flow dash
+  }
+
+  edge searchEvidence: search.e -> evidence.w {
+    label "Sources"
+    line solid 2
+    arrow end
+    tone hex_138A72
+    routing curve
+    flow particles
+  }
+
+  edge codeEvidence: code.e -> evidence.w {
+    label "Results"
+    line solid 2
+    arrow end
+    tone hex_D97732
+    routing curve
+    flow particles
+  }
+
+  edge answer: evidence.e -> response.w {
+    label "Synthesize"
+    line solid 2
+    arrow end
+    tone hex_2F6FED
+    routing curve
+    flow glow
+  }
 }
 
 story agentStory {
   initial {
-    hide agentLoop.*
-    camera fit(agentLoop) padding 80
+    hide agentRouting.*
+    camera fit(agentRouting) padding 80
   }
 
-  scene actors "Reveal the loop" duration 1600ms {
-    action revealActors: stagger 220ms {
+  scene actors "Reveal the routing graph" duration 2100ms {
+    action revealActors: stagger 180ms {
       action showUser: show user via slide(from: left, distance: 56)
       action showAgent: show agent via pop
-      action showTool: show tool via slide(from: right, distance: 56)
+      action showSearch: show search via slide(from: up, distance: 48)
+      action showCode: show code via slide(from: down, distance: 48)
+      action showEvidence: show evidence via pop
+      action showResponse: show response via slide(from: right, distance: 56)
     }
-    say "An agent sits between intent and an external capability."
+    say "An agent can route one intent through multiple capabilities before answering."
   }
 
   scene understand "Understand the request" duration 1300ms {
@@ -139,11 +239,27 @@ story agentStory {
     say "The prompt becomes a decision about what to do next."
   }
 
-  scene useTool "Call the tool" duration 1500ms {
-    action showCall: show call via fade
-    action traceCall: draw call via trace flow dash
-    action focusTool: highlight tool tone hex_138A72 effect glow
-    say "The tool returns evidence the response can use."
+  scene useTools "Route across tools" duration 1900ms {
+    action showSearchCall: show searchCall via fade
+    action traceSearchCall: draw searchCall via trace flow dash
+    action showCodeCall: show codeCall via fade
+    action traceCodeCall: draw codeCall via trace flow dash
+    action focusSearch: highlight search tone hex_138A72 effect glow
+    action focusCode: highlight code tone hex_D97732 effect pulse
+    say "Search and code execution form two explicit branches instead of one opaque tool step."
+  }
+
+  scene mergeEvidence "Merge grounded evidence" duration 1900ms {
+    action clearSearch: clearHighlight search
+    action clearCode: clearHighlight code
+    action showSearchEvidence: show searchEvidence via fade
+    action traceSearchEvidence: draw searchEvidence via trace flow particles
+    action showCodeEvidence: show codeEvidence via fade
+    action traceCodeEvidence: draw codeEvidence via trace flow particles
+    action showAnswer: show answer via fade
+    action traceAnswer: draw answer via trace flow glow
+    action focusResponse: highlight response tone hex_138A72 effect glow
+    say "Both branches merge into inspectable evidence before the grounded response is written."
   }
 }
 `,

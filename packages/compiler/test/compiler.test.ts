@@ -82,6 +82,25 @@ describe("AnimFlow compiler", () => {
     expect(track.to.width / track.to.height).toBeCloseTo(1280 / 720, 8);
   });
 
+  test("centers singleton ranks around a split-and-merge branch", async () => {
+    const result = await compileAnimFlow(branchingSource);
+
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+
+    const centerY = (id: string): number => {
+      const element = result.value.elements.find((candidate) => candidate.kind === "node" && candidate.id === id);
+      const geometry = element && result.value.geometry.find((candidate) => candidate.handle === element.handle);
+      expect(geometry?.kind).toBe("node");
+      return geometry?.kind === "node" ? geometry.bounds.y + geometry.bounds.height / 2 : Number.NaN;
+    };
+    const upper = centerY("upper");
+    const lower = centerY("lower");
+
+    expect(lower).toBeGreaterThan(upper);
+    expect(centerY("entry")).toBeCloseTo((upper + lower) / 2, 8);
+    expect(centerY("finish")).toBeCloseTo((upper + lower) / 2, 8);
+  });
+
   test("preserves nested v2.1 action provenance on the plan and leaf tracks", async () => {
     const source = toV21(await readFile(fixturePath, "utf8"));
     const result = await compileAnimFlow(source);
@@ -135,3 +154,79 @@ function toV21(source: string): string {
     .replace("      highlight api tone accent", "      action highlightApi: highlight api tone accent")
     .replace("      clearHighlight api", "      action clearApi: clearHighlight api");
 }
+
+const branchingSource = `animflow 2.1
+
+canvas {
+  size 1280 by 720
+  theme light
+  background surface
+}
+
+graph branch {
+  layout flow right {
+    nodeGap 48
+    rankGap 80
+    routing orthogonal
+  }
+
+  node entry "Start" {
+    shape rounded
+    tone primary
+  }
+
+  node upper "Upper path" {
+    shape rounded
+    tone info
+  }
+
+  node lower "Lower path" {
+    shape rounded
+    tone accent
+  }
+
+  node finish "Finish" {
+    shape rounded
+    tone success
+  }
+
+  edge toUpper: entry.e -> upper.w {
+    line solid 2
+    arrow end
+    tone info
+    routing orthogonal
+  }
+
+  edge toLower: entry.e -> lower.w {
+    line solid 2
+    arrow end
+    tone accent
+    routing orthogonal
+  }
+
+  edge upperDone: upper.e -> finish.w {
+    line solid 2
+    arrow end
+    tone info
+    routing orthogonal
+  }
+
+  edge lowerDone: lower.e -> finish.w {
+    line solid 2
+    arrow end
+    tone accent
+    routing orthogonal
+  }
+}
+
+story branchStory {
+  initial {
+    show branch.*
+    camera fit(branch) padding 40
+  }
+
+  scene explain "Explain the branch" duration 1s {
+    say "Two paths split and merge."
+  }
+}
+`;

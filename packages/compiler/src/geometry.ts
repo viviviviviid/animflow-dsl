@@ -115,12 +115,23 @@ function placeGraph(
     cursor += (rankPrimarySizes.get(rank) ?? 0) + graph.rankGap;
   }
 
+  const horizontal = graph.direction === "right" || graph.direction === "left";
+  const rankSecondarySizes = new Map<number, number>();
+  for (const [rank, nodes] of rankGroups) {
+    const size = nodes.reduce((total, node, index) => {
+      const dimensionsForNode = dimensions.get(node.id)!;
+      const nodeSize = horizontal ? dimensionsForNode.height : dimensionsForNode.width;
+      return total + nodeSize + (index === 0 ? 0 : graph.nodeGap);
+    }, 0);
+    rankSecondarySizes.set(rank, size);
+  }
+  const maxSecondarySize = Math.max(0, ...rankSecondarySizes.values());
+
   const placements: NodePlacement[] = [];
   for (const [rank, nodes] of [...rankGroups].sort(([left], [right]) => left - right)) {
-    let secondary = 0;
+    let secondary = (maxSecondarySize - (rankSecondarySizes.get(rank) ?? 0)) / 2;
     for (const node of nodes) {
       const size = dimensions.get(node.id)!;
-      const horizontal = graph.direction === "right" || graph.direction === "left";
       placements.push({
         node,
         bounds: {
