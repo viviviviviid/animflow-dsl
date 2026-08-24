@@ -44,6 +44,7 @@ export function compileGeometry(
 ): GeometryResult {
   const geometryByHandle = new Map<ElementHandle, ElementGeometry>();
   const nodeBounds = new Map<string, Rect>();
+  const graphByNode = new Map<string, string>();
   const graphBounds = new Map<string, Rect>();
   let graphOffsetY = 80;
 
@@ -51,19 +52,24 @@ export function compileGeometry(
     const placements = placeGraph(graph, theme, 80, graphOffsetY);
     for (const placement of placements) {
       nodeBounds.set(placement.node.id, placement.bounds);
+      graphByNode.set(placement.node.id, graph.id);
       geometryByHandle.set(
         placement.node.handle,
         nodeGeometry(placement.node, placement.bounds, theme),
       );
     }
     const labelBounds: Rect[] = [];
+    const occupied = placements.map((placement) => placement.bounds);
     for (const edge of graph.edges) {
       const fromBounds = nodeBounds.get(edge.from.nodeId);
       const toBounds = nodeBounds.get(edge.to.nodeId);
       if (!fromBounds || !toBounds) continue;
-      const geometry = edgeGeometry(edge, fromBounds, toBounds, theme);
+      const geometry = edgeGeometry(edge, fromBounds, toBounds, occupied, theme);
       geometryByHandle.set(edge.handle, geometry);
-      if (geometry.label) labelBounds.push(geometry.label.bounds);
+      if (geometry.label) {
+        labelBounds.push(geometry.label.bounds);
+        occupied.push(geometry.label.bounds);
+      }
     }
     const bounds = unionRects([
       ...placements.map((placement) => placement.bounds),
@@ -73,9 +79,20 @@ export function compileGeometry(
     graphOffsetY = bounds.y + bounds.height + 120;
   }
 
+  const occupied = [...nodeBounds.values()];
+  for (const geometry of geometryByHandle.values()) {
+    if (geometry.kind === "edge" && geometry.label) occupied.push(geometry.label.bounds);
+  }
   for (const overlay of overlays) {
     const target = overlay.anchor.kind === "node" ? nodeBounds.get(overlay.anchor.target.nodeId) : undefined;
-    geometryByHandle.set(overlay.handle, overlayGeometry(overlay, target, theme));
+    const geometry = overlayGeometry(overlay, target, occupied, theme);
+    geometryByHandle.set(overlay.handle, geometry);
+    occupied.push(geometry.bounds);
+    if (overlay.anchor.kind === "node") {
+      const graphId = graphByNode.get(overlay.anchor.target.nodeId);
+      const current = graphId ? graphBounds.get(graphId) : undefined;
+      if (graphId && current) graphBounds.set(graphId, unionRects([current, geometry.bounds]));
+    }
   }
 
   return {
@@ -242,6 +259,7 @@ function edgeGeometry(
   edge: CompiledEdge,
   fromBounds: Rect,
   toBounds: Rect,
+  occupied: readonly Rect[],
   theme: ResolvedTheme,
 ): EdgeGeometry {
   const start = portPoint(fromBounds, edge.from.port, center(toBounds));
@@ -253,7 +271,7 @@ function edgeGeometry(
     handle: edge.handle,
     path,
     label: edge.label
-      ? edgeLabelGeometry(edge.label, edge, path, middle, fromBounds, toBounds, theme)
+      ? edgeLabelGeometry(edge.label, edge, path, middle, fromBounds, toBounds, occupied, theme)
       : undefined,
     markerSize: 8 + edge.lineWidth,
   };
@@ -266,6 +284,7 @@ function edgeLabelGeometry(
   middle: Vec2,
   fromBounds: Rect,
   toBounds: Rect,
+  occupied: readonly Rect[],
   theme: ResolvedTheme,
 ): TextGeometry {
   const characterWidth = theme.fontSize * 0.62;
@@ -284,27 +303,35 @@ function edgeLabelGeometry(
   const vertical = Math.abs(path.endTangent.y) > Math.abs(path.endTangent.x);
   const projectedLabelSize = vertical ? height : width;
   const fitsInline = projectedLabelSize <= inlineAvailable;
-  const x = fitsInline
+  const preferredX = fitsInline
     ? middle.x - width / 2
     : vertical
       ? Math.max(fromBounds.x + fromBounds.width, toBounds.x + toBounds.width) + 8
       : middle.x - width / 2;
-  const y = fitsInline
+  const preferredY = fitsInline
     ? middle.y - height / 2
     : vertical
       ? middle.y - height / 2
       : Math.max(fromBounds.y + fromBounds.height, toBounds.y + toBounds.height) + 8;
-  return textGeometry(label, {
-    x: round(x),
-    y: round(y),
-    width,
-    height,
-  }, theme, lines);
+  const clearance = 12;
+  const centeredX = round(middle.x - width / 2);
+  const centeredY = round(middle.y - height / 2);
+  const preferred = { x: round(preferredX), y: round(preferredY), width, height };
+  const candidates: Rect[] = [
+    preferred,
+    { x: centeredX, y: round(middle.y + clearance), width, height },
+    { x: centeredX, y: round(middle.y - height - clearance), width, height },
+    { x: round(middle.x + clearance), y: centeredY, width, height },
+    { x: round(middle.x - width - clearance), y: centeredY, width, height },
+  ];
+  const bounds = chooseOpenBounds(candidates, occupied, vertical ? "x" : "y", 10);
+  return textGeometry(label, bounds, theme, lines);
 }
 
 function overlayGeometry(
   overlay: CompiledOverlay,
   targetBounds: Rect | undefined,
+  occupied: readonly Rect[],
   theme: ResolvedTheme,
 ): OverlayGeometry {
   const anchor = overlay.anchor.kind === "node" && targetBounds
@@ -317,19 +344,60 @@ function overlayGeometry(
     overlay.text,
     Math.max(8, Math.floor((overlay.width - 32) / (theme.fontSize * 0.55))),
   );
-  const bounds = {
-    x: round(anchor.x + 28 + offset.x),
-    y: round(anchor.y - 20 + offset.y),
-    width: overlay.width,
-    height: round(lines.length * theme.fontSize * 1.45 + 32),
-  };
+  const width = overlay.width;
+  const height = round(lines.length * theme.fontSize * 1.45 + 32);
+  const clearance = 36;
+  const port = overlay.anchor.kind === "node" ? overlay.anchor.target.port : "auto";
+  const below = { x: round(anchor.x - width / 2 + offset.x), y: round(anchor.y + clearance + offset.y), width, height };
+  const above = { x: round(anchor.x - width / 2 + offset.x), y: round(anchor.y - height - clearance + offset.y), width, height };
+  const right = { x: round(anchor.x + clearance + offset.x), y: round(anchor.y - height / 2 + offset.y), width, height };
+  const left = { x: round(anchor.x - width - clearance + offset.x), y: round(anchor.y - height / 2 + offset.y), width, height };
+  const candidates = port === "n"
+    ? [above, right, left, below]
+    : port === "s"
+      ? [below, right, left, above]
+      : port === "w"
+        ? [left, below, above, right]
+        : [right, below, above, left];
+  const bounds = chooseOpenBounds(candidates, occupied, port === "n" || port === "s" ? "y" : "x", 14);
+  const connectorTarget = portPoint(bounds, "auto", anchor);
   return {
     kind: "overlay",
     handle: overlay.handle,
     bounds,
-    connector: route("straight", anchor, { x: bounds.x, y: bounds.y + bounds.height / 2 }),
+    connector: route("straight", anchor, connectorTarget),
     text: textGeometry(overlay.text, bounds, theme, lines),
   };
+}
+
+function chooseOpenBounds(
+  candidates: readonly Rect[],
+  occupied: readonly Rect[],
+  shiftAxis: "x" | "y",
+  gap: number,
+): Rect {
+  const open = candidates.find((candidate) => occupied.every((blocker) => !rectsOverlap(candidate, blocker, gap)));
+  if (open) return open;
+  const seed = candidates[0] ?? { x: 0, y: 0, width: 0, height: 0 };
+  const step = Math.max(24, gap * 2);
+  for (let distance = step; distance <= step * 24; distance += step) {
+    for (const direction of [1, -1]) {
+      const candidate = shiftAxis === "x"
+        ? { ...seed, x: round(seed.x + distance * direction) }
+        : { ...seed, y: round(seed.y + distance * direction) };
+      if (occupied.every((blocker) => !rectsOverlap(candidate, blocker, gap))) return candidate;
+    }
+  }
+  return seed;
+}
+
+function rectsOverlap(left: Rect, right: Rect, gap = 0): boolean {
+  return !(
+    left.x + left.width + gap <= right.x ||
+    right.x + right.width + gap <= left.x ||
+    left.y + left.height + gap <= right.y ||
+    right.y + right.height + gap <= left.y
+  );
 }
 
 function outlineFor(shape: CompiledNode["shape"], bounds: Rect): CompiledPath {

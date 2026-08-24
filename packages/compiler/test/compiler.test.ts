@@ -108,6 +108,40 @@ describe("AnimFlow compiler", () => {
     );
   });
 
+  test("keeps every crowded edge label clear of every node", async () => {
+    const source = branchingSource
+      .replace("edge toUpper: entry.e -> upper.w {\n    line", "edge toUpper: entry.e -> upper.w {\n    label \"Take the primary branch after validation\"\n    line")
+      .replace("edge toLower: entry.e -> lower.w {\n    line", "edge toLower: entry.e -> lower.w {\n    label \"Take the fallback branch after validation\"\n    line");
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.ok) return;
+    const nodes = result.value.geometry.filter((item) => item.kind === "node");
+    const labels = result.value.geometry.flatMap((item) => item.kind === "edge" && item.label ? [item.label.bounds] : []);
+    expect(labels.length).toBe(2);
+    for (const label of labels) {
+      expect(nodes.every((node) => !intersects(label, node.bounds))).toBe(true);
+    }
+  });
+
+  test("places anchored overlays outside nodes and includes them in graph camera fits", async () => {
+    const result = await compileAnimFlow(await readFile(fixturePath, "utf8"));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const nodes = result.value.geometry.filter((item) => item.kind === "node");
+    const overlay = result.value.geometry.find((item) => item.kind === "overlay");
+    expect(overlay?.kind).toBe("overlay");
+    if (overlay?.kind !== "overlay") return;
+    expect(nodes.every((node) => !intersects(overlay.bounds, node.bounds))).toBe(true);
+
+    const initialCamera = result.value.initial.camera.viewBox;
+    expect(initialCamera.x).toBeLessThanOrEqual(overlay.bounds.x);
+    expect(initialCamera.y).toBeLessThanOrEqual(overlay.bounds.y);
+    expect(initialCamera.x + initialCamera.width).toBeGreaterThanOrEqual(overlay.bounds.x + overlay.bounds.width);
+    expect(initialCamera.y + initialCamera.height).toBeGreaterThanOrEqual(overlay.bounds.y + overlay.bounds.height);
+  });
+
   test("normalizes sequence timing inside the owning scene", async () => {
     const source = await readFile(fixturePath, "utf8");
     const result = await compileAnimFlow(source);
@@ -142,6 +176,25 @@ describe("AnimFlow compiler", () => {
     expect(track?.kind).toBe("camera-rect");
     if (track?.kind !== "camera-rect") return;
     expect(track.to.width / track.to.height).toBeCloseTo(1280 / 720, 8);
+  });
+
+  test("does not leave visible nodes partially clipped by a focused camera", async () => {
+    const source = branchingSource.replace(
+      'say "Two paths split and merge."',
+      'action focusUpper: camera fit(upper) padding 0\n    say "Two paths split and merge."',
+    );
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.ok) return;
+    const track = result.value.scenes[0]?.tracks.find((candidate) => candidate.kind === "camera-rect");
+    expect(track?.kind).toBe("camera-rect");
+    if (track?.kind !== "camera-rect") return;
+    const visibleNodes = result.value.geometry.filter((item) => item.kind === "node");
+    for (const node of visibleNodes) {
+      const intersection = intersectionArea(track.to, node.bounds);
+      expect(intersection === 0 || intersection === node.bounds.width * node.bounds.height).toBe(true);
+    }
   });
 
   test("centers singleton ranks around a split-and-merge branch", async () => {
@@ -234,6 +287,26 @@ function toV21(source: string): string {
     .replace("    sequence {", "    action emphasizeApi: sequence {")
     .replace("      highlight api tone accent", "      action highlightApi: highlight api tone accent")
     .replace("      clearHighlight api", "      action clearApi: clearHighlight api");
+}
+
+function intersects(
+  left: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  right: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): boolean {
+  return !(
+    left.x + left.width <= right.x ||
+    right.x + right.width <= left.x ||
+    left.y + left.height <= right.y ||
+    right.y + right.height <= left.y
+  );
+}
+
+function intersectionArea(
+  left: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  right: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): number {
+  return Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x)) *
+    Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y));
 }
 
 const branchingSource = `animflow 2.1

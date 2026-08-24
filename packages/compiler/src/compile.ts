@@ -380,7 +380,7 @@ function createInitialState(elements: readonly CompiledElement[], camera: Rect):
 function applyInitial(ast: AnimFlowDocument, context: LoweringContext, state: MutableState): void {
   for (const statement of ast.story.initial.statements) {
     if (isCameraStatement(statement)) {
-      state.camera = cameraRect(statement, context);
+      state.camera = cameraRect(statement, context, state);
     } else {
       for (const target of expandTarget(statement.targets)) {
         if (isGraph(target)) continue;
@@ -610,7 +610,7 @@ function applySceneStatement(
   }
 
   if (isCameraStatement(action)) {
-    const target = cameraRect(action, context);
+    const target = cameraRect(action, context, state);
     tracks.push({ kind: "camera-rect", property: "viewBox", from: state.camera, to: target, startMs, durationMs, easing: "easeInOut", actionId: currentActionId });
     state.camera = target;
   }
@@ -638,7 +638,7 @@ function applySlide(
   else frame.transform.y = to;
 }
 
-function cameraRect(statement: CameraStatement, context: LoweringContext): Rect {
+function cameraRect(statement: CameraStatement, context: LoweringContext, state: MutableState): Rect {
   const targets = expandTarget(statement.targets);
   const rects = targets.flatMap((target) => {
     if (isGraph(target)) {
@@ -652,15 +652,61 @@ function cameraRect(statement: CameraStatement, context: LoweringContext): Rect 
   if (rects.length === 0) return { ...context.canvas };
   const bounds = unionRects(rects);
   const padding = statement.padding ?? 40;
-  return fitAspect(
+  const aspect = context.canvas.width / context.canvas.height;
+  const fitted = fitAspect(
     {
       x: bounds.x - padding,
       y: bounds.y - padding,
       width: Math.max(1, bounds.width + padding * 2),
       height: Math.max(1, bounds.height + padding * 2),
     },
-    context.canvas.width / context.canvas.height,
+    aspect,
   );
+  return expandPastPartiallyVisibleElements(fitted, context, state, aspect);
+}
+
+function expandPastPartiallyVisibleElements(
+  initial: Rect,
+  context: LoweringContext,
+  state: MutableState,
+  aspect: number,
+): Rect {
+  let camera = initial;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const partial: Rect[] = [];
+    for (const [handle, frame] of state.elements) {
+      if (frame.opacity <= 0.08) continue;
+      const geometry = context.geometry.get(handle);
+      if (!geometry) continue;
+      const candidates = geometry.kind === "edge"
+        ? geometry.label ? [geometry.label.bounds] : []
+        : [geometry.bounds];
+      for (const bounds of candidates) {
+        if (rectIntersectionArea(camera, bounds) <= 0 || rectContains(camera, bounds, 1)) continue;
+        partial.push({
+          x: bounds.x - 12,
+          y: bounds.y - 12,
+          width: bounds.width + 24,
+          height: bounds.height + 24,
+        });
+      }
+    }
+    if (partial.length === 0) return camera;
+    camera = fitAspect(unionRects([camera, ...partial]), aspect);
+  }
+  return camera;
+}
+
+function rectContains(container: Rect, item: Rect, tolerance = 0): boolean {
+  return item.x >= container.x - tolerance &&
+    item.y >= container.y - tolerance &&
+    item.x + item.width <= container.x + container.width + tolerance &&
+    item.y + item.height <= container.y + container.height + tolerance;
+}
+
+function rectIntersectionArea(left: Rect, right: Rect): number {
+  return Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x)) *
+    Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y));
 }
 
 function fitAspect(rect: Rect, aspect: number): Rect {
