@@ -33,11 +33,18 @@ export function renderGraph(graphId: string, layout: FlowLayoutDraft, indent = "
   return `${indent}graph ${graphId} {\n${renderFlowLayout(layout, body)}\n${indent}}`;
 }
 
-export function renderNode(nodeId: string, node: NodeDraft, indent = ""): string {
+export function renderNode(
+  nodeId: string,
+  node: NodeDraft,
+  indent = "",
+  layout?: { readonly x: number; readonly y: number; readonly pinned: boolean },
+): string {
   const body = `${indent}  `;
   const properties = [
     node.shape === undefined ? undefined : `${body}shape ${node.shape}`,
     node.tone === undefined ? undefined : `${body}tone ${node.tone}`,
+    layout === undefined ? undefined : `${body}position x ${layout.x} y ${layout.y}`,
+    layout?.pinned ? `${body}pin` : undefined,
   ].filter((line): line is string => line !== undefined);
   return properties.length === 0
     ? `${indent}node ${nodeId} ${JSON.stringify(node.label)} {\n${indent}}`

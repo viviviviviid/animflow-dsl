@@ -158,6 +158,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .v2-player { background: #111725; display: flex; flex: 1; flex-direction: column; height: 100%; min-height: 0; min-width: 0; }
 .v2-canvas-stage { flex: 1; min-height: 0; overflow: hidden; padding: 18px; position: relative; }
 .v2-canvas-surface { background: var(--paper-screen); border: 1px solid #d8ddd8; border-radius: 14px; box-shadow: 0 22px 60px rgba(1, 4, 12, .36); height: 100%; overflow: hidden; }
+.v2-canvas-surface [data-animflow-dragging="true"] { filter: drop-shadow(0 10px 9px rgba(42, 74, 150, .28)); }
+.studio-drag-hint { color: #9cadc5; }
 .v2-timecode, .v2-stale-badge { background: rgba(13, 18, 29, .9); border: 1px solid #354057; border-radius: 6px; color: #c8d1de; font-family: var(--font-mono), monospace; font-size: 8px; left: 28px; letter-spacing: .1em; padding: 5px 8px; pointer-events: none; position: absolute; text-transform: uppercase; top: 28px; }
 .v2-stale-badge { border-color: #8b6d36; color: #ffd58a; left: auto; right: 23px; }
 .v2-narration { background: rgba(16, 21, 34, .94); border: 1px solid #46526a; border-radius: 9px; bottom: 29px; box-shadow: 0 12px 34px rgba(0, 0, 0, .28); color: white; font-size: 12px; left: 50%; line-height: 1.55; max-width: calc(100% - 72px); padding: 10px 16px; pointer-events: none; position: absolute; text-align: center; transform: translateX(-50%); width: 560px; }

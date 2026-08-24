@@ -11,6 +11,7 @@ export const ANIMFLOW_DIAGNOSTIC_CODES = Object.freeze({
   duplicateProperty: "AF303",
   invalidNumber: "AF304",
   invalidTarget: "AF305",
+  layoutConflict: "AF308",
   invalidNarration: "AF405",
   invalidActionIdentity: "AF406",
   invalidSchedule: "AF407",

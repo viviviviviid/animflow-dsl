@@ -1,6 +1,6 @@
 # `@animflow-dsl/authoring`
 
-Typed source-authoring transactions for AnimFlow 2.1. The package keeps `.animflow` source canonical, applies CST-local patches, recompiles every candidate, and retains the last valid immutable `RenderPlan` for stale-preview use.
+Typed source-authoring transactions for AnimFlow 2.1 and 2.2. The package keeps `.animflow` source canonical, applies CST-local patches, recompiles every candidate, and retains the last valid immutable `RenderPlan` for stale-preview use.
 
 ```ts
 import { AuthoringSession } from "@animflow-dsl/authoring";

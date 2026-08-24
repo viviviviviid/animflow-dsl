@@ -16,7 +16,7 @@ import type {
   RgbaColor,
   ThemeToken,
 } from "@animflow-dsl/model";
-import type { CSSProperties, ReactElement, SVGProps } from "react";
+import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement, type SVGProps } from "react";
 
 export interface AnimFlowCanvasProps {
   readonly plan: RenderPlan;
@@ -27,12 +27,28 @@ export interface AnimFlowCanvasProps {
   readonly selectedElementIds?: readonly string[];
   readonly onElementSelect?: (selection: AnimFlowElementSelection) => void;
   readonly onSelectionClear?: () => void;
+  readonly onNodePositionCommit?: (position: AnimFlowNodePositionCommit) => void;
 }
 
 export interface AnimFlowElementSelection {
   readonly id: string;
   readonly kind: CompiledElement["kind"];
   readonly additive: boolean;
+}
+
+export interface AnimFlowNodePositionCommit {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+}
+
+interface NodeDragState {
+  readonly id: string;
+  readonly handle: ElementHandle;
+  readonly pointerId: number;
+  readonly start: { readonly x: number; readonly y: number };
+  readonly origin: { readonly x: number; readonly y: number };
+  readonly current: { readonly x: number; readonly y: number };
 }
 
 interface RenderItemProps<Element extends CompiledElement, Geometry extends ElementGeometry> {
@@ -53,7 +69,10 @@ export function AnimFlowCanvas({
   selectedElementIds = [],
   onElementSelect,
   onSelectionClear,
+  onNodePositionCommit,
 }: AnimFlowCanvasProps): ReactElement {
+  const [drag, setDrag] = useState<NodeDragState>();
+  const suppressCanvasClickRef = useRef(false);
   const indexedFrame = indexFrame(frame, plan);
   const geometry = new Map(plan.geometry.map((item) => [item.handle, item]));
   const background = colorFor(plan, plan.canvas.background);
@@ -66,7 +85,36 @@ export function AnimFlowCanvas({
       preserveAspectRatio="xMidYMid meet"
       role="img"
       onClick={(event) => {
+        if (suppressCanvasClickRef.current) {
+          suppressCanvasClickRef.current = false;
+          return;
+        }
         if (event.target === event.currentTarget) onSelectionClear?.();
+      }}
+      onPointerCancel={() => {
+        suppressCanvasClickRef.current = false;
+        setDrag(undefined);
+      }}
+      onPointerMove={(event) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const current = svgPoint(event, event.currentTarget);
+        setDrag({ ...drag, current });
+      }}
+      onPointerUp={(event) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        window.setTimeout(() => {
+          suppressCanvasClickRef.current = false;
+        }, 0);
+        const current = svgPoint(event, event.currentTarget);
+        const deltaX = current.x - drag.start.x;
+        const deltaY = current.y - drag.start.y;
+        setDrag(undefined);
+        if (Math.hypot(deltaX, deltaY) < 2) return;
+        onNodePositionCommit?.({
+          id: drag.id,
+          x: drag.origin.x + deltaX,
+          y: drag.origin.y + deltaY,
+        });
       }}
       style={{ display: "block", width: "100%", height: "100%", background: rgba(background), ...style }}
       viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
@@ -94,7 +142,37 @@ export function AnimFlowCanvas({
           if (element.kind !== "node") return null;
           const item = geometry.get(element.handle);
           return item?.kind === "node" ? (
-            <Node key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
+            <Node
+              key={element.handle}
+              dragOffset={drag?.handle === element.handle ? { x: drag.current.x - drag.start.x, y: drag.current.y - drag.start.y } : undefined}
+              element={element}
+              frame={indexedFrame.get(element.handle)!}
+              geometry={item}
+              onDragStart={onNodePositionCommit ? (event) => {
+                if (event.button !== 0) return;
+                const svg = event.currentTarget.ownerSVGElement;
+                if (!svg) return;
+                event.stopPropagation();
+                suppressCanvasClickRef.current = true;
+                onElementSelect?.({ id: element.id, kind: "node", additive: event.shiftKey });
+                svg.setPointerCapture(event.pointerId);
+                const start = svgPoint(event, svg);
+                setDrag({
+                  id: element.id,
+                  handle: element.handle,
+                  pointerId: event.pointerId,
+                  start,
+                  current: start,
+                  origin: {
+                    x: item.bounds.x + item.bounds.width / 2,
+                    y: item.bounds.y + item.bounds.height / 2,
+                  },
+                });
+              } : undefined}
+              onSelect={onElementSelect}
+              plan={plan}
+              selected={selectedElementIds.includes(element.id)}
+            />
           ) : null;
         })}
       </g>
@@ -111,7 +189,19 @@ export function AnimFlowCanvas({
   );
 }
 
-function Node({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledNode, NodeGeometry>): ReactElement {
+function Node({
+  element,
+  geometry,
+  frame,
+  onSelect,
+  plan,
+  selected,
+  dragOffset,
+  onDragStart,
+}: RenderItemProps<CompiledNode, NodeGeometry> & {
+  readonly dragOffset?: { readonly x: number; readonly y: number };
+  readonly onDragStart?: (event: ReactPointerEvent<SVGGElement>) => void;
+}): ReactElement {
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const surface = colorFor(plan, plan.canvas.background);
   const highlight = colorFor(plan, frame.highlight.tone);
@@ -119,9 +209,12 @@ function Node({ element, geometry, frame, onSelect, plan, selected }: RenderItem
   return (
     <g
       data-animflow-handle={element.handle}
+      data-animflow-dragging={dragOffset ? "true" : undefined}
       opacity={frame.opacity}
-      transform={elementTransform(frame, geometry.bounds)}
+      transform={`${dragOffset ? `translate(${dragOffset.x} ${dragOffset.y}) ` : ""}${elementTransform(frame, geometry.bounds)}`}
       {...selectableProps(element, selected, onSelect)}
+      onPointerDown={onDragStart}
+      style={{ cursor: onDragStart ? (dragOffset ? "grabbing" : "grab") : "pointer", outline: "none", touchAction: "none" }}
     >
       {selected ? <path d={path} fill="none" opacity={0.92} stroke="#4c7dff" strokeWidth={6} vectorEffect="non-scaling-stroke" /> : null}
       {frame.highlight.active || frame.highlight.intensity > 0 ? (
@@ -147,6 +240,19 @@ function Node({ element, geometry, frame, onSelect, plan, selected }: RenderItem
       <Text geometry={geometry.label} color={tone} />
     </g>
   );
+}
+
+function svgPoint(
+  event: Pick<PointerEvent, "clientX" | "clientY"> | ReactPointerEvent<SVGElement>,
+  svg: SVGSVGElement,
+): { x: number; y: number } {
+  const point = svg.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return { x: point.x, y: point.y };
+  const transformed = point.matrixTransform(matrix.inverse());
+  return { x: transformed.x, y: transformed.y };
 }
 
 function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledEdge, EdgeGeometry>): ReactElement {

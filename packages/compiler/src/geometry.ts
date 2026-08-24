@@ -22,6 +22,7 @@ export interface GraphLayoutInput {
   readonly direction: FlowDirection;
   readonly nodeGap: number;
   readonly rankGap: number;
+  readonly positions: ReadonlyMap<string, { readonly point: Vec2; readonly pinned: boolean }>;
   readonly nodes: readonly CompiledNode[];
   readonly edges: readonly CompiledEdge[];
 }
@@ -149,7 +150,51 @@ function placeGraph(
       secondary += (horizontal ? size.height : size.width) + graph.nodeGap;
     }
   }
-  return placements;
+  const preferred = placements.map((placement) => {
+    const override = graph.positions.get(placement.node.id);
+    if (!override) return { placement, pinned: false };
+    return {
+      pinned: override.pinned,
+      placement: {
+        ...placement,
+        bounds: {
+          ...placement.bounds,
+          x: override.point.x - placement.bounds.width / 2,
+          y: override.point.y - placement.bounds.height / 2,
+        },
+      },
+    };
+  });
+  const resolved: NodePlacement[] = [];
+  resolved.push(...preferred.filter((candidate) => candidate.pinned).map((candidate) => candidate.placement));
+  for (const candidate of preferred.filter((item) => !item.pinned)) {
+    let placement = candidate.placement;
+    let attempts = 0;
+    while (resolved.some((blocker) => overlapsWithGap(placement.bounds, blocker.bounds, graph.nodeGap))) {
+      const step = Math.max(16, graph.nodeGap);
+      placement = {
+        ...placement,
+        bounds: horizontal
+          ? { ...placement.bounds, y: placement.bounds.y + step }
+          : { ...placement.bounds, x: placement.bounds.x + step },
+      };
+      attempts += 1;
+      if (attempts > graph.nodes.length * 8 + 32) break;
+    }
+    resolved.push(placement);
+  }
+  const byId = new Map(resolved.map((placement) => [placement.node.id, placement]));
+  return graph.nodes.map((node) => byId.get(node.id)!).filter(Boolean);
+}
+
+function overlapsWithGap(left: Rect, right: Rect, gap: number): boolean {
+  const margin = gap / 2;
+  return !(
+    left.x + left.width + margin <= right.x - margin ||
+    right.x + right.width + margin <= left.x - margin ||
+    left.y + left.height + margin <= right.y - margin ||
+    right.y + right.height + margin <= left.y - margin
+  );
 }
 
 function computeRanks(graph: GraphLayoutInput): Map<string, number> {

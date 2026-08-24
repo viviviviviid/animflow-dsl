@@ -1,4 +1,4 @@
-export const DEFAULT_V2_SOURCE = `animflow 2.1
+export const DEFAULT_V2_SOURCE = `animflow 2.2
 
 canvas {
   size 1600 by 900

@@ -179,11 +179,11 @@ function validateAuthoring(
   const authoring = plan.authoring;
   if (!authoring) return actionScenes;
 
-  if (authoring.sourceVersion !== "2.1") {
+  if (authoring.sourceVersion !== "2.1" && authoring.sourceVersion !== "2.2") {
     violations.push({
       code: "MODEL_UNSUPPORTED_AUTHORING_VERSION",
       path: "authoring.sourceVersion",
-      message: `Authoring metadata requires source version 2.1; received ${authoring.sourceVersion}`,
+      message: `Authoring metadata requires source version 2.1 or 2.2; received ${authoring.sourceVersion}`,
     });
   }
 

@@ -156,22 +156,25 @@ export class AuthoringSession {
     const parsed = await parseAnimFlow(this.sourceText);
     if (!parsed.ok) return this.reject("invalid-semantic-command", parsed.diagnostics);
     try {
-      if (parsed.value.version !== "2.1") {
+      if (parsed.value.version !== "2.1" && parsed.value.version !== "2.2") {
         return this.reject("invalid-semantic-command", [
           authoringDiagnostic(
             ANIMFLOW_DIAGNOSTIC_CODES.authoringRequiresVersion21,
-            "Visual authoring commands require AnimFlow 2.1 action identities.",
+            "Visual authoring commands require AnimFlow 2.1 or 2.2 action identities.",
           ),
         ]);
       }
       const patched = patchCommand(this.sourceText, parsed.value, command);
       if (!patched.ok) return this.reject("invalid-semantic-command", [patched.diagnostic]);
+      const candidateSource = requiresVersion22(command) && parsed.value.version !== "2.2"
+        ? replaceSourceVersion(patched.source, parsed.value, "2.2")
+        : patched.source;
       const afterSelectionId = command.type === "declaration.rename" && beforeSelectionId === command.id
         ? command.newId
         : beforeSelectionId;
-      return await this.applyCandidate(patched.source, false, {
+      return await this.applyCandidate(candidateSource, false, {
         beforeSource,
-        afterSource: patched.source,
+        afterSource: candidateSource,
         beforeSelectionId,
         afterSelectionId,
       });
@@ -323,6 +326,10 @@ function patchCommand(
     case "node.add": return addNode(source, document, command);
     case "node.update": return updateNode(source, document, command.nodeId, command.replacement);
     case "node.remove": return removeNode(source, document, command.nodeId);
+    case "node.position.set": return setNodePosition(source, document, command.nodeId, command.position);
+    case "node.position.clear": return clearNodePosition(source, document, command.nodeId);
+    case "layout.positions.set": return setLayoutPositions(source, document, command);
+    case "layout.optimize": return optimizeLayout(source, document, command.graphId);
     case "edge.add": return addEdge(source, document, command);
     case "edge.update": return updateEdge(source, document, command.edgeId, command.replacement);
     case "edge.remove": return removeEdge(source, document, command.edgeId);
@@ -338,6 +345,19 @@ function patchCommand(
     case "action.remove": return removeAction(source, document, command.actionId);
     case "narration.set": return setNarration(source, document, command.sceneId, command.text);
   }
+}
+
+function requiresVersion22(command: Exclude<AuthoringCommand, { readonly type: "source.replace" }>): boolean {
+  return command.type === "node.position.set" || command.type === "layout.positions.set";
+}
+
+function replaceSourceVersion(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  version: "2.2",
+): string {
+  const node = GrammarUtils.findNodeForProperty(document.$cstNode, "version");
+  return node ? replaceRange(source, { start: node.offset, end: node.end }, version) : source;
 }
 
 function updateCanvas(
@@ -412,7 +432,132 @@ function updateNode(
 ): PatchResult {
   const node = findNode(document, nodeId);
   if (!node) return targetNotFound("node", nodeId);
-  return replaceDeclaration(source, node, renderNode(nodeId, replacement, indentationAt(source, requireCst(node).start)));
+  const position = node.properties.find((property) => property.$type === "NodePositionProperty");
+  const layout = position?.$type === "NodePositionProperty"
+    ? {
+        x: position.x,
+        y: position.y,
+        pinned: node.properties.some((property) => property.$type === "NodePinProperty"),
+      }
+    : undefined;
+  return replaceDeclaration(
+    source,
+    node,
+    renderNode(nodeId, replacement, indentationAt(source, requireCst(node).start), layout),
+  );
+}
+
+function setNodePosition(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  nodeId: string,
+  position: Extract<AuthoringCommand, { readonly type: "node.position.set" }>["position"],
+): PatchResult {
+  const node = findNode(document, nodeId);
+  if (!node) return targetNotFound("node", nodeId);
+  const invalid = validatePosition(position);
+  if (invalid) return invalid;
+  return { ok: true, source: applyTextEdits(source, positionEdits(source, node, position)) };
+}
+
+function clearNodePosition(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  nodeId: string,
+): PatchResult {
+  const node = findNode(document, nodeId);
+  if (!node) return targetNotFound("node", nodeId);
+  return { ok: true, source: applyTextEdits(source, positionEdits(source, node, undefined)) };
+}
+
+function setLayoutPositions(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  command: Extract<AuthoringCommand, { readonly type: "layout.positions.set" }>,
+): PatchResult {
+  const graph = document.graphs.find((candidate) => candidate.name === command.graphId);
+  if (!graph) return targetNotFound("graph", command.graphId);
+  const nodes = graph.members.filter((member): member is Node => member.$type === "Node");
+  const byId = new Map(nodes.map((node) => [node.name, node]));
+  const requested = new Map<string, (typeof command.positions)[number]>();
+  for (const position of command.positions) {
+    if (requested.has(position.nodeId)) return invalidCommand(`Node ${position.nodeId} has more than one requested position.`);
+    if (!byId.has(position.nodeId)) return targetNotFound("node", position.nodeId);
+    const invalid = validatePosition(position);
+    if (invalid) return invalid;
+    requested.set(position.nodeId, position);
+  }
+  const edits = nodes.flatMap((node) => {
+    const position = requested.get(node.name);
+    if (!position && !command.replace) return [];
+    return positionEdits(source, node, position);
+  });
+  return { ok: true, source: applyTextEdits(source, edits) };
+}
+
+function optimizeLayout(
+  source: string,
+  document: ParsedAnimFlowDocument,
+  graphId: string,
+): PatchResult {
+  return setLayoutPositions(source, document, {
+    type: "layout.positions.set",
+    baseRevision: 0,
+    graphId,
+    positions: [],
+    replace: true,
+  });
+}
+
+function validatePosition(position: { readonly x: number; readonly y: number }): PatchResult | undefined {
+  return Number.isFinite(position.x) && position.x >= 0 && Number.isFinite(position.y) && position.y >= 0
+    ? undefined
+    : invalidCommand("Node position coordinates must be finite and non-negative.");
+}
+
+function positionEdits(
+  source: string,
+  node: Node,
+  position: { readonly x: number; readonly y: number; readonly pinned?: boolean } | undefined,
+): Array<{ readonly start: number; readonly end: number; readonly newText: string }> {
+  const currentPosition = node.properties.find((property) => property.$type === "NodePositionProperty");
+  const currentPin = node.properties.find((property) => property.$type === "NodePinProperty");
+  const edits: Array<{ readonly start: number; readonly end: number; readonly newText: string }> = [];
+  if (!position) {
+    for (const property of [currentPosition, currentPin]) {
+      if (property) {
+        const range = requireCst(property);
+        edits.push({ ...removableStatementRange(source, range), newText: "" });
+      }
+    }
+    return edits;
+  }
+
+  const rendered = `position x ${formatCoordinate(position.x)} y ${formatCoordinate(position.y)}`;
+  if (currentPosition) {
+    edits.push({ ...requireCst(currentPosition), newText: rendered });
+  }
+  if (currentPin && !position.pinned) {
+    edits.push({ ...removableStatementRange(source, requireCst(currentPin)), newText: "" });
+  }
+
+  const additions: string[] = [];
+  if (!currentPosition) additions.push(rendered);
+  if (position.pinned && !currentPin) additions.push("pin");
+  if (additions.length > 0) {
+    const nodeRange = requireCst(node);
+    const close = closingBraceOffset(source, nodeRange);
+    if (close !== undefined) {
+      const offset = lineStart(source, close);
+      const indent = `${indentationAt(source, close)}  `;
+      edits.push({ start: offset, end: offset, newText: additions.map((line) => `${indent}${line}\n`).join("") });
+    }
+  }
+  return edits;
+}
+
+function formatCoordinate(value: number): string {
+  return String(Math.round(value * 10) / 10);
 }
 
 function removeNode(source: string, document: ParsedAnimFlowDocument, nodeId: string): PatchResult {

@@ -11,7 +11,7 @@ class FakeWorker {
   onmessage: ((event: { data: unknown }) => void) | null = null;
   onerror: ((event: { message?: string }) => void) | null = null;
   constructor() {
-    queueMicrotask(() => this.onmessage?.({ data: mode === "mismatch" ? { type: "ready", protocolVersion: 99, sourceVersions: [], compilerVersion: "wrong", renderPlanVersion: 99 } : { type: "ready", protocolVersion: 1, sourceVersions: ["2", "2.1"], compilerVersion: "0.1.0", renderPlanVersion: 2 } }));
+    queueMicrotask(() => this.onmessage?.({ data: mode === "mismatch" ? { type: "ready", protocolVersion: 99, sourceVersions: [], compilerVersion: "wrong", renderPlanVersion: 99 } : { type: "ready", protocolVersion: 1, sourceVersions: ["2", "2.1", "2.2"], compilerVersion: "0.1.0", renderPlanVersion: 2 } }));
   }
   postMessage(message: unknown) {
     const jobId = (message as { jobId: number }).jobId;

@@ -19,7 +19,11 @@ import type {
   RenderPlan,
   SourceRange,
 } from "@animflow-dsl/model";
-import { AnimFlowCanvas, type AnimFlowElementSelection } from "@animflow-dsl/react-v2";
+import {
+  AnimFlowCanvas,
+  type AnimFlowElementSelection,
+  type AnimFlowNodePositionCommit,
+} from "@animflow-dsl/react-v2";
 
 import { V2Player } from "@/components/v2/V2Player";
 import { BLANK_STUDIO_SOURCE, STUDIO_EXAMPLES, type StudioExample } from "@/data/studio-examples";
@@ -260,6 +264,29 @@ export function Studio() {
   const activeScene = plan?.scenes.find((scene) => scene.id === activeSceneId) ?? plan?.scenes[0];
   const draftPending = authoring ? sourceDraft !== authoring.source : false;
   const editingBlocked = busy || stale || draftPending || writerLease.status !== "writer" || !authoring;
+  const activeGraphId = selectedElements.find((element) => element.kind === "node")?.graphId
+    ?? plan?.elements.find((element) => element.kind === "node")?.graphId;
+
+  const commitNodePosition = useCallback(async (position: AnimFlowNodePositionCommit) => {
+    if (!authoring) return;
+    const applied = await applyCommand({
+      type: "node.position.set",
+      baseRevision: authoring.documentRevision,
+      nodeId: position.id,
+      position: { x: position.x, y: position.y, pinned: true },
+    });
+    if (applied) setNotice(`Pinned ${position.id} at ${Math.round(position.x)}, ${Math.round(position.y)}.`);
+  }, [applyCommand, authoring]);
+
+  const autoArrange = useCallback(async () => {
+    if (!authoring || !activeGraphId) return;
+    const applied = await applyCommand({
+      type: "layout.optimize",
+      baseRevision: authoring.documentRevision,
+      graphId: String(activeGraphId),
+    });
+    if (applied) setNotice(`Auto-arranged ${String(activeGraphId)} and cleared manual pins.`);
+  }, [activeGraphId, applyCommand, authoring]);
 
   const addAction = useCallback(async (tool: ActionTool) => {
     if (!authoring || !activeScene || selectedElements.length === 0) return;
@@ -644,8 +671,10 @@ export function Studio() {
           <div className="studio-stage-head">
             <div><span>Canvas</span><strong>{activeScene?.title ?? "Initial state"}</strong></div>
             <div className="studio-stage-meta">
+              <span className="studio-drag-hint">Drag nodes to pin</span>
               <span>{plan?.elements.length ?? 0} elements</span>
               <span>{Math.round((activeScene?.durationMs ?? 0) / 100) / 10}s cue</span>
+              <button disabled={editingBlocked || !activeGraphId} onClick={() => void autoArrange()} type="button">Auto-arrange</button>
               <button onClick={clearSelection} type="button">Clear selection</button>
             </div>
           </div>
@@ -653,6 +682,7 @@ export function Studio() {
             <V2Player
               onDiagnostics={setPreviewDiagnostics}
               onElementSelect={handleCanvasSelection}
+              onNodePositionCommit={editingBlocked ? undefined : (position) => void commitNodePosition(position)}
               onPlan={handlePlan}
               onSceneChange={setActiveSceneId}
               onSelectionClear={clearSelection}

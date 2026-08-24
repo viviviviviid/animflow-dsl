@@ -25,6 +25,12 @@ export interface NodeDraft {
   readonly tone?: string;
 }
 
+export interface NodePositionDraft {
+  readonly x: number;
+  readonly y: number;
+  readonly pinned?: boolean;
+}
+
 export interface EdgeEndpointDraft {
   readonly node: string;
   readonly port: "auto" | "n" | "e" | "s" | "w";
@@ -130,6 +136,15 @@ export type AuthoringCommand = { readonly baseRevision: number } & (
     }
   | { readonly type: "node.update"; readonly nodeId: string; readonly replacement: NodeDraft }
   | { readonly type: "node.remove"; readonly nodeId: string }
+  | { readonly type: "node.position.set"; readonly nodeId: string; readonly position: NodePositionDraft }
+  | { readonly type: "node.position.clear"; readonly nodeId: string }
+  | {
+      readonly type: "layout.positions.set";
+      readonly graphId: string;
+      readonly positions: readonly ({ readonly nodeId: string } & NodePositionDraft)[];
+      readonly replace?: boolean;
+    }
+  | { readonly type: "layout.optimize"; readonly graphId: string }
   | {
       readonly type: "edge.add";
       readonly graphId: string;

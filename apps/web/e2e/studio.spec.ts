@@ -55,6 +55,29 @@ test("adds an action, reorders its cue, and previews it with one undo history", 
   await expect.poll(() => errors).toEqual([]);
 });
 
+test("persists a node drag as one v2.2 source transaction and can auto-arrange it", async ({ page }) => {
+  const errors = capturePageErrors(page);
+  await openStudio(page);
+  const node = page.locator('[data-animflow-id="client"]').first();
+  const bounds = await node.boundingBox();
+  expect(bounds).not.toBeNull();
+  if (!bounds) return;
+
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2 + 90, { steps: 6 });
+  await page.mouse.up();
+
+  await expect.poll(async () => page.evaluate(readSavedSource)).toContain("position x");
+  await expect.poll(async () => page.evaluate(readSavedSource)).toMatch(/\n\s+pin\n/);
+  await expect(page.getByRole("status")).toContainText("Pinned client");
+
+  await page.getByRole("button", { name: "Auto-arrange" }).click();
+  await expect.poll(async () => page.evaluate(readSavedSource)).not.toContain("position x");
+  await expect(page.getByRole("status")).toContainText("Auto-arranged");
+  await expect.poll(() => errors).toEqual([]);
+});
+
 test("recovers the latest atomic local revision after reload", async ({ page }) => {
   await openStudio(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Recovered systems lesson");

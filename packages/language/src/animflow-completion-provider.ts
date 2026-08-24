@@ -17,14 +17,14 @@ const RAW_SCENE_ACTION_KEYWORDS = new Set([
   "stagger",
 ]);
 
-/** Version-aware completion that never proposes anonymous actions in v2.1 scenes. */
+/** Version-aware completion that never proposes anonymous actions in named-action source versions. */
 export class AnimFlowCompletionProvider extends DefaultCompletionProvider {
   protected override filterKeyword(context: CompletionContext, keyword: GrammarAST.Keyword): boolean {
     if (!super.filterKeyword(context, keyword)) return false;
     if (!RAW_SCENE_ACTION_KEYWORDS.has(keyword.value)) return true;
 
     const document = context.document.parseResult.value as AnimFlowDocument;
-    if (String(document.version) !== "2.1") return true;
+    if (String(document.version) !== "2.1" && String(document.version) !== "2.2") return true;
     if (!this.isInsideScene(document, context.offset)) return true;
 
     const currentLine = context.textDocument.getText().slice(

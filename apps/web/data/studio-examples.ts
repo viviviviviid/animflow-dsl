@@ -8,7 +8,7 @@ export interface StudioExample {
   readonly source: string;
 }
 
-export const BLANK_STUDIO_SOURCE = `animflow 2.1
+export const BLANK_STUDIO_SOURCE = `animflow 2.2
 
 canvas {
   size 1600 by 900
@@ -114,7 +114,7 @@ const STUDIO_EXAMPLE_CATALOG: readonly StudioExample[] = [
     title: "AI agent tool routing",
     category: "AI systems",
     description: "Teach how an agent routes work across tools and merges their evidence into one response.",
-    source: `animflow 2.1
+    source: `animflow 2.2
 
 canvas {
   size 1600 by 900
@@ -272,7 +272,7 @@ story agentStory {
     title: "API request lifecycle",
     category: "Backend",
     description: "Walk through a browser request, API validation, and a database lookup.",
-    source: `animflow 2.1
+    source: `animflow 2.2
 
 canvas {
   size 1600 by 900
@@ -357,7 +357,7 @@ story requestStory {
     title: "Course concept map",
     category: "Teaching",
     description: "Introduce a concept, attach an example, and land on the final takeaway.",
-    source: `animflow 2.1
+    source: `animflow 2.2
 
 canvas {
   size 1600 by 900

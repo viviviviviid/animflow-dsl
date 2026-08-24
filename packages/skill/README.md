@@ -1,6 +1,6 @@
 # AnimFlow Authoring Skill
 
-Install a self-contained AnimFlow 2.1 authoring skill for Codex or Claude Code. The package includes the matching `animflow` CLI, language references, diagnostics, lecture patterns, and validated examples.
+Install a self-contained AnimFlow 2.2 authoring skill for Codex or Claude Code. The package includes the matching `animflow` CLI, language references, diagnostics, lecture patterns, and validated examples.
 
 ## One-command install
 

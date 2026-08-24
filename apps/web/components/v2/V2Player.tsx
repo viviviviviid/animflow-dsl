@@ -11,6 +11,7 @@ import {
   AnimFlowCanvas,
   PlaybackControls,
   type AnimFlowElementSelection,
+  type AnimFlowNodePositionCommit,
 } from "@animflow-dsl/react-v2";
 import {
   createPlayback,
@@ -23,6 +24,7 @@ export interface V2PlayerProps {
   readonly onDiagnostics: (diagnostics: readonly Diagnostic[]) => void;
   readonly onElementSelect?: (selection: AnimFlowElementSelection) => void;
   readonly onSelectionClear?: () => void;
+  readonly onNodePositionCommit?: (position: AnimFlowNodePositionCommit) => void;
   readonly onPlan?: (plan: RenderPlan) => void;
   readonly onSceneChange?: (sceneId: string | null) => void;
   readonly onStaleChange?: (stale: boolean) => void;
@@ -35,6 +37,7 @@ export function V2Player({
   onDiagnostics,
   onElementSelect,
   onSelectionClear,
+  onNodePositionCommit,
   onPlan,
   onSceneChange,
   onStaleChange,
@@ -49,6 +52,7 @@ export function V2Player({
   const controllerRef = useRef<PlaybackController | null>(null);
   const currentSceneIdRef = useRef<string | null>(null);
   const planRef = useRef<RenderPlan | null>(null);
+  const playbackTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     const next = createBrowserCompileClient();
@@ -78,10 +82,19 @@ export function V2Player({
       const currentScene = result.plan.scenes.find(
         (scene) => scene.id === currentSceneIdRef.current,
       );
+      const firstScene = result.plan.scenes[0];
+      const resumeTime = playbackTimeRef.current;
+      const previewTime = resumeTime !== null
+        ? Math.min(result.plan.durationMs, resumeTime)
+        : firstScene
+          ? firstScene.startMs + Math.max(0, firstScene.durationMs - 1)
+          : 0;
       controllerRef.current = controller;
       planRef.current = result.plan;
       setPlan(result.plan);
-      setPlayback(currentScene ? controller.seek(currentScene.startMs) : controller.snapshot());
+      setPlayback(currentScene && resumeTime === null
+        ? controller.seek(currentScene.startMs + Math.max(0, currentScene.durationMs - 1))
+        : controller.seek(previewTime));
       setStale(false);
       onPlan?.(result.plan);
     }, 180);
@@ -98,6 +111,7 @@ export function V2Player({
 
   useEffect(() => {
     currentSceneIdRef.current = playback?.frame.sceneId ?? null;
+    playbackTimeRef.current = playback?.timeMs ?? null;
     onSceneChange?.(playback?.frame.sceneId ?? null);
   }, [onSceneChange, playback?.frame.sceneId]);
 
@@ -144,6 +158,7 @@ export function V2Player({
             frame={playback.frame}
             onElementSelect={stale ? undefined : onElementSelect}
             onSelectionClear={stale ? undefined : onSelectionClear}
+            onNodePositionCommit={stale ? undefined : onNodePositionCommit}
             plan={plan}
             selectedElementIds={selectedElementIds}
           />

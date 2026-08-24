@@ -84,7 +84,9 @@ export type AnimFlowKeywordNames =
     | "parallelogram"
     | "particles"
     | "pill"
+    | "pin"
     | "pop"
+    | "position"
     | "pulse"
     | "rankGap"
     | "rectangle"
@@ -113,6 +115,8 @@ export type AnimFlowKeywordNames =
     | "w"
     | "wave"
     | "width"
+    | "x"
+    | "y"
     | "{"
     | "}";
 
@@ -690,7 +694,37 @@ export function isNodeGapSetting(item: unknown): item is NodeGapSetting {
     return reflection.isInstance(item, NodeGapSetting.$type);
 }
 
-export type NodeProperty = NodeShapeProperty | NodeToneProperty;
+export interface NodePinProperty extends langium.AstNode {
+    readonly $container: Node;
+    readonly $type: 'NodePinProperty';
+}
+
+export const NodePinProperty = {
+    $type: 'NodePinProperty'
+} as const;
+
+export function isNodePinProperty(item: unknown): item is NodePinProperty {
+    return reflection.isInstance(item, NodePinProperty.$type);
+}
+
+export interface NodePositionProperty extends langium.AstNode {
+    readonly $container: Node;
+    readonly $type: 'NodePositionProperty';
+    x: number;
+    y: number;
+}
+
+export const NodePositionProperty = {
+    $type: 'NodePositionProperty',
+    x: 'x',
+    y: 'y'
+} as const;
+
+export function isNodePositionProperty(item: unknown): item is NodePositionProperty {
+    return reflection.isInstance(item, NodePositionProperty.$type);
+}
+
+export type NodeProperty = NodePinProperty | NodePositionProperty | NodeShapeProperty | NodeToneProperty;
 
 export const NodeProperty = {
     $type: 'NodeProperty'
@@ -1115,6 +1149,8 @@ export type AnimFlowAstType = {
     NamedTarget: NamedTarget
     Node: Node
     NodeGapSetting: NodeGapSetting
+    NodePinProperty: NodePinProperty
+    NodePositionProperty: NodePositionProperty
     NodeProperty: NodeProperty
     NodeShapeProperty: NodeShapeProperty
     NodeToneProperty: NodeToneProperty
@@ -1531,6 +1567,24 @@ export class AnimFlowAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [LayoutSetting.$type]
+        },
+        NodePinProperty: {
+            name: NodePinProperty.$type,
+            properties: {
+            },
+            superTypes: [NodeProperty.$type]
+        },
+        NodePositionProperty: {
+            name: NodePositionProperty.$type,
+            properties: {
+                x: {
+                    name: NodePositionProperty.x
+                },
+                y: {
+                    name: NodePositionProperty.y
+                }
+            },
+            superTypes: [NodeProperty.$type]
         },
         NodeProperty: {
             name: NodeProperty.$type,

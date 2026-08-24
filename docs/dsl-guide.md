@@ -1,13 +1,13 @@
-# AnimFlow DSL v2.1 Reference
+# AnimFlow DSL v2.2 Reference
 
-AnimFlow v2.1 is the canonical authoring language. It is closed and typed: a valid document compiles completely; invalid source returns diagnostics and no partial render plan. The compatibility compiler accepts v2 only to migrate existing source; new source should use v2.1.
+AnimFlow v2.2 is the canonical authoring language. It is closed and typed: a valid document compiles completely; invalid source returns diagnostics and no partial render plan. The compatibility compiler accepts v2 and v2.1; new source should use v2.2.
 
 ## Document shape
 
 Every document contains exactly one version declaration, canvas, one or more graphs, zero or more overlays, and one story in that order.
 
 ```animflow
-animflow 2.1
+animflow 2.2
 
 canvas {
   size 1600 by 900
@@ -135,14 +135,20 @@ Each setting may appear at most once. Geometry is compiled before playback and d
 node api "Order API" {
   shape rounded
   tone primary
+  position x 640 y 300
+  pin
 }
 ```
 
-Both properties are optional and may appear at most once.
+All properties are optional and may appear at most once.
 
 Shapes: `rectangle`, `rounded`, `pill`, `diamond`, `circle`, `database`, `document`, `parallelogram`.
 
 Defaults: `shape rounded`, `tone neutral`.
+
+`position x <number> y <number>` stores the node center in canvas coordinates. Without `pin`, the position is a preferred coordinate and the deterministic layout may move the node along the secondary axis to maintain `nodeGap`. `pin` keeps the coordinate exact and requires `position`. Nodes without a position use automatic rank layout. These properties require source v2.2.
+
+Studio drag operations write a pinned position only when the pointer is released. `layout.optimize` removes manual positions and pins so the graph returns to automatic collision-free layout. The same typed commands are available to AI authoring clients; no editor-only geometry is published.
 
 ## Edges
 
@@ -223,7 +229,7 @@ Only graphs support `.*`. `camera focus` requires exactly one element, not a gra
 
 ## Scene statements
 
-Every v2.1 scene action except `say` has a document-wide unique identity:
+Every v2.2 scene action except `say` has a document-wide unique identity:
 
 ```animflow
 action revealApi: show api via fade

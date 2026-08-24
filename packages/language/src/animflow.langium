@@ -59,13 +59,19 @@ Node:
     '}';
 
 NodeProperty:
-    NodeShapeProperty | NodeToneProperty;
+    NodeShapeProperty | NodeToneProperty | NodePositionProperty | NodePinProperty;
 
 NodeShapeProperty:
     'shape' value=NodeShape;
 
 NodeToneProperty:
     'tone' value=ID;
+
+NodePositionProperty:
+    'position' 'x' x=NUMBER 'y' y=NUMBER;
+
+NodePinProperty:
+    {infer NodePinProperty} 'pin';
 
 Edge:
     'edge' name=ID ':'

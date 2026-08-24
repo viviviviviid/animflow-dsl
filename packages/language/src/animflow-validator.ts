@@ -35,6 +35,8 @@ import {
   isNamedTarget,
   isNode,
   isNodeGapSetting,
+  isNodePinProperty,
+  isNodePositionProperty,
   isOverlay,
   isOverlayWidthProperty,
   isRankGapSetting,
@@ -122,7 +124,7 @@ export class AnimFlowValidator {
       if (graph.layout) this.checkLayout(graph.layout, accept);
       for (const member of graph.members) {
         if (isNode(member)) {
-          this.checkDuplicateProperties(member, member.properties, accept);
+          this.checkNode(member, accept);
         } else {
           this.checkEdge(member, accept);
         }
@@ -148,12 +150,12 @@ export class AnimFlowValidator {
 
   private checkVersion(document: AnimFlowDocument, accept: ValidationAcceptor): void {
     const sourceVersion = String(document.version);
-    if (sourceVersion !== "2" && sourceVersion !== "2.1") {
-      accept("error", "AnimFlow document version must be 2 or 2.1.", {
+    if (sourceVersion !== "2" && sourceVersion !== "2.1" && sourceVersion !== "2.2") {
+      accept("error", "AnimFlow document version must be 2, 2.1, or 2.2.", {
         node: document,
         property: "version",
         code: code.invalidVersion,
-        data: replacementFix("Use AnimFlow 2.1", "2.1"),
+        data: replacementFix("Use AnimFlow 2.2", "2.2"),
       });
     }
   }
@@ -223,6 +225,31 @@ export class AnimFlowValidator {
           code: code.invalidNumber,
         });
       }
+    }
+  }
+
+  private checkNode(node: Node, accept: ValidationAcceptor): void {
+    this.checkDuplicateProperties(node, node.properties, accept);
+    const position = node.properties.find(isNodePositionProperty);
+    const pin = node.properties.find(isNodePinProperty);
+    const document = AstUtils.findRootNode(node) as AnimFlowDocument;
+    if ((position || pin) && String(document.version) !== "2.2") {
+      accept("error", "Node position and pin require animflow 2.2.", {
+        node: position ?? pin ?? node,
+        code: code.invalidVersion,
+      });
+    }
+    if (position && (!isFiniteNonNegative(position.x) || !isFiniteNonNegative(position.y))) {
+      accept("error", "Node position coordinates must be finite and non-negative.", {
+        node: position,
+        code: code.invalidNumber,
+      });
+    }
+    if (pin && !position) {
+      accept("error", "A pinned node requires a position.", {
+        node: pin,
+        code: code.layoutConflict,
+      });
     }
   }
 
@@ -531,10 +558,10 @@ export class AnimFlowValidator {
     accept: ValidationAcceptor,
   ): void {
     const sourceVersion = String(version);
-    if (sourceVersion === "2.1" && !isSayStatement(statement) && !isActionStatement(statement)) {
+    if ((sourceVersion === "2.1" || sourceVersion === "2.2") && !isSayStatement(statement) && !isActionStatement(statement)) {
       const actionId = this.generatedActionId(statement);
       const position = statement.$cstNode?.range.start;
-      accept("error", "AnimFlow 2.1 requires action <id>: before every scene action.", {
+      accept("error", `AnimFlow ${sourceVersion} requires action <id>: before every scene action.`, {
         node: statement,
         code: code.invalidActionIdentity,
         data: position

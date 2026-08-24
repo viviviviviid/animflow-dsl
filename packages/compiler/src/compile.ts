@@ -59,6 +59,8 @@ import {
   isNamedTarget,
   isNode,
   isNodeGapSetting,
+  isNodePinProperty,
+  isNodePositionProperty,
   isNodeShapeProperty,
   isNodeToneProperty,
   isOverlayAnchorProperty,
@@ -192,8 +194,8 @@ export async function lowerDocument(
     documentId: documentId(options.documentId ?? ast.story.name),
     sourceHash: sourceHash(hash),
     storyId: storyId(ast.story.name),
-    authoring: String(ast.version) === "2.1"
-      ? { sourceVersion: "2.1", actions: compiledStory.actions }
+    authoring: String(ast.version) === "2.1" || String(ast.version) === "2.2"
+      ? { sourceVersion: String(ast.version) as "2.1" | "2.2", actions: compiledStory.actions }
       : undefined,
     seed,
     durationMs,
@@ -312,6 +314,17 @@ function compileGraphInputs(
     direction: graph.layout.direction,
     nodeGap: graph.layout.settings.find(isNodeGapSetting)?.value ?? 40,
     rankGap: graph.layout.settings.find(isRankGapSetting)?.value ?? 80,
+    positions: new Map(
+      graph.members.filter(isNode).flatMap((node) => {
+        const position = node.properties.find(isNodePositionProperty);
+        return position
+          ? [[String(nodeId(node.name)), {
+              point: { x: position.x, y: position.y },
+              pinned: node.properties.some(isNodePinProperty),
+            }] as const]
+          : [];
+      }),
+    ),
     nodes: elements.filter(
       (element): element is CompiledNode => element.kind === "node" && element.graphId === graph.name,
     ),
@@ -399,7 +412,7 @@ function compileScenes(
     const narrationState = narration ? { sceneId: compiledSceneId, text: narration } : undefined;
     const from = snapshot(state, narrationState);
     const tracks: AnimationTrack[] = [];
-    if (String(ast.version) === "2.1") {
+    if (String(ast.version) === "2.1" || String(ast.version) === "2.2") {
       collectActionProvenance(scene.statements, compiledSceneId, undefined, actions);
     }
     for (const statement of scene.statements) {

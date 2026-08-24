@@ -1,9 +1,9 @@
-# AnimFlow 2.1 authoring reference
+# AnimFlow 2.2 authoring reference
 
 Use one `canvas`, one or more `graph` blocks, optional `overlay` blocks, and exactly one `story`. The current product supports one story and flow-layout graphs.
 
 ```animflow
-animflow 2.1
+animflow 2.2
 
 canvas {
   size 1280 by 720
@@ -24,6 +24,7 @@ graph requestFlow {
   node api "API" {
     shape rectangle
     tone primary
+    position x 760 y 280
   }
   edge request: client.e -> api.w {
     label "POST /checkout"
@@ -58,7 +59,7 @@ story lesson {
 - Scene actions: `show`, `hide`, `draw`, `highlight`, `clearHighlight`, `camera`, `sequence`, `stagger`; narration is `say` and has no action ID.
 - Durations: integer or decimal followed by `ms` or `s`.
 
-Every v2.1 non-`say` statement is written as `action uniqueId: <action>`. Nested statements each need their own ID:
+Every v2.2 non-`say` statement is written as `action uniqueId: <action>`. Nested statements each need their own ID:
 
 ```animflow
 action revealPair: sequence {
@@ -68,3 +69,10 @@ action revealPair: sequence {
 ```
 
 IDs are unique across the entire document, including graphs, nodes, edges, overlays, stories, scenes, and actions. Run `animflow format --write`, not a custom printer.
+
+## Hybrid layout
+
+- Omit `position` for deterministic automatic rank layout.
+- Use `position x 640 y 280` for a preferred node-center coordinate. The compiler nudges an unpinned node along the layout's secondary axis when needed to preserve `nodeGap`.
+- Add `pin` after `position` only when the coordinate must be exact. A pinned node without a position is invalid.
+- Keep source coordinates finite and non-negative. Compile after every batch of layout edits; published output contains only the resulting deterministic geometry.

@@ -17,7 +17,7 @@ The parser AST, `RenderPlan`, worker messages, compiled publish artifact, intern
 
 - One SDK release bundles one matching language/compiler/runtime/renderer/worker set.
 - The worker handshake checks protocol, supported source versions, compiler version, and render-plan version. A mismatch emits `AF703` and stops; it never falls back to main-thread or remote compilation.
-- AnimFlow `2.1` is the default authoring source. Source `2` remains accepted as a migration compatibility input until a documented SDK minor removes it. New source syntax requires an SDK release that advertises it.
+- AnimFlow `2.2` is the default authoring source. Sources `2` and `2.1` remain accepted as compatibility inputs until a documented SDK minor removes them. New source syntax requires an SDK release that advertises it.
 - `story` is a single-story assertion in `0.1`; it is not a multi-story selector.
 - Published revision artifacts are private to the web viewer and have a separate compatibility gate.
 

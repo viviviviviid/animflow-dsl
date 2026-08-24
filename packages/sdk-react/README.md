@@ -1,6 +1,6 @@
 # @animflow/sdk-react
 
-The public React façade for AnimFlow 2.1 lecture diagrams, with compatibility parsing for AnimFlow 2 migration inputs. It ships a compatible parser, compiler, deterministic runtime, SVG renderer, and browser worker as one versioned package. It performs no remote requests and does not execute raw HTML, CSS, or JavaScript from source.
+The public React façade for AnimFlow 2.2 lecture diagrams, with compatibility parsing for AnimFlow 2 and 2.1 inputs. It ships a compatible parser, compiler, deterministic runtime, SVG renderer, and browser worker as one versioned package. It performs no remote requests and does not execute raw HTML, CSS, or JavaScript from source.
 
 ```tsx
 import { AnimFlowPlayer } from "@animflow/sdk-react";
@@ -20,7 +20,7 @@ export function Lesson({ source }: { source: string }) {
 
 ## Contract
 
-- `source` defaults to native AnimFlow 2.1 source and is compiled off the main thread; AnimFlow 2 is accepted as a compatibility input.
+- `source` defaults to native AnimFlow 2.2 source and is compiled off the main thread; AnimFlow 2 and 2.1 are accepted as compatibility inputs.
 - Version 0.1 accepts exactly one story. `story` is an assertion, not a selector; a mismatch renders an error and calls `onDiagnostic`.
 - The default render is deterministic and contains no network access beyond loading `worker.js` from beside the installed SDK module.
 - `controls={false}` hides transport UI without changing playback semantics.

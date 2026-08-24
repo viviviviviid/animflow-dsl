@@ -206,6 +206,25 @@ describe("AnimFlow compiler", () => {
       true,
     );
   });
+
+  test("keeps pinned v2.2 coordinates and moves soft positions out of collisions", async () => {
+    const source = toV21(await readFile(fixturePath, "utf8"))
+      .replace("animflow 2.1", "animflow 2.2")
+      .replace("    tone neutral", "    tone neutral\n    position x 300 y 200\n    pin")
+      .replace("    tone primary", "    tone primary\n    position x 300 y 200");
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.authoring?.sourceVersion).toBe("2.2");
+    const nodes = result.value.geometry.filter((geometry) => geometry.kind === "node");
+    const client = nodes[0]!;
+    const api = nodes[1]!;
+    expect(client.bounds.x + client.bounds.width / 2).toBe(300);
+    expect(client.bounds.y + client.bounds.height / 2).toBe(200);
+    expect(api.bounds.y + api.bounds.height / 2).not.toBe(200);
+    expect(api.bounds.y).toBeGreaterThanOrEqual(client.bounds.y + client.bounds.height + 48);
+  });
 });
 
 function toV21(source: string): string {

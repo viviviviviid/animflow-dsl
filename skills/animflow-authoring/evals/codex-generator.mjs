@@ -20,7 +20,7 @@ if (!expected) throw new Error(`Unknown AnimFlow eval case: ${request.id}`);
 const temporaryDirectory = mkdtempSync(join(tmpdir(), "animflow-codex-eval-"));
 const outputPath = join(temporaryDirectory, "source.animflow");
 try {
-  let prompt = `Generate one native AnimFlow 2.1 lecture document for this request:
+  let prompt = `Generate one native AnimFlow 2.2 lecture document for this request:
 
 ${request.prompt}
 
@@ -34,7 +34,7 @@ Follow the repository skill at ${join(skillDirectory, "SKILL.md")} and its langu
 - every ID is document-unique; never reuse required node/edge IDs for scenes or actions, and avoid language keywords such as database, scene, story, graph, node, and edge as IDs
 - every scene duration must contain all of its sequence/stagger delays and transitions; prefer at least 2500ms per scene and keep the total inside the required range
 
-Return only the complete AnimFlow source beginning with "animflow 2.1". Do not use Markdown fences or add an explanation. Do not modify files.`;
+Return only the complete AnimFlow source beginning with "animflow 2.2". Do not use Markdown fences or add an explanation. Do not modify files.`;
   let source = "";
   let valid = false;
   for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -44,7 +44,7 @@ Return only the complete AnimFlow source beginning with "animflow 2.1". Do not u
       valid = true;
       break;
     }
-    prompt = `Repair this AnimFlow 2.1 source so the CLI compilation diagnostics are fully resolved while preserving the teaching request and evaluation contract. Every ID must remain semantic and document-unique. For AF501 MODEL_TRACK_OUTSIDE_SCENE, lengthen the affected scene within the 6000-15000ms total or simplify its sequence/stagger choreography so every track ends inside the scene. Return only the complete corrected source without Markdown fences or explanation.
+    prompt = `Repair this AnimFlow 2.2 source so the CLI compilation diagnostics are fully resolved while preserving the teaching request and evaluation contract. Every ID must remain semantic and document-unique. For AF501 MODEL_TRACK_OUTSIDE_SCENE, lengthen the affected scene within the 6000-15000ms total or simplify its sequence/stagger choreography so every track ends inside the scene. Return only the complete corrected source without Markdown fences or explanation.
 
 Diagnostics:
 ${JSON.stringify(compilation.diagnostics)}
@@ -83,8 +83,8 @@ function generate(prompt) {
   }
   const raw = readFileSync(outputPath, "utf8").trim();
   const fenced = raw.match(/```(?:animflow)?\s*([\s\S]*?)```/i)?.[1]?.trim();
-  const source = fenced ?? raw.slice(raw.indexOf("animflow 2.1")).trim();
-  if (!source.startsWith("animflow 2.1")) throw new Error("Codex response did not contain AnimFlow 2.1 source.");
+  const source = fenced ?? raw.slice(raw.indexOf("animflow 2.2")).trim();
+  if (!source.startsWith("animflow 2.2")) throw new Error("Codex response did not contain AnimFlow 2.2 source.");
   return source;
 }
 

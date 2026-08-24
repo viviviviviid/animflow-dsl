@@ -22,7 +22,7 @@ export interface AnimFlowDiagnostic {
 }
 
 export interface AnimFlowPlayerProps {
-  /** Native AnimFlow 2.1 source. AnimFlow 2 remains a compatibility input. */
+  /** Native AnimFlow 2.2 source. AnimFlow 2 and 2.1 remain compatibility inputs. */
   readonly source: string;
   /** Optional assertion for the source's single story ID. */
   readonly story?: string;

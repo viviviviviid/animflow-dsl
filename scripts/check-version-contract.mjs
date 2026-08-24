@@ -41,14 +41,14 @@ for (const contract of contracts) {
 }
 
 const sourceContract = await readFile("packages/model/src/source.ts", "utf8");
-if (!sourceContract.includes('"2.1",') || !sourceContract.includes('export type AnimFlowSourceVersion = "2" | "2.1"')) {
-  throw new Error("AnimFlow source version contract must retain compatibility v2 and canonical v2.1.");
+if (!sourceContract.includes('"2.2",') || !sourceContract.includes('export type AnimFlowSourceVersion = "2" | "2.1" | "2.2"')) {
+  throw new Error("AnimFlow source version contract must retain v2/v2.1 compatibility and canonical v2.2.");
 }
 
 const guide = await readFile("docs/dsl-guide.md", "utf8");
 const readme = await readFile("README.md", "utf8");
-if (!guide.startsWith("# AnimFlow DSL v2.1 Reference") || !readme.includes("animflow 2.1")) {
-  throw new Error("Primary documentation must default to AnimFlow 2.1.");
+if (!guide.startsWith("# AnimFlow DSL v2.2 Reference") || !readme.includes("animflow 2.2")) {
+  throw new Error("Primary documentation must default to AnimFlow 2.2.");
 }
 
-console.log("Version contract is consistent: source 2.1, compiler/runtime/CLI/SDK 0.1.0.");
+console.log("Version contract is consistent: source 2.2, compiler/runtime/CLI/SDK 0.1.0.");

@@ -16,10 +16,10 @@ Run:
 <skill-directory>/scripts/run-cli.sh capabilities --json
 ```
 
-This Skill requires CLI `0.1.x`, compiler `0.0.x`, source version `2.1`, and flowchart capability. On mismatch, stop with:
+This Skill requires CLI and compiler `0.1.x`, source version `2.2`, and flowchart capability. On mismatch, stop with:
 
 ```text
-AnimFlow authoring compatibility error: this Skill requires CLI 0.1.x with source 2.1 support. Install the matching repository release or select its bundled Skill version.
+AnimFlow authoring compatibility error: this Skill requires CLI 0.1.x with source 2.2 support. Install the matching repository release or select its bundled Skill version.
 ```
 
 Install the self-contained Skill from npm:

@@ -1,9 +1,10 @@
 /** All source coordinates are zero-based and the end position is exclusive. */
-export type AnimFlowSourceVersion = "2" | "2.1";
+export type AnimFlowSourceVersion = "2" | "2.1" | "2.2";
 
 export const ANIMFLOW_SOURCE_VERSIONS = Object.freeze([
   "2",
   "2.1",
+  "2.2",
 ] as const satisfies readonly AnimFlowSourceVersion[]);
 
 export interface SourcePosition {

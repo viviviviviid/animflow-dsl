@@ -2,22 +2,23 @@
 
 AnimFlow is a typed scene language for deterministic animated diagrams. Source is compiled once into an immutable `RenderPlan`; any timestamp is then sampled into a complete `FrameState` and rendered as SVG.
 
-The default authoring language is v2.1. The compatibility compiler still accepts v2, and the original Mermaid-extension player remains available at `/legacy` while consumers migrate.
+The default authoring language is v2.2. The compatibility compiler still accepts v2 and v2.1, and the original Mermaid-extension player remains available at `/legacy` while consumers migrate.
 
-## Why v2.1
+## Why v2.2
 
 - Invalid IDs, references, properties, units, targets, and conflicting scene writes fail before rendering.
 - Nodes, edges, overlays, camera, and narration share one compiled timeline.
 - Every edge has its own ID, ports, route, arrow placement, line style, and flow effect.
 - `sample(plan, timeMs)` is pure, so direct seek and linear playback return the same frame.
 - The renderer receives only immutable geometry and sampled state. It does not parse source, query semantic DOM targets, or run a second animation timeline.
+- Optional node positions let people and AI refine a deterministic auto-layout without creating hidden editor state.
 
 ## Quick start
 
-The v2.1 workspace packages are currently private and intended for use inside this monorepo.
+The v2.2 workspace packages are currently private and intended for use inside this monorepo.
 
 ```animflow
-animflow 2.1
+animflow 2.2
 
 canvas {
   size 1600 by 900
@@ -40,6 +41,8 @@ graph checkout {
   node api "Order API" {
     shape rounded
     tone hex_7457D9
+    position x 820 y 360
+    pin
   }
 
   edge request: client.e -> api.w {
@@ -135,7 +138,7 @@ The installer supports `--dry-run`, machine-readable `--json`, and recoverable u
 
 ## Authoring commands
 
-Studio integrations mutate canonical AnimFlow 2.1 source through the typed authoring session instead of editing source with application-owned regular expressions:
+Studio integrations mutate canonical AnimFlow 2.1/2.2 source through the typed authoring session instead of editing source with application-owned regular expressions:
 
 ```ts
 import { AuthoringSession } from "@animflow-dsl/authoring";
@@ -154,7 +157,9 @@ const result = await session.execute({
 });
 ```
 
-Semantic commands are atomic and require a valid 2.1 document. `source.replace` alone may store an invalid draft while retaining the last valid immutable plan. Undo and redo restore exact source snapshots with monotonic revisions.
+Semantic commands are atomic and require a valid 2.1 or 2.2 document. `source.replace` alone may store an invalid draft while retaining the last valid immutable plan. Undo and redo restore exact source snapshots with monotonic revisions.
+
+Layout edits use dedicated `node.position.set`, `node.position.clear`, `layout.positions.set`, and `layout.optimize` commands. A position edit upgrades v2.1 source to v2.2 atomically; content updates preserve existing positions and pins.
 
 ## Migration
 
@@ -183,11 +188,11 @@ pnpm eval:skill
 pnpm --filter web dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the v2.1 Studio and [http://localhost:3000/legacy](http://localhost:3000/legacy) for v1.
+Open [http://localhost:3000](http://localhost:3000) for the v2.2 Studio and [http://localhost:3000/legacy](http://localhost:3000/legacy) for v1.
 
 ## Documentation
 
-- [v2.1 DSL reference](docs/dsl-guide.md)
+- [v2.2 DSL reference](docs/dsl-guide.md)
 - [v1 legacy guide](docs/dsl-guide-v1.md)
 - [architecture and implementation contract](docs/animflow-dsl-v2-implementation-plan.md)
 - [authoring platform design and phase gates](docs/designs/animflow-authoring-platform.md)

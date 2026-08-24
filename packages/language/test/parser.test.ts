@@ -269,6 +269,30 @@ describe("AnimFlow language", () => {
     const fixed = applyFix(source, diagnostic!);
     expect((await parseAnimFlow(fixed)).ok).toBe(true);
   });
+
+  test("accepts v2.2 node positions and rejects them in older source versions", async () => {
+    const source = baseDocument({
+      version: "2.2",
+      extraNode: 'node worker "Worker" { position x 320 y 180 pin }',
+      sceneStatements: "action traceRequest: draw request via trace",
+    });
+    const parsed = await parseAnimFlow(source);
+    expect(parsed.ok, JSON.stringify(parsed.diagnostics)).toBe(true);
+    if (!parsed.ok) return;
+    const worker = parsed.value.graphs[0]?.members.find((member) => member.name === "worker");
+    expect(worker?.$type).toBe("Node");
+    if (worker?.$type !== "Node") return;
+    expect(worker.properties.map((property) => property.$type)).toEqual([
+      "NodePositionProperty",
+      "NodePinProperty",
+    ]);
+
+    const oldVersion = await parseAnimFlow(source.replace("animflow 2.2", "animflow 2.1"));
+    expect(oldVersion.ok).toBe(false);
+    if (!oldVersion.ok) {
+      expect(oldVersion.diagnostics.some((diagnostic) => diagnostic.code === "AF301")).toBe(true);
+    }
+  });
 });
 
 interface DocumentOverrides {

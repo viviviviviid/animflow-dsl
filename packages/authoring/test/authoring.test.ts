@@ -569,6 +569,49 @@ describe("AuthoringSession", () => {
     expect(left.state.plan?.sourceHash).toBe(right.state.plan?.sourceHash);
     expect(left.state.documentRevision).toBe(100);
   });
+
+  it("upgrades layout edits to v2.2 and keeps position independent from node content updates", async () => {
+    const session = await AuthoringSession.create(SOURCE);
+    await expectApplied(session, {
+      type: "node.position.set",
+      baseRevision: 0,
+      nodeId: "client",
+      position: { x: 300, y: 200, pinned: true },
+    });
+    expect(session.state.source).toContain("animflow 2.2");
+    expect(session.state.source).toContain("position x 300 y 200\n    pin");
+
+    await expectApplied(session, {
+      type: "node.update",
+      baseRevision: 1,
+      nodeId: "client",
+      replacement: { label: "Browser", shape: "rounded", tone: "accent" },
+    });
+    expect(session.state.source).toContain('node client "Browser"');
+    expect(session.state.source).toContain("position x 300 y 200\n    pin");
+
+    await expectApplied(session, {
+      type: "layout.positions.set",
+      baseRevision: 2,
+      graphId: "lesson",
+      positions: [
+        { nodeId: "client", x: 280, y: 180, pinned: true },
+        { nodeId: "server", x: 280, y: 180 },
+      ],
+      replace: true,
+    });
+    const nodes = session.state.plan?.geometry.filter((geometry) => geometry.kind === "node") ?? [];
+    expect(nodes[0]!.bounds.y + nodes[0]!.bounds.height / 2).toBe(180);
+    expect(nodes[1]!.bounds.y + nodes[1]!.bounds.height / 2).not.toBe(180);
+
+    await expectApplied(session, {
+      type: "layout.optimize",
+      baseRevision: 3,
+      graphId: "lesson",
+    });
+    expect(session.state.source).not.toContain("position x");
+    expect(session.state.source).not.toMatch(/^\s*pin\s*$/m);
+  });
 });
 
 async function expectApplied(session: AuthoringSession, command: AuthoringCommand): Promise<void> {
