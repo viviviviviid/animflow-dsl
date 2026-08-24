@@ -776,10 +776,10 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Files: `packages/cli`, `packages/migrate`
   - Verify: 실제 Node bin, JSON schema, format/compile/migrate/import contract, package tarball
 
-- [ ] **T8 (P1)** — Agent Skill 평가 — repository Skill과 10 prompt semantic eval을 고정 model로 3회씩 실행한다.
+- [x] **T8 (P1)** — Agent Skill 평가 — repository Skill과 10 prompt semantic eval을 고정 model로 3회씩 실행한다.
   - Files: `skills/animflow-authoring`
-  - Shipped: Skill/reference/examples, fixture-mode 30/30 compile 및 semantic assertion, 외부 고정-model runner contract
-  - Remaining gate: `ANIMFLOW_EVAL_COMMAND`와 고정 model/version/temperature를 지정한 실제 30회 생성 평가
+  - Shipped: Skill/reference/examples, fixture-mode 30/30, fixed `gpt-5.6-luna`/`codex-cli 0.147.0`/reasoning-effort `medium` model-mode 30/30 compile 및 semantic assertion, diagnostic compile-repair adapter
+  - Evidence: `docs/acceptance/2026-08-24-skill-model-eval.json` — 30 unique source hashes, compile 100%, semantic assertions 100%
 
 - [x] **T9 (P1)** — Authoring command layer — typed source patch, revision, transaction, undo/redo와 selection 복구를 구현한다.
   - Shipped: `@animflow-dsl/authoring`의 CST-local scene/action/narration 명령, v2.1 gate, monotonic document/plan revision, atomic rejection, invalid source draft와 last-valid plan, exact snapshot undo/redo, ID selection remap
@@ -800,7 +800,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
 - [x] **T13 (P1)** — Dogfood acceptance — 실제 10분 강의와 cross-browser·보안·복구 인수 기준을 완료한다.
   - Shipped: 10-scene/41-action/600,000ms AI agent runtime lecture fixture and dated acceptance record; Studio readiness/file-import race fixed from dogfood
   - Verify: CLI compile, deterministic forward/back/restart contract, 36 Chromium/Firefox/WebKit product E2E, accelerated 600,000ms playback in all engines, 600-second real-time Chromium replay, 320 deterministic parser/importer hostile mutations
-  - External launch evidence, not claimed by engineering: three-person first-use study and credentialed fixed-model Skill evaluation
+  - External launch evidence, not claimed by engineering: three-person first-use study
 
 - [x] **T14 (P1)** — Vercel + Supabase live deployment — Studio와 immutable Publish를 Seoul region production에 배포하고 실제 공개 경로를 검증한다.
   - Shipped: `SupabasePublishStore`, RLS/immutable/least-privilege/quota/cleanup migrations, active daily Cron, Vercel client-IP hashing, dependency-aware monorepo build, Seoul Functions, server worker output tracing and public URL

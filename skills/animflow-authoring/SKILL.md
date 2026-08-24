@@ -23,11 +23,14 @@ Use `scripts/validate-example.sh <file>` when the CLI location is uncertain.
 
 - Emit `animflow 2.1`. Every non-`say` scene statement, including nested `sequence` and `stagger`, has a document-unique `action <id>:` prefix.
 - IDs are semantic and stable: use names such as `apiGateway`, `traceRequest`, and `cacheMiss`, not coordinates or array indexes.
+- IDs must not be language keywords such as `database`, `scene`, or `story`. Scene and action IDs also must not reuse graph, node, edge, overlay, or story IDs; add semantic suffixes such as `databaseStep` or `focusDatabase`.
 - Reference only declared nodes, edges, overlays, graphs, scenes, and actions.
 - Keep code labels short enough for projection. Put explanation in `say`, not in oversized node labels.
 - Use typed properties only. Never emit HTML, CSS, JavaScript, remote URLs, or guessed Mermaid features.
 - Preserve user source and comments during repairs. Prefer diagnostic fixes and local edits over rewriting the whole document.
 - If `import-mermaid` returns `AFCLI004_CAPABILITY_MISMATCH`, explain the unsupported construct and request or produce a supported flowchart input; do not silently drop it.
+- Sibling actions in a scene execute in parallel. When two actions write the same property, such as `clearHighlight gateway` followed by `highlight gateway`, wrap them in an action-ID-bearing `sequence` so the writes are ordered.
+- A scene duration must contain its complete action schedule. Budget nested `sequence` and `stagger` delays plus transitions inside the scene; when `AF501 MODEL_TRACK_OUTSIDE_SCENE` appears, lengthen that scene within the requested total duration or simplify its choreography.
 
 ## Quality check
 

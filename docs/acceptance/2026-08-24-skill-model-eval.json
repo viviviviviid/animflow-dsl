@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-08-24T10:58:21.067Z",
+  "mode": "model",
+  "settings": {
+    "model": "gpt-5.6-luna",
+    "modelVersion": "codex-cli 0.147.0",
+    "temperature": null,
+    "reasoningEffort": "medium",
+    "repetitions": 3
+  },
+  "thresholds": {
+    "compileSuccessRate": 1,
+    "semanticAssertionRate": 0.9
+  },
+  "summary": {
+    "prompts": 10,
+    "runs": 30,
+    "compileSuccessRate": 1,
+    "semanticAssertionRate": 1
+  },
+  "runs": [
+    {
+      "id": "request-overview",
+      "repetition": 1,
+      "sourceSha256": "3cd37436900e4a460c2b57ac8cb878d0bd4656567b202d8960785df468802ec1",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "request-overview",
+      "repetition": 2,
+      "sourceSha256": "a5dc00a583b8d5da2dc2b8008a02480bf251a1e497b9fbe9d88bc34552e32a18",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "request-overview",
+      "repetition": 3,
+      "sourceSha256": "5831669d1cb029e23d8f1fc5498064b920603431c8be69e5dc2d1d4a02d44a67",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "gateway-boundary",
+      "repetition": 1,
+      "sourceSha256": "37174079c2e7f7c94fe74261a8c66b9f1033986945d3a432abd87482430a9466",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "gateway-boundary",
+      "repetition": 2,
+      "sourceSha256": "c516243910ab7aeed818483ade4e98ba6b16d8f03efced9c091183a1bed8a1c2",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "gateway-boundary",
+      "repetition": 3,
+      "sourceSha256": "66bf833555b0ca0325176cd3b2c404a11792a8b31a6b3c6768eb791e02c2baab",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "persistence-path",
+      "repetition": 1,
+      "sourceSha256": "699425e47b8c96f66692f30f137c7498c55adf9b00475f53f85b9cff4ffdea0e",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "persistence-path",
+      "repetition": 2,
+      "sourceSha256": "0162418250c433dc5d5e03d7a8226b313efb65af9cb6a23fc70e2ecfb6772489",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "persistence-path",
+      "repetition": 3,
+      "sourceSha256": "d18846ef913ea7d886151822c39299e6a6721efc736683966b7818a2bfad2e57",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "agent-layers",
+      "repetition": 1,
+      "sourceSha256": "4a3c97e7108e91de1acdbf7a4bcda8c4de16da18c94ac140baaeff7ea040754f",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "agent-layers",
+      "repetition": 2,
+      "sourceSha256": "52ad26eb11f9b094683d93193ae7acd5b8b81d368fe1c0148a738a5fcf1fea43",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "agent-layers",
+      "repetition": 3,
+      "sourceSha256": "7e42981bfb0ca3c5876f943e1940335184ad9e4061f9e723a3bd1b863bbe5f63",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "tool-execution",
+      "repetition": 1,
+      "sourceSha256": "205049f548276a36dbee755fa223b3eb21245834acc869f9e1bd5b69eefff6b7",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "tool-execution",
+      "repetition": 2,
+      "sourceSha256": "66ed61561a5be7ea2dca6784a5852815d5a46f576e175ce538f56511c555bad8",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "tool-execution",
+      "repetition": 3,
+      "sourceSha256": "17f67d826fc7ceb044f25b6310fbdd68d95e2d40e3223f4874935f2ff883d9c1",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "memory-context",
+      "repetition": 1,
+      "sourceSha256": "0ef433a643f62b23a36049a1ff3efb0b3685359ca3c935b85e25032cb312d7bc",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "memory-context",
+      "repetition": 2,
+      "sourceSha256": "ed366641a3501d2b68f18b74d7e812c4051942ce3cf84d0a9cec6e65c486b06e",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "memory-context",
+      "repetition": 3,
+      "sourceSha256": "ee1f8e8319e8195ce50567565fb340cf8761968b5296ec1aa2c3f811320afb9b",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "bst-search",
+      "repetition": 1,
+      "sourceSha256": "eaf428ef0e6974fe63ce17f06f6852a880ff3af6d5740cee621e5bc63b202efc",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "bst-search",
+      "repetition": 2,
+      "sourceSha256": "2eee552909a88967109074b865969f7cb16d95c6beee280837a2f346d30eab4e",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "bst-search",
+      "repetition": 3,
+      "sourceSha256": "99bf96e5ea349432d18457f1fe9a8388485e4a46a8970b0fcbf39a571de0ed99",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "search-invariant",
+      "repetition": 1,
+      "sourceSha256": "1ce73234618ded90eae81cd86a4ebcb3961561f0504648bc8d39652eb824e71e",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "search-invariant",
+      "repetition": 2,
+      "sourceSha256": "5d49d3cb5b9791da428f7db1f13c7b9dfa044c3d38d49ca029423c494f52064e",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "search-invariant",
+      "repetition": 3,
+      "sourceSha256": "adfeb5430d64082e75e8c771b459ca5ac10437c480fe1704ba8478d16492fa7b",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "algorithm-step",
+      "repetition": 1,
+      "sourceSha256": "227c24ea2c91449984508a69245b5e7dc0004337078a502417fc2974c2551564",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "algorithm-step",
+      "repetition": 2,
+      "sourceSha256": "e55626ae007aa2d35f5dd9e3bbbdfd8e6ee6818808928b37c731c3676ea7c034",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "algorithm-step",
+      "repetition": 3,
+      "sourceSha256": "2d969d47c8b91e06b40a13ed93575e801af9f87821b0ee28e059c8bc06c406ca",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "causal-flow",
+      "repetition": 1,
+      "sourceSha256": "4749741218e66f76a4c7a7d200b500450d38d77bed7b858e18740683b7ed929d",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "causal-flow",
+      "repetition": 2,
+      "sourceSha256": "0990d446f9c6e2ea9aea8c57035d7566df1b5864bc963a542b358664fa76b6f1",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    },
+    {
+      "id": "causal-flow",
+      "repetition": 3,
+      "sourceSha256": "585394a21765eff56f403c3d5725e1c30e39698be35d65db44f9aef80b950930",
+      "validateOk": true,
+      "compileOk": true,
+      "semanticOk": true,
+      "semanticFailures": [],
+      "diagnostics": []
+    }
+  ]
+}
