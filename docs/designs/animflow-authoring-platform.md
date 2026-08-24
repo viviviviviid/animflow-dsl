@@ -805,7 +805,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
 - [x] **T14 (P1)** — Vercel + Supabase live deployment — Studio와 immutable Publish를 Seoul region production에 배포하고 실제 공개 경로를 검증한다.
   - Shipped: `SupabasePublishStore`, RLS/immutable/least-privilege/quota/cleanup migrations, active daily Cron, Vercel client-IP hashing, dependency-aware monorepo build, Seoul Functions, server worker output tracing and public URL
   - Verify: 13 publish tests, temporary-PostgreSQL migration contract, live Supabase privilege inspection, three concurrent publish/delete canaries, focused publish E2E 9/9, final Chromium/Firefox/WebKit product E2E 36/36, traced 780,674-byte server worker asset
-  - Live: <https://animflow-studio.vercel.app> (`dpl_3gdxMoR84vGw9VS9DVvJP4jDfVhn`)
+  - Live: <https://animflow-studio.vercel.app> with GitHub `main` automatic production delivery
 
 
 ### Completion Summary

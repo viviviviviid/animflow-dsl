@@ -39,7 +39,7 @@ Result: live Vercel + Supabase production deployment passed all release gates.
 - Public Studio: <https://animflow-studio.vercel.app>
 - Vercel project: `viviviviviids-projects/animflow-studio`
 - Supabase project: `ssidzyklloipdzbhciru`, Seoul (`ap-northeast-2`)
-- Production deployment: `dpl_3gdxMoR84vGw9VS9DVvJP4jDfVhn`
-- Release commit: `d3d81e3`
+- Production delivery: GitHub `main` automatically deploys to the stable Vercel alias
+- Last runtime-fix commit: `f92ddf2`
 
-The first Vercel deployment was automatically assigned to Production because the project had no prior deployment. Live QA found and fixed a stale post-delete read plus a monorepo dependency-build gap. The final deployment rebuilds all workspace dependencies, disables Supabase data caching, and passed the complete cross-browser product suite. One transient 503 occurred during an earlier cold canary and did not recur in three parallel canaries, the focused 9-test publish suite, or the final 36-test suite.
+The first Vercel deployment was automatically assigned to Production because the project had no prior deployment. Live QA found and fixed a stale post-delete read, a monorepo dependency-build gap, and a statically baked missing abuse contact. Git-driven production now rebuilds all workspace dependencies, disables Supabase data caching, and renders the report contact from runtime configuration. The final gates passed the complete 36-test cross-browser product suite, the three-browser report regression, and a Git-deployment publish/play/delete canary. One transient 503 occurred during an earlier cold canary and did not recur in later parallel canaries or either final gate.
