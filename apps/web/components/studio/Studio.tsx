@@ -428,8 +428,8 @@ export function Studio() {
           <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo">↷</button>
           <button className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
           <button className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
-          <button disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
-          <button disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
+          <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
+          <button className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
           <label aria-disabled={!authoring} className="studio-file-button">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
           <button className="studio-import-action" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
           <button className="studio-export-action" onClick={exportSource} type="button">Export</button>
