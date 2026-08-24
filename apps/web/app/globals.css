@@ -286,8 +286,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .studio-action-grid { grid-template-columns: repeat(2, 1fr); }
   .studio-source-grid { grid-template-columns: 1fr; }
   .studio-diagnostics { display: none; }
-  .v2-controls { overflow-x: auto; }
-  .v2-controls > div { min-width: 620px; }
+  .v2-controls { overflow: visible; }
+  .v2-controls > div { gap: 7px !important; grid-template-columns: minmax(0, 1fr) auto auto !important; min-width: 0; }
+  .v2-controls > div > div:first-child { grid-column: 1; grid-row: 2; }
+  .v2-controls > div > label:first-of-type { grid-column: 1 / -1; grid-row: 1; min-width: 0; }
+  .v2-controls > div > label:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+  .v2-controls > div > label:nth-of-type(3) { grid-column: 3; grid-row: 2; }
   .studio-help-modal { max-height: calc(100dvh - 28px); overflow: auto; padding: 18px; }
   .studio-help-steps { gap: 8px; grid-template-columns: 1fr; margin-top: 14px; }
   .studio-help-steps article { min-height: 0; padding: 12px 14px; }
