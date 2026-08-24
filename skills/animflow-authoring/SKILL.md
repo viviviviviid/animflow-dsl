@@ -9,15 +9,15 @@ Produce valid native AnimFlow 2.1 source whose teaching sequence is understandab
 
 ## Required tool loop
 
-1. Run `animflow version --json` and `animflow capabilities --json` once. Stop with the compatibility message from [references/compatibility.md](references/compatibility.md) if source 2.1 or flowchart support is unavailable.
+1. Resolve `scripts/run-cli.sh` relative to this `SKILL.md` as `<runner>`, then run `<runner> version --json` and `<runner> capabilities --json` once. The runner selects the packaged, installed, or repository CLI. Stop with the compatibility message from [references/compatibility.md](references/compatibility.md) if source 2.1 or flowchart support is unavailable.
 2. Extract the audience level, teaching objective, essential concepts, teaching order, and approximate duration. Ask only when a missing choice changes the technical meaning.
 3. Create the smallest useful graph with stable, descriptive IDs. Read [references/language-reference.md](references/language-reference.md) while writing native source.
 4. Divide the explanation into teaching beats, then add one primary visual change and concise narration per scene. Read [references/lecture-patterns.md](references/lecture-patterns.md) for sequencing choices.
-5. Run `animflow validate <file> --json`. Repair diagnostics by code and range using [references/diagnostics.md](references/diagnostics.md); never hide or delete a concept merely to silence an error.
-6. Run `animflow format <file> --write`, validate again, then run `animflow compile <file> --json`. Check scene count, action count, and duration against the request.
+5. Run `<runner> validate <file> --json`. Repair diagnostics by code and range using [references/diagnostics.md](references/diagnostics.md); never hide or delete a concept merely to silence an error.
+6. Run `<runner> format <file> --write`, validate again, then run `<runner> compile <file> --json`. Check scene count, action count, and duration against the request.
 7. Return the `.animflow` source or file plus a short scene outline. Report unsupported requests explicitly instead of approximating them.
 
-Use `scripts/validate-example.sh <file>` when the CLI location is uncertain.
+Use `scripts/validate-example.sh <file>` relative to this `SKILL.md` when validating a single file directly.
 
 ## Non-negotiable source rules
 

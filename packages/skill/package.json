@@ -1,0 +1,48 @@
+{
+  "name": "animflow-authoring-skill",
+  "version": "0.1.0",
+  "description": "Self-contained AnimFlow authoring skill and CLI for Codex and Claude Code",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/viviviviviid/animflow-dsl.git",
+    "directory": "packages/skill"
+  },
+  "homepage": "https://animflow-studio.vercel.app",
+  "bugs": "https://github.com/viviviviviid/animflow-dsl/issues",
+  "keywords": [
+    "agent-skill",
+    "animflow",
+    "animation",
+    "codex",
+    "claude-code",
+    "diagram",
+    "dsl",
+    "lecture"
+  ],
+  "bin": {
+    "animflow-authoring-skill": "bin/animflow-skill.mjs",
+    "animflow-skill": "bin/animflow-skill.mjs",
+    "animflow": "dist/animflow-authoring/vendor/animflow-cli.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "corepack pnpm@9.15.0 --filter @animflow-dsl/cli build && node scripts/build-package.mjs",
+    "lint": "node --check bin/animflow-skill.mjs && node --check scripts/build-package.mjs",
+    "test": "corepack pnpm@9.15.0 run build && node --test test/*.test.mjs",
+    "pack:dry-run": "npm pack --dry-run",
+    "prepack": "corepack pnpm@9.15.0 run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

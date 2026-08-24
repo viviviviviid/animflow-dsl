@@ -6,13 +6,14 @@ Find the CLI in this order:
 
 1. `$ANIMFLOW_CLI` when the host explicitly provides an executable path.
 2. `animflow` on `PATH` for an installed npm package.
-3. From this repository, `node packages/cli/dist/bin.js` after `pnpm build`.
+3. The npm Skill's bundled `vendor/animflow-cli.js`.
+4. From this repository, `node packages/cli/dist/bin.js` after `pnpm build`.
 
 Run:
 
 ```text
-animflow version --json
-animflow capabilities --json
+<skill-directory>/scripts/run-cli.sh version --json
+<skill-directory>/scripts/run-cli.sh capabilities --json
 ```
 
 This Skill requires CLI `0.1.x`, compiler `0.0.x`, source version `2.1`, and flowchart capability. On mismatch, stop with:
@@ -21,4 +22,11 @@ This Skill requires CLI `0.1.x`, compiler `0.0.x`, source version `2.1`, and flo
 AnimFlow authoring compatibility error: this Skill requires CLI 0.1.x with source 2.1 support. Install the matching repository release or select its bundled Skill version.
 ```
 
-Codex discovery locations are repository `skills/animflow-authoring` or user `$CODEX_HOME/skills/animflow-authoring`. Claude Code discovery is repository `.claude/skills/animflow-authoring` or user `~/.claude/skills/animflow-authoring`. Install by copying or symlinking the entire directory so references and scripts remain adjacent to `SKILL.md`.
+Install the self-contained Skill from npm:
+
+```text
+npx --yes animflow-authoring-skill@latest install --agent codex
+npx --yes animflow-authoring-skill@latest install --agent claude
+```
+
+Use `--agent both` for both hosts and `--scope project` for repository-local discovery. Codex discovery locations are repository `skills/animflow-authoring` or user `$CODEX_HOME/skills/animflow-authoring`. Claude Code discovery is repository `.claude/skills/animflow-authoring` or user `~/.claude/skills/animflow-authoring`.

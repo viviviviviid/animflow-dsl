@@ -123,6 +123,16 @@ node packages/cli/dist/bin.js import-mermaid graph.mmd --out lesson.animflow
 
 Machine output uses the versioned schema at `packages/cli/schema/report.schema.json`. The repository Agent Skill is at `skills/animflow-authoring`; its examples and 10-prompt semantic eval use the same CLI and compiler.
 
+Install the self-contained Skill and matching CLI for an AI agent:
+
+```bash
+npx --yes animflow-authoring-skill@latest install --agent codex
+npx --yes animflow-authoring-skill@latest install --agent claude
+npx --yes animflow-authoring-skill@latest install --agent both --scope project
+```
+
+The installer supports `--dry-run`, machine-readable `--json`, and recoverable updates with `--force` backups.
+
 ## Authoring commands
 
 Studio integrations mutate canonical AnimFlow 2.1 source through the typed authoring session instead of editing source with application-owned regular expressions:

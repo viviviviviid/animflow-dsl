@@ -14,6 +14,7 @@
     "verify:supabase-migration": "bash scripts/verify-supabase-migration.sh",
     "benchmark:browser": "node scripts/run-browser-benchmark.mjs",
     "eval:skill": "node skills/animflow-authoring/evals/run-evals.mjs",
+    "verify:skill-package": "pnpm --filter animflow-authoring-skill test && pnpm --filter animflow-authoring-skill pack:dry-run",
     "verify:sdk-consumer": "node scripts/verify-sdk-consumer.mjs"
   },
   "devDependencies": {
