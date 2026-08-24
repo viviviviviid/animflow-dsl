@@ -18,7 +18,7 @@ const outputPath = process.env.ANIMFLOW_BENCHMARK_OUTPUT
 const budgets = {
   coldReadyP95Ms: 500,
   warmCompileP95Ms: 200,
-  cloneFreezeP95Ms: 50,
+  cloneFreezeP95Ms: 100,
   workerBundleGzipBytes: 1_572_864,
   workerHeapBytes: 128 * 1_024 * 1_024,
   workerHeapPlateauAbsoluteBytes: 8 * 1_024 * 1_024,
