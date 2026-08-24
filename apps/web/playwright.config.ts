@@ -20,7 +20,8 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
-    command: "corepack pnpm@9.15.0 build && corepack pnpm@9.15.0 start --port 3100",
+    command: "corepack pnpm@9.15.0 turbo run build --filter=web && corepack pnpm@9.15.0 --dir apps/web start --port 3100",
+    cwd: resolve(__dirname, "../.."),
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:3100",
