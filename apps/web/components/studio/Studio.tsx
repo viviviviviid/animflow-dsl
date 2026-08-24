@@ -22,10 +22,17 @@ import type {
 import { AnimFlowCanvas, type AnimFlowElementSelection } from "@animflow-dsl/react-v2";
 
 import { V2Player } from "@/components/v2/V2Player";
+import { BLANK_STUDIO_SOURCE, STUDIO_EXAMPLES, type StudioExample } from "@/data/studio-examples";
 import { DEFAULT_V2_SOURCE } from "@/data/v2-default";
 import { StudioAuthoringClient } from "@/lib/authoring-client";
 import type { StudioAuthoringState } from "@/lib/authoring-protocol";
-import { loadStudioDraft, saveStudioDraft } from "@/lib/studio-store";
+import {
+  deleteStudioDraft,
+  listStudioDocuments,
+  loadStudioDraft,
+  saveStudioDraft,
+  type StudioDocumentMetadata,
+} from "@/lib/studio-store";
 import { useWriterLease } from "@/lib/use-writer-lease";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -54,6 +61,9 @@ export function Studio() {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [documents, setDocuments] = useState<readonly StudioDocumentMetadata[]>([]);
+  const [libraryBusy, setLibraryBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("Opening your local lesson…");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -82,6 +92,7 @@ export function Studio() {
           setDocumentId(storedId);
           return;
         }
+        localStorage.setItem("animflow-studio-document", storedId);
         const saved = await loadStudioDraft(storedId);
         if (cancelled) return;
         const source = saved?.source ?? DEFAULT_V2_SOURCE;
@@ -106,6 +117,21 @@ export function Studio() {
       if (clientRef.current === client) clientRef.current = null;
     };
   }, [documentId]);
+
+  useEffect(() => {
+    if (!libraryOpen) return;
+    let cancelled = false;
+    void listStudioDocuments().then((stored) => {
+      if (cancelled) return;
+      const current = authoring && !stored.some((document) => document.documentId === documentId)
+        ? [{ documentId, title, currentRevision: authoring.documentRevision, updatedAt: Date.now() }, ...stored]
+        : stored;
+      setDocuments(current);
+    }, (error: unknown) => {
+      if (!cancelled) setNotice(error instanceof Error ? error.message : String(error));
+    });
+    return () => { cancelled = true; };
+  }, [authoring, documentId, libraryOpen, title]);
 
   useEffect(() => {
     if (!authoring || sourceDraft === authoring.source || writerLease.status !== "writer") return;
@@ -350,6 +376,74 @@ export function Studio() {
       .finally(() => { input.value = ""; });
   }, [applyCommand, authoring, importMermaid]);
 
+  const openDocument = useCallback((nextDocumentId: string) => {
+    setLibraryOpen(false);
+    if (nextDocumentId === documentId) return;
+    localStorage.setItem("animflow-studio-document", nextDocumentId);
+    setAuthoring(null);
+    setPlan(null);
+    setSelectedElementIds([]);
+    setActiveSceneId(null);
+    setRecovered(false);
+    setSourceOpen(false);
+    setNotice("Opening your local lesson…");
+    setDocumentId(nextDocumentId);
+  }, [documentId]);
+
+  const createProject = useCallback(async (nextTitle: string, source: string) => {
+    setLibraryBusy(true);
+    try {
+      const nextDocumentId = `${slug(nextTitle) || "lesson"}-${Date.now().toString(36)}`;
+      await saveStudioDraft({
+        documentId: nextDocumentId,
+        title: nextTitle,
+        currentRevision: 0,
+        source,
+        updatedAt: Date.now(),
+      });
+      openDocument(nextDocumentId);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLibraryBusy(false);
+    }
+  }, [openDocument]);
+
+  const duplicateProject = useCallback(async (sourceDocumentId: string) => {
+    setLibraryBusy(true);
+    try {
+      const draft = sourceDocumentId === documentId && authoring
+        ? { documentId, title, currentRevision: authoring.documentRevision, source: authoring.source, updatedAt: Date.now() }
+        : await loadStudioDraft(sourceDocumentId);
+      if (!draft) throw new Error("That local project no longer exists.");
+      const nextDocumentId = `lesson-${Date.now().toString(36)}`;
+      const nextTitle = `${draft.title} — copy`;
+      await saveStudioDraft({ ...draft, documentId: nextDocumentId, title: nextTitle, updatedAt: Date.now() });
+      openDocument(nextDocumentId);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLibraryBusy(false);
+    }
+  }, [authoring, documentId, openDocument, title]);
+
+  const deleteProject = useCallback(async (targetDocumentId: string) => {
+    setLibraryBusy(true);
+    try {
+      await deleteStudioDraft(targetDocumentId);
+      const remaining = await listStudioDocuments();
+      setDocuments(remaining);
+      if (targetDocumentId === documentId) {
+        if (remaining[0]) openDocument(remaining[0].documentId);
+        else await createProject("Untitled lesson", BLANK_STUDIO_SOURCE);
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLibraryBusy(false);
+    }
+  }, [createProject, documentId, openDocument]);
+
   const saveAsCopy = useCallback(async () => {
     const nextId = `lesson-${Date.now().toString(36)}`;
     const nextTitle = `${title} — copy`;
@@ -426,10 +520,11 @@ export function Studio() {
         <div className="studio-top-actions">
           <button disabled={!authoring?.canUndo || busy} onClick={() => void history("undo")} type="button" aria-label="Undo">↶</button>
           <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo">↷</button>
-          <button className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
-          <button className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
+          <button className="studio-mobile-action" onClick={() => setLibraryOpen(true)} type="button">Projects</button>
           <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
           <button className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
+          <button className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
+          <button className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
           <label aria-disabled={!authoring} className="studio-file-button">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
           <button className="studio-import-action" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
           <button className="studio-export-action" onClick={exportSource} type="button">Export</button>
@@ -449,6 +544,7 @@ export function Studio() {
       <div className="studio-workspace">
         <aside className="studio-toolrail" aria-label="Workspace tools">
           <button className="is-active" type="button"><ToolGlyph label="Canvas" glyph="◇" /></button>
+          <button onClick={() => setLibraryOpen(true)} type="button"><ToolGlyph label="Projects" glyph="▦" /></button>
           <button onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
           <span className="studio-toolrail-spacer" />
           <button onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" glyph="?" /></button>
@@ -543,9 +639,109 @@ export function Studio() {
       ) : null}
 
       {importOpen ? <MermaidImportDialog busy={busy} onClose={() => setImportOpen(false)} onImport={importMermaid} /> : null}
+      {libraryOpen ? (
+        <ProjectLibraryDialog
+          activeDocumentId={documentId}
+          busy={libraryBusy}
+          documents={documents}
+          examples={STUDIO_EXAMPLES}
+          onClose={() => setLibraryOpen(false)}
+          onCreate={() => void createProject("Untitled lesson", BLANK_STUDIO_SOURCE)}
+          onDelete={(targetDocumentId) => void deleteProject(targetDocumentId)}
+          onDuplicate={(targetDocumentId) => void duplicateProject(targetDocumentId)}
+          onOpen={openDocument}
+          onUseExample={(example) => void createProject(example.title, example.source)}
+        />
+      ) : null}
       {helpOpen ? <HelpDialog onClose={() => setHelpOpen(false)} /> : null}
       {publishDialog ? <PublishDialog onClose={() => setPublishDialog(null)} state={publishDialog} /> : null}
     </main>
+  );
+}
+
+function ProjectLibraryDialog({
+  activeDocumentId,
+  busy,
+  documents,
+  examples,
+  onClose,
+  onCreate,
+  onDelete,
+  onDuplicate,
+  onOpen,
+  onUseExample,
+}: {
+  readonly activeDocumentId: string;
+  readonly busy: boolean;
+  readonly documents: readonly StudioDocumentMetadata[];
+  readonly examples: readonly StudioExample[];
+  readonly onClose: () => void;
+  readonly onCreate: () => void;
+  readonly onDelete: (documentId: string) => void;
+  readonly onDuplicate: (documentId: string) => void;
+  readonly onOpen: (documentId: string) => void;
+  readonly onUseExample: (example: StudioExample) => void;
+}) {
+  const [deleteCandidate, setDeleteCandidate] = useState<string>();
+  return (
+    <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div aria-labelledby="project-library-title" aria-modal="true" className="studio-modal studio-library-modal" role="dialog">
+        <div className="studio-modal-head">
+          <div><span>Local project shelf</span><h2 id="project-library-title">Choose the lesson to direct</h2></div>
+          <button aria-label="Close project library" onClick={onClose} type="button">×</button>
+        </div>
+        <p className="studio-library-intro">Every project stays in this browser until you publish. Start clean, resume a lesson, or copy an example into your own workspace.</p>
+
+        <section className="studio-library-section" aria-labelledby="my-lessons-title">
+          <div className="studio-library-section-head">
+            <div><span>{String(documents.length).padStart(2, "0")}</span><h3 id="my-lessons-title">My lessons</h3></div>
+            <button disabled={busy} onClick={onCreate} type="button">＋ New project</button>
+          </div>
+          {documents.length ? (
+            <div className="studio-project-grid">
+              {documents.map((document) => {
+                const active = document.documentId === activeDocumentId;
+                const confirmingDelete = deleteCandidate === document.documentId;
+                return (
+                  <article className={active ? "studio-project-card is-current" : "studio-project-card"} key={document.documentId}>
+                    <div className="studio-project-card-top"><span>{active ? "Current" : "Local draft"}</span><time dateTime={new Date(document.updatedAt).toISOString()}>{formatUpdatedAt(document.updatedAt)}</time></div>
+                    <button className="studio-project-open" disabled={busy || active} onClick={() => onOpen(document.documentId)} type="button">
+                      <strong>{document.title}</strong>
+                      <small>Revision {document.currentRevision}</small>
+                    </button>
+                    <div className="studio-project-actions">
+                      <button disabled={busy} onClick={() => onDuplicate(document.documentId)} type="button">Duplicate</button>
+                      <button className={confirmingDelete ? "is-confirming" : ""} disabled={busy} onClick={() => {
+                        if (confirmingDelete) onDelete(document.documentId);
+                        else setDeleteCandidate(document.documentId);
+                      }} type="button">{confirmingDelete ? "Confirm delete" : "Delete"}</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : <p className="studio-library-empty">No saved lessons yet. Start a blank project or use an example below.</p>}
+        </section>
+
+        <section className="studio-library-section studio-example-library" aria-labelledby="examples-title">
+          <div className="studio-library-section-head">
+            <div><span>03</span><h3 id="examples-title">Start from an example</h3></div>
+            <small>Each example becomes an independent local project.</small>
+          </div>
+          <div className="studio-example-grid">
+            {examples.map((example, index) => (
+              <article className="studio-example-card" key={example.id}>
+                <div className="studio-example-signal" data-variant={index + 1} aria-hidden="true"><i /><span /><span /><span /></div>
+                <span>{example.category}</span>
+                <strong>{example.title}</strong>
+                <p>{example.description}</p>
+                <button disabled={busy} onClick={() => onUseExample(example)} type="button">Use example</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -757,6 +953,14 @@ function elementName(element: CompiledElement): string {
 
 function formatDuration(durationMs: number): string {
   return `${Math.round(durationMs / 100) / 10}s`;
+}
+
+function formatUpdatedAt(updatedAt: number): string {
+  const elapsed = Math.max(0, Date.now() - updatedAt);
+  if (elapsed < 60_000) return "just now";
+  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
+  if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
+  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(updatedAt);
 }
 
 function slug(value: string): string {

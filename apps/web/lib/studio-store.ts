@@ -21,6 +21,20 @@ const DATABASE_VERSION = 1;
 const DOCUMENTS = "documents";
 const REVISIONS = "revisions";
 
+export async function listStudioDocuments(): Promise<readonly StudioDocumentMetadata[]> {
+  const database = await openDatabase();
+  try {
+    const transaction = database.transaction(DOCUMENTS, "readonly");
+    const documents = await requestValue<StudioDocumentMetadata[]>(
+      transaction.objectStore(DOCUMENTS).getAll(),
+    );
+    await transactionComplete(transaction);
+    return documents.sort((left, right) => right.updatedAt - left.updatedAt);
+  } finally {
+    database.close();
+  }
+}
+
 export async function loadStudioDraft(documentId: string): Promise<StudioDraft | undefined> {
   const database = await openDatabase();
   try {
