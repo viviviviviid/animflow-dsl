@@ -239,6 +239,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .studio-modal-actions button:last-child { background: var(--cue-coral); border-color: var(--cue-coral); color: #1c1010; font-weight: 600; }
 .studio-modal-actions button:disabled { cursor: not-allowed; opacity: .4; }
 
+.studio-help-modal { max-width: 760px; }
+.studio-help-steps { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); margin-top: 18px; }
+.studio-help-steps article { background: #101622; border: 1px solid #303b50; border-radius: 10px; min-height: 168px; padding: 16px; }
+.studio-help-steps article > span { color: var(--cue-coral); font-family: var(--font-mono), monospace; font-size: 10px; }
+.studio-help-steps strong { display: block; font-size: 14px; margin-top: 16px; }
+.studio-help-steps p { color: #9eabbf; font-size: 11px; line-height: 1.6; margin: 7px 0 0; }
+.studio-help-shortcuts { align-items: center; background: #0c111b; border: 1px solid #2d3749; border-radius: 9px; display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 12px; padding: 11px 13px; }
+.studio-help-shortcuts span { color: #aab5c6; font-size: 10px; }
+.studio-help-shortcuts kbd { background: #232d40; border: 1px solid #3b4860; border-bottom-width: 2px; border-radius: 4px; color: #f0f3f8; font-family: var(--font-mono), monospace; font-size: 9px; margin-right: 5px; padding: 3px 6px; }
+
 @media (max-width: 1180px) {
   .studio-topbar { gap: 10px; grid-template-columns: auto minmax(160px, 1fr) auto; }
   .studio-status { display: none; }
@@ -273,6 +283,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .studio-diagnostics { display: none; }
   .v2-controls { overflow-x: auto; }
   .v2-controls > div { min-width: 620px; }
+  .studio-help-modal { max-height: calc(100dvh - 28px); overflow: auto; padding: 18px; }
+  .studio-help-steps { gap: 8px; grid-template-columns: 1fr; margin-top: 14px; }
+  .studio-help-steps article { min-height: 0; padding: 12px 14px; }
+  .studio-help-steps strong { margin-top: 8px; }
+  .studio-help-steps p { line-height: 1.45; margin-top: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

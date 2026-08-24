@@ -53,6 +53,7 @@ export function Studio() {
   const [stale, setStale] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("Opening your local lesson…");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -448,7 +449,7 @@ export function Studio() {
           <button className="is-active" type="button"><ToolGlyph label="Canvas" glyph="◇" /></button>
           <button onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
           <span className="studio-toolrail-spacer" />
-          <button onClick={() => setNotice("Keyboard: Space plays, arrow keys move between cues.")} type="button"><ToolGlyph label="Help" glyph="?" /></button>
+          <button onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" glyph="?" /></button>
         </aside>
 
         <section className="studio-stage" aria-label="Lecture canvas">
@@ -540,8 +541,33 @@ export function Studio() {
       ) : null}
 
       {importOpen ? <MermaidImportDialog busy={busy} onClose={() => setImportOpen(false)} onImport={importMermaid} /> : null}
+      {helpOpen ? <HelpDialog onClose={() => setHelpOpen(false)} /> : null}
       {publishDialog ? <PublishDialog onClose={() => setPublishDialog(null)} state={publishDialog} /> : null}
     </main>
+  );
+}
+
+function HelpDialog({ onClose }: { readonly onClose: () => void }) {
+  return (
+    <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div aria-labelledby="help-dialog-title" aria-modal="true" className="studio-modal studio-help-modal" role="dialog">
+        <div className="studio-modal-head">
+          <div><span>Three-step workflow</span><h2 id="help-dialog-title">Build the lesson, then teach it</h2></div>
+          <button aria-label="Close help dialog" onClick={onClose} type="button">×</button>
+        </div>
+        <div className="studio-help-steps">
+          <article><span>01</span><strong>Shape the diagram</strong><p>Open AnimFlow source or import a Mermaid flowchart. Source stays local until you publish.</p></article>
+          <article><span>02</span><strong>Direct each cue</strong><p>Select a node, edge, or note on the canvas. Add reveal, focus, trace, hide, camera, and narration actions.</p></article>
+          <article><span>03</span><strong>Teach or share</strong><p>Present opens the local lesson in speaker mode. Publish creates an immutable public revision.</p></article>
+        </div>
+        <div className="studio-help-shortcuts" aria-label="Keyboard shortcuts">
+          <span><kbd>Space</kbd> Play or pause</span>
+          <span><kbd>←</kbd><kbd>→</kbd> Move between cues</span>
+          <span><kbd>Shift</kbd> Select several elements</span>
+        </div>
+        <div className="studio-modal-actions"><button onClick={onClose} type="button">Back to canvas</button></div>
+      </div>
+    </div>
   );
 }
 
