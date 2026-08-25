@@ -3,6 +3,8 @@ export interface StudioDocumentMetadata {
   readonly title: string;
   readonly currentRevision: number;
   readonly updatedAt: number;
+  readonly cloud?: boolean;
+  readonly cloudVersion?: number;
 }
 
 export interface StudioDraft extends StudioDocumentMetadata {
@@ -67,6 +69,8 @@ export async function saveStudioDraft(draft: StudioDraft): Promise<void> {
       documentId: draft.documentId,
       title: draft.title,
       currentRevision: draft.currentRevision,
+      cloud: draft.cloud,
+      cloudVersion: draft.cloudVersion,
       updatedAt: draft.updatedAt,
     } satisfies StudioDocumentMetadata);
     await transactionComplete(transaction);

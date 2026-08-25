@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("authors, presents, publishes, and replays the 10-minute dogfood lecture", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Ready to teach")).toBeVisible();
-  await page.locator('input[type="file"]').setInputFiles(resolve("examples/dogfood/ai-agent-runtime.animflow"));
+  await page.locator('input[type="file"]').first().setInputFiles(resolve("examples/dogfood/ai-agent-runtime.animflow"));
   await expect(page.locator(".studio-scene-main").filter({ hasText: "10 — 신뢰성은 경계의 합이다" })).toBeVisible();
   await expect(page.locator(".studio-scene-card")).toHaveCount(10);
   await page.getByLabel("Lesson title").fill("AI Agent Runtime — 10 minute dogfood");

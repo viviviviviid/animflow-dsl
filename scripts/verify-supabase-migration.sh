@@ -21,9 +21,15 @@ ANIMFLOW_PSQL=("$ANIMFLOW_PG_BINDIR/psql" -h "$ANIMFLOW_PG_SOCKET" -p "$ANIMFLOW
 create role anon;
 create role authenticated;
 create role service_role bypassrls;
+create schema auth;
+create table auth.users (id uuid primary key);
+create function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$$;
 SQL
 
 "${ANIMFLOW_PSQL[@]}" -f supabase/migrations/20260824000000_animflow_publish.sql >/dev/null
+"${ANIMFLOW_PSQL[@]}" -f supabase/migrations/20260825000000_animflow_user_projects.sql >/dev/null
 "${ANIMFLOW_PSQL[@]}" <<'SQL'
 set role service_role;
 insert into public.animflow_published_revisions (
@@ -50,6 +56,36 @@ begin
 end;
 $$;
 reset role;
+
+insert into auth.users (id) values
+  ('11111111-1111-1111-1111-111111111111'),
+  ('22222222-2222-2222-2222-222222222222');
+
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+set role authenticated;
+insert into public.animflow_projects (owner_id, document_id, title, current_revision, source)
+values ('11111111-1111-1111-1111-111111111111', 'owned-lesson', 'Owned lesson', 0, 'animflow 2.2');
+reset role;
+
+insert into public.animflow_projects (owner_id, document_id, title, current_revision, source)
+values ('22222222-2222-2222-2222-222222222222', 'other-lesson', 'Other lesson', 0, 'animflow 2.2');
+
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+set role authenticated;
+do $$
+begin
+  if (select count(*) from public.animflow_projects) <> 1 then raise exception 'project RLS leaked another owner'; end if;
+  if not exists (select 1 from public.animflow_projects where document_id = 'owned-lesson') then raise exception 'owner cannot read project'; end if;
+  begin
+    insert into public.animflow_projects (owner_id, document_id, title, current_revision, source)
+    values ('22222222-2222-2222-2222-222222222222', 'forged-owner', 'Forged', 0, 'animflow 2.2');
+    raise exception 'project RLS accepted a forged owner';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
 
 do $$
 begin

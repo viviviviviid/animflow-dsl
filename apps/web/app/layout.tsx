@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./connection.css";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -25,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" className={`${display.variable} ${mono.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><AuthProvider>{children}</AuthProvider></body>
     </html>
   );
 }

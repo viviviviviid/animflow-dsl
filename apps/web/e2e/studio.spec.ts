@@ -91,10 +91,27 @@ test("recovers the latest atomic local revision after reload", async ({ page }) 
   await expect(page.getByRole("status")).toContainText("Recovered revision");
 });
 
+test("creates and reopens independent projects from the project shelf", async ({ page }) => {
+  await openStudio(page);
+  await page.getByRole("complementary", { name: "Workspace tools" }).getByRole("button", { name: "Projects", exact: true }).click();
+  const library = page.getByRole("dialog", { name: "Choose the lesson to direct" });
+  await expect(library.getByRole("heading", { name: "My lessons" })).toBeVisible();
+  await library.getByRole("button", { name: "＋ New project" }).click();
+
+  await expect(page.getByRole("textbox", { name: "Lesson title" })).toHaveValue("Untitled lesson");
+  await page.getByRole("textbox", { name: "Lesson title" }).fill("Independent lesson");
+
+  await page.getByRole("complementary", { name: "Workspace tools" }).getByRole("button", { name: "Projects", exact: true }).click();
+  await expect(library.getByText("Independent lesson", { exact: true })).toBeVisible();
+  await expect(library.getByText("Payment signal walkthrough", { exact: true })).toBeVisible();
+  await library.getByRole("button", { name: /Payment signal walkthrough Revision/ }).click();
+  await expect(page.getByRole("textbox", { name: "Lesson title" })).toHaveValue("Payment signal walkthrough");
+});
+
 test("keeps the last valid preview while an invalid draft is repaired", async ({ page }) => {
   await openStudio(page);
   await page.getByRole("button", { name: "Select node client" }).click();
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[type="file"]').first().setInputFiles({
     name: "broken.animflow",
     mimeType: "text/plain",
     buffer: Buffer.from("animflow 2.1\nthis is not valid"),
@@ -104,7 +121,7 @@ test("keeps the last valid preview while an invalid draft is repaired", async ({
   await expect(page.getByRole("button", { name: "↗ Reveal" })).toBeDisabled();
   await expect(page.getByRole("slider", { name: "Animation time" })).toBeEnabled();
 
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[type="file"]').first().setInputFiles({
     name: "repaired.animflow",
     mimeType: "text/plain",
     buffer: Buffer.from(DEFAULT_V2_SOURCE),
@@ -115,7 +132,8 @@ test("keeps the last valid preview while an invalid draft is repaired", async ({
 
 test("imports a strict Mermaid flowchart into editable native source", async ({ page }) => {
   await openStudio(page);
-  await page.getByRole("button", { name: "Import Mermaid" }).click();
+  await page.locator(".studio-overflow-menu > summary").click();
+  await page.locator(".studio-overflow-menu").getByRole("button", { name: "Import Mermaid" }).click();
   await page.getByRole("textbox", { name: "Mermaid source" }).fill("flowchart LR\n  Client --> API\n  API --> Database");
   await page.getByRole("button", { name: "Import flowchart" }).click();
 

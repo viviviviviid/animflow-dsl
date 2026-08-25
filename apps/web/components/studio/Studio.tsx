@@ -26,10 +26,16 @@ import {
 } from "@animflow-dsl/react-v2";
 
 import { V2Player } from "@/components/v2/V2Player";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { BLANK_STUDIO_SOURCE, STUDIO_EXAMPLES, type StudioExample } from "@/data/studio-examples";
 import { DEFAULT_V2_SOURCE } from "@/data/v2-default";
 import { StudioAuthoringClient } from "@/lib/authoring-client";
 import type { StudioAuthoringState } from "@/lib/authoring-protocol";
+import {
+  deleteCloudStudioDraft,
+  listCloudStudioDrafts,
+  saveCloudStudioDraft,
+} from "@/lib/cloud-project-store";
 import {
   deleteStudioDraft,
   listStudioDocuments,
@@ -40,6 +46,7 @@ import {
 import { useWriterLease } from "@/lib/use-writer-lease";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+type CloudSaveState = "local" | "syncing" | "synced" | "error";
 type ActionTool = "reveal" | "focus" | "trace" | "hide" | "camera";
 type StudioTheme = "dark" | "light";
 type PublishDialogState =
@@ -53,6 +60,7 @@ const DslEditor = dynamic(
 );
 
 export function Studio() {
+  const auth = useAuth();
   const [documentId, setDocumentId] = useState("local-lesson");
   const [title, setTitle] = useState("Payment signal walkthrough");
   const [authoring, setAuthoring] = useState<StudioAuthoringState | null>(null);
@@ -73,6 +81,9 @@ export function Studio() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("Opening your local lesson…");
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [cloudSaveState, setCloudSaveState] = useState<CloudSaveState>("local");
+  const [cloudVersion, setCloudVersion] = useState<number>();
+  const [accountOpen, setAccountOpen] = useState(false);
   const [storageError, setStorageError] = useState<string>();
   const [recovered, setRecovered] = useState(false);
   const [narration, setNarration] = useState("");
@@ -90,6 +101,8 @@ export function Studio() {
   useEffect(() => {
     const storedTheme = localStorage.getItem("animflow-studio-theme");
     if (storedTheme === "dark" || storedTheme === "light") setStudioTheme(storedTheme);
+    const authError = new URLSearchParams(window.location.search).get("auth_error");
+    if (authError) setNotice(authError);
   }, []);
 
   useEffect(() => {
@@ -109,7 +122,10 @@ export function Studio() {
         const source = saved?.source ?? DEFAULT_V2_SOURCE;
         if (saved) {
           setTitle(saved.title);
+          setCloudVersion(saved.cloudVersion);
           setRecovered(true);
+        } else {
+          setCloudVersion(undefined);
         }
         const state = await client.init(source);
         if (cancelled) return;
@@ -132,17 +148,37 @@ export function Studio() {
   useEffect(() => {
     if (!libraryOpen) return;
     let cancelled = false;
-    void listStudioDocuments().then((stored) => {
+    const loadLibrary = async () => {
+      const local = await listStudioDocuments();
+      const merged = new Map(local.map((document) => [document.documentId, document]));
+      if (auth.user) {
+        try {
+          const cloud = await listCloudStudioDrafts();
+          for (const remote of cloud) {
+            const localDocument = merged.get(remote.documentId);
+            if (!localDocument || remote.updatedAt > localDocument.updatedAt) {
+              await saveStudioDraft(remote);
+            }
+            const winner = !localDocument || remote.updatedAt > localDocument.updatedAt
+              ? remote
+              : localDocument;
+            merged.set(remote.documentId, { ...winner, cloud: true });
+          }
+        } catch (error) {
+          if (!cancelled) setNotice(`Cloud shelf unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       if (cancelled) return;
-      const current = authoring && !stored.some((document) => document.documentId === documentId)
-        ? [{ documentId, title, currentRevision: authoring.documentRevision, updatedAt: Date.now() }, ...stored]
-        : stored;
-      setDocuments(current);
-    }, (error: unknown) => {
+      if (authoring && !merged.has(documentId)) {
+        merged.set(documentId, { documentId, title, currentRevision: authoring.documentRevision, updatedAt: Date.now() });
+      }
+      setDocuments([...merged.values()].sort((left, right) => right.updatedAt - left.updatedAt));
+    };
+    void loadLibrary().catch((error: unknown) => {
       if (!cancelled) setNotice(error instanceof Error ? error.message : String(error));
     });
     return () => { cancelled = true; };
-  }, [authoring, documentId, libraryOpen, title]);
+  }, [auth.user, authoring, documentId, libraryOpen, title]);
 
   useEffect(() => {
     if (!authoring || sourceDraft === authoring.source || writerLease.status !== "writer") return;
@@ -175,6 +211,8 @@ export function Studio() {
         documentId,
         title,
         currentRevision: authoring.documentRevision,
+        cloud: cloudVersion !== undefined,
+        cloudVersion,
         source: authoring.source,
         updatedAt: Date.now(),
       }).then(
@@ -200,7 +238,34 @@ export function Studio() {
       if (usesIdleCallback) idleWindow.cancelIdleCallback?.(idleId);
       else window.clearTimeout(idleId);
     };
-  }, [authoring, documentId, title, writerLease.status]);
+  }, [authoring, cloudVersion, documentId, title, writerLease.status]);
+
+  useEffect(() => {
+    if (!authoring || !auth.user || writerLease.status !== "writer") {
+      setCloudSaveState("local");
+      return;
+    }
+    const userId = auth.user.id;
+    setCloudSaveState("syncing");
+    const timer = window.setTimeout(() => {
+      void saveCloudStudioDraft({
+        cloud: cloudVersion !== undefined,
+        cloudVersion,
+        documentId,
+        title,
+        currentRevision: authoring.documentRevision,
+        source: authoring.source,
+        updatedAt: Date.now(),
+      }, userId).then((nextCloudVersion) => {
+        setCloudVersion(nextCloudVersion);
+        setCloudSaveState("synced");
+      }, (error: unknown) => {
+        setCloudSaveState("error");
+        setNotice(`Cloud sync stopped: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }, 1_100);
+    return () => window.clearTimeout(timer);
+  }, [auth.user, authoring, documentId, title, writerLease.status]);
 
   const applyCommand = useCallback(async (command: AuthoringCommand) => {
     const client = clientRef.current;
@@ -419,6 +484,7 @@ export function Studio() {
     setSelectedElementIds([]);
     setActiveSceneId(null);
     setRecovered(false);
+    setCloudVersion(undefined);
     setNotice("Opening your local lesson…");
     setDocumentId(nextDocumentId);
   }, [documentId]);
@@ -463,6 +529,7 @@ export function Studio() {
   const deleteProject = useCallback(async (targetDocumentId: string) => {
     setLibraryBusy(true);
     try {
+      if (auth.user) await deleteCloudStudioDraft(targetDocumentId);
       await deleteStudioDraft(targetDocumentId);
       const remaining = await listStudioDocuments();
       setDocuments(remaining);
@@ -475,7 +542,7 @@ export function Studio() {
     } finally {
       setLibraryBusy(false);
     }
-  }, [createProject, documentId, openDocument]);
+  }, [auth.user, createProject, documentId, openDocument]);
 
   const saveAsCopy = useCallback(async () => {
     const nextId = `lesson-${Date.now().toString(36)}`;
@@ -484,6 +551,8 @@ export function Studio() {
       documentId: nextId,
       title: nextTitle,
       currentRevision: authoring?.documentRevision ?? 0,
+      cloud: false,
+      cloudVersion: undefined,
       source: authoring?.source ?? sourceDraft,
       updatedAt: Date.now(),
     });
@@ -540,6 +609,25 @@ export function Studio() {
     return undefined;
   }) ?? Promise.resolve(undefined), []);
 
+  const openProjectLibrary = useCallback(async () => {
+    if (authoring && writerLease.status === "writer") {
+      try {
+        await saveStudioDraft({
+          cloud: cloudVersion !== undefined,
+          cloudVersion,
+          currentRevision: authoring.documentRevision,
+          documentId,
+          source: authoring.source,
+          title,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        setStorageError(error instanceof Error ? error.message : String(error));
+      }
+    }
+    setLibraryOpen(true);
+  }, [authoring, cloudVersion, documentId, title, writerLease.status]);
+
   const openPresenter = useCallback(async () => {
     if (!authoring) return;
     await saveStudioDraft({ documentId, title, currentRevision: authoring.documentRevision, source: authoring.source, updatedAt: Date.now() });
@@ -585,9 +673,19 @@ export function Studio() {
         <div className="studio-top-actions">
           <button disabled={!authoring?.canUndo || busy} onClick={() => void history("undo")} type="button" aria-label="Undo">↶</button>
           <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo">↷</button>
-          <button className="studio-mobile-action" onClick={() => setLibraryOpen(true)} type="button">Projects</button>
+          <button className="studio-mobile-action" onClick={() => void openProjectLibrary()} type="button">Projects</button>
           <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
           <button className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
+          <button
+            aria-label={auth.user ? "Open cloud account" : "Sign in to cloud projects"}
+            className={auth.user ? "studio-account-action is-signed-in" : "studio-account-action"}
+            disabled={auth.loading}
+            onClick={() => setAccountOpen(true)}
+            type="button"
+          >
+            <span aria-hidden="true">{auth.user ? accountInitial(auth.user.email) : "↥"}</span>
+            <span>{auth.loading ? "Checking…" : auth.user ? "Cloud" : "Sign in"}</span>
+          </button>
           <button aria-expanded={sourceOpen} className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
           <button
             aria-label={`Switch to ${studioTheme === "dark" ? "light" : "dark"} mode`}
@@ -598,10 +696,20 @@ export function Studio() {
             type="button"
           ><span aria-hidden="true">{studioTheme === "dark" ? "☼" : "◐"}</span><span>{studioTheme === "dark" ? "Light" : "Dark"}</span></button>
           <button className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
-          <label aria-disabled={!authoring} className="studio-file-button">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
-          <button className="studio-import-action" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
-          <button className="studio-export-action" onClick={exportSource} type="button">Export</button>
-          <Link className="studio-legacy-link" href="/legacy">v1</Link>
+          <label aria-disabled={!authoring} className="studio-file-button studio-desktop-extra">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
+          <button className="studio-import-action studio-desktop-extra" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
+          <button className="studio-export-action studio-desktop-extra" onClick={exportSource} type="button">Export</button>
+          <Link className="studio-legacy-link studio-desktop-extra" href="/legacy">v1</Link>
+          <details className="studio-overflow-menu">
+            <summary>More</summary>
+            <div>
+              <label aria-disabled={!authoring} className="studio-file-button">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
+              <button disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
+              <button onClick={exportSource} type="button">Export source</button>
+              <button onClick={() => setHelpOpen(true)} type="button">Workflow help</button>
+              <Link href="/legacy">Open Studio v1</Link>
+            </div>
+          </details>
         </div>
       </header>
 
@@ -617,7 +725,7 @@ export function Studio() {
       <div className="studio-workspace" data-source-open={sourceOpen}>
         <aside className="studio-toolrail" aria-label="Workspace tools">
           <button className="is-active" type="button"><ToolGlyph label="Canvas" glyph="◇" /></button>
-          <button onClick={() => setLibraryOpen(true)} type="button"><ToolGlyph label="Projects" glyph="▦" /></button>
+          <button onClick={() => void openProjectLibrary()} type="button"><ToolGlyph label="Projects" glyph="▦" /></button>
           <button aria-label={sourceOpen ? "Hide source" : "Show source"} aria-pressed={sourceOpen} className={sourceOpen ? "is-active" : undefined} onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
           <span className="studio-toolrail-spacer" />
           <button onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" glyph="?" /></button>
@@ -694,7 +802,7 @@ export function Studio() {
           </div>
           <div className="studio-notice" role="status">
             <span>{notice}</span>
-            <span>{saveState === "saving" ? "Saving…" : saveState === "saved" ? `Local r${authoring?.documentRevision ?? 0}` : recovered ? "Recovered" : "Local-first"}</span>
+            <span>{cloudSaveState === "syncing" ? "Syncing cloud…" : cloudSaveState === "synced" ? `Cloud r${authoring?.documentRevision ?? 0}` : cloudSaveState === "error" ? "Cloud paused" : saveState === "saving" ? "Saving…" : saveState === "saved" ? `Local r${authoring?.documentRevision ?? 0}` : recovered ? "Recovered" : "Local-first"}</span>
           </div>
         </section>
 
@@ -737,7 +845,60 @@ export function Studio() {
       ) : null}
       {helpOpen ? <HelpDialog onClose={() => setHelpOpen(false)} /> : null}
       {publishDialog ? <PublishDialog onClose={() => setPublishDialog(null)} state={publishDialog} /> : null}
+      {accountOpen ? (
+        <AccountDialog
+          configured={auth.configured}
+          error={auth.error}
+          onClose={() => setAccountOpen(false)}
+          onSignIn={() => void auth.signInWithGoogle().catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)))}
+          onSignOut={() => void auth.signOut().then(() => {
+            setAccountOpen(false);
+            setCloudSaveState("local");
+            setNotice("Signed out. Your browser drafts remain available locally.");
+          }).catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)))}
+          userEmail={auth.user?.email}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function accountInitial(email?: string): string {
+  return (email?.trim()[0] ?? "A").toUpperCase();
+}
+
+function AccountDialog({ configured, error, onClose, onSignIn, onSignOut, userEmail }: {
+  readonly configured: boolean;
+  readonly error?: string;
+  readonly onClose: () => void;
+  readonly onSignIn: () => void;
+  readonly onSignOut: () => void;
+  readonly userEmail?: string;
+}) {
+  return (
+    <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div aria-labelledby="account-dialog-title" aria-modal="true" className="studio-modal studio-account-modal" role="dialog">
+        <div className="studio-modal-head">
+          <div><span>Crew access</span><h2 id="account-dialog-title">{userEmail ? "Cloud projects are connected" : "Carry lessons between devices"}</h2></div>
+          <button aria-label="Close account dialog" onClick={onClose} type="button">×</button>
+        </div>
+        {userEmail ? (
+          <>
+            <div className="studio-account-identity"><span>{accountInitial(userEmail)}</span><div><strong>{userEmail}</strong><small>Local drafts sync through your private Supabase shelf.</small></div></div>
+            <div className="studio-account-capabilities"><span>✓ Multi-project cloud shelf</span><span>✓ User-scoped MCP access</span><span>✓ Local-first editing</span></div>
+            <Link className="studio-account-mcp-link" href="/mcp">Connect an AI client →</Link>
+            <div className="studio-modal-actions"><button onClick={onClose} type="button">Continue directing</button><button className="studio-secondary-danger" onClick={onSignOut} type="button">Sign out</button></div>
+          </>
+        ) : (
+          <>
+            <p>Continue without an account for local-only editing. Sign in when you want private cloud projects and OAuth access from an AI client.</p>
+            {error ? <p className="studio-account-error" role="alert">{error}</p> : null}
+            <div className="studio-modal-actions"><button onClick={onClose} type="button">Keep using locally</button><button disabled={!configured} onClick={onSignIn} type="button">Continue with Google</button></div>
+            {!configured ? <small className="studio-account-config-note">Cloud login is disabled in this environment. Add the public Supabase URL and publishable key to enable it.</small> : null}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -772,7 +933,7 @@ function ProjectLibraryDialog({
           <div><span>Local project shelf</span><h2 id="project-library-title">Choose the lesson to direct</h2></div>
           <button aria-label="Close project library" onClick={onClose} type="button">×</button>
         </div>
-        <p className="studio-library-intro">Every project stays in this browser until you publish. Start clean, resume a lesson, or copy an example into your own workspace.</p>
+        <p className="studio-library-intro">Projects stay in this browser by default. Signed-in projects also appear on your private cloud shelf, while publishing still creates a separate immutable public revision.</p>
 
         <section className="studio-library-section" aria-labelledby="my-lessons-title">
           <div className="studio-library-section-head">
@@ -786,7 +947,7 @@ function ProjectLibraryDialog({
                 const confirmingDelete = deleteCandidate === document.documentId;
                 return (
                   <article className={active ? "studio-project-card is-current" : "studio-project-card"} key={document.documentId}>
-                    <div className="studio-project-card-top"><span>{active ? "Current" : "Local draft"}</span><time dateTime={new Date(document.updatedAt).toISOString()}>{formatUpdatedAt(document.updatedAt)}</time></div>
+                    <div className="studio-project-card-top"><span>{active ? "Current" : document.cloud ? "Cloud + local" : "Local draft"}</span><time dateTime={new Date(document.updatedAt).toISOString()}>{formatUpdatedAt(document.updatedAt)}</time></div>
                     <button className="studio-project-open" disabled={busy || active} onClick={() => onOpen(document.documentId)} type="button">
                       <strong>{document.title}</strong>
                       <small>Revision {document.currentRevision}</small>

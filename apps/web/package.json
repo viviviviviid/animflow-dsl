@@ -6,24 +6,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run lib/**/*.test.ts"
   },
   "dependencies": {
     "@animflow-dsl/authoring": "workspace:*",
     "@animflow-dsl/browser-worker": "workspace:*",
+    "@animflow-dsl/compiler": "workspace:*",
     "@animflow-dsl/language": "workspace:*",
     "@animflow-dsl/migrate": "workspace:*",
     "@animflow-dsl/model": "workspace:*",
+    "@animflow-dsl/mcp": "workspace:*",
     "@animflow-dsl/publish": "workspace:*",
     "@animflow-dsl/react": "workspace:*",
     "@animflow-dsl/react-v2": "workspace:*",
     "@animflow-dsl/runtime": "workspace:*",
     "@monaco-editor/react": "^4.6.0",
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.3",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "monaco-editor": "0.55.1",
     "next": "^14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-split": "^2.0.14"
+    "react-split": "^2.0.14",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -32,6 +39,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }
