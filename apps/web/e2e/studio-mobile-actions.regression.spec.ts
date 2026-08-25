@@ -7,6 +7,8 @@ test("keeps the mobile authoring path in reach", async ({ page }) => {
 
   await expect(page.getByRole("button", { name: "Projects", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Source", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Inspector", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cues", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Help", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Present", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeVisible();

@@ -9,6 +9,9 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
 } from "react";
 import type { ActionDraft, AuthoringCommand } from "@animflow-dsl/authoring";
 import type {
@@ -49,10 +52,26 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 type CloudSaveState = "local" | "syncing" | "synced" | "error";
 type ActionTool = "reveal" | "focus" | "trace" | "hide" | "camera";
 type StudioTheme = "dark" | "light";
+type ResizablePanel = "source" | "inspector" | "cues";
+type PanelSizes = Readonly<Record<ResizablePanel, number>>;
+type ResizeSession = {
+  readonly panel: ResizablePanel;
+  readonly startX: number;
+  readonly startY: number;
+  readonly startSize: number;
+};
 type PublishDialogState =
   | { readonly status: "publishing" }
   | { readonly status: "error"; readonly message: string }
   | { readonly status: "published"; readonly url: string; readonly deletionToken: string; readonly expiresAt: string; readonly integrityHash: string };
+
+const PANEL_LAYOUT_STORAGE_KEY = "animflow-studio-panel-layout-v1";
+const DEFAULT_PANEL_SIZES: PanelSizes = { source: 380, inspector: 318, cues: 186 };
+const PANEL_SIZE_LIMITS: Readonly<Record<ResizablePanel, readonly [number, number]>> = {
+  source: [280, 620],
+  inspector: [240, 520],
+  cues: [132, 420],
+};
 
 const DslEditor = dynamic(
   () => import("@/components/editor/DslEditor").then((module) => module.DslEditor),
@@ -72,6 +91,11 @@ export function Studio() {
   const [seekRequest, setSeekRequest] = useState<{ requestId: number; timeMs: number }>();
   const [stale, setStale] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [sceneRailOpen, setSceneRailOpen] = useState(true);
+  const [panelSizes, setPanelSizes] = useState<PanelSizes>(DEFAULT_PANEL_SIZES);
+  const [panelLayoutReady, setPanelLayoutReady] = useState(false);
+  const [resizeSession, setResizeSession] = useState<ResizeSession>();
   const [importOpen, setImportOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -101,9 +125,58 @@ export function Studio() {
   useEffect(() => {
     const storedTheme = localStorage.getItem("animflow-studio-theme");
     if (storedTheme === "dark" || storedTheme === "light") setStudioTheme(storedTheme);
+    const storedLayout = readPanelLayout(localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY));
+    if (storedLayout) {
+      setSourceOpen(storedLayout.sourceOpen);
+      setInspectorOpen(storedLayout.inspectorOpen);
+      setSceneRailOpen(storedLayout.sceneRailOpen);
+      setPanelSizes(storedLayout.sizes);
+    }
+    setPanelLayoutReady(true);
     const authError = new URLSearchParams(window.location.search).get("auth_error");
     if (authError) setNotice(authError);
   }, []);
+
+  useEffect(() => {
+    if (!panelLayoutReady) return;
+    localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify({
+      sourceOpen,
+      inspectorOpen,
+      sceneRailOpen,
+      sizes: panelSizes,
+    }));
+  }, [inspectorOpen, panelLayoutReady, panelSizes, sceneRailOpen, sourceOpen]);
+
+  useEffect(() => {
+    if (!resizeSession) return;
+    const previousCursor = document.body.style.cursor;
+    const previousSelection = document.body.style.userSelect;
+    document.body.style.cursor = resizeSession.panel === "cues" ? "row-resize" : "col-resize";
+    document.body.style.userSelect = "none";
+
+    const updateSize = (event: globalThis.PointerEvent) => {
+      const delta = resizeSession.panel === "source"
+        ? event.clientX - resizeSession.startX
+        : resizeSession.panel === "inspector"
+          ? resizeSession.startX - event.clientX
+          : resizeSession.startY - event.clientY;
+      setPanelSizes((current) => ({
+        ...current,
+        [resizeSession.panel]: clampPanelSize(resizeSession.panel, resizeSession.startSize + delta),
+      }));
+    };
+    const stopResize = () => setResizeSession(undefined);
+    window.addEventListener("pointermove", updateSize);
+    window.addEventListener("pointerup", stopResize, { once: true });
+    window.addEventListener("pointercancel", stopResize, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", updateSize);
+      window.removeEventListener("pointerup", stopResize);
+      window.removeEventListener("pointercancel", stopResize);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousSelection;
+    };
+  }, [resizeSession]);
 
   useEffect(() => {
     let cancelled = false;
@@ -651,12 +724,47 @@ export function Studio() {
     }
   }, [authoring, documentId, title]);
 
+  const beginPanelResize = useCallback((panel: ResizablePanel, event: PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setResizeSession({
+      panel,
+      startX: event.clientX,
+      startY: event.clientY,
+      startSize: panelSizes[panel],
+    });
+  }, [panelSizes]);
+
+  const resizePanelWithKeyboard = useCallback((panel: ResizablePanel, event: KeyboardEvent<HTMLDivElement>) => {
+    const horizontalDelta = event.key === "ArrowRight" ? 16 : event.key === "ArrowLeft" ? -16 : 0;
+    const verticalDelta = event.key === "ArrowDown" ? -16 : event.key === "ArrowUp" ? 16 : 0;
+    const delta = panel === "source"
+      ? horizontalDelta
+      : panel === "inspector"
+        ? -horizontalDelta
+        : verticalDelta;
+    if (delta === 0) return;
+    event.preventDefault();
+    setPanelSizes((current) => ({
+      ...current,
+      [panel]: clampPanelSize(panel, current[panel] + delta),
+    }));
+  }, []);
+
+  const resetPanelSize = useCallback((panel: ResizablePanel) => {
+    setPanelSizes((current) => ({ ...current, [panel]: DEFAULT_PANEL_SIZES[panel] }));
+  }, []);
+
   const errors = previewDiagnostics.filter((diagnostic) => diagnostic.severity === "error");
   const activeRange: SourceRange | undefined = editorRange ?? sourceSelection;
   const presentationBlocked = errors.length > 0 || stale || draftPending || !authoring;
+  const panelStyle = {
+    "--studio-cue-height": `${panelSizes.cues}px`,
+    "--studio-inspector-width": `${panelSizes.inspector}px`,
+    "--studio-source-width": `${panelSizes.source}px`,
+  } as CSSProperties;
 
   return (
-    <main className="studio-shell" data-studio-theme={studioTheme}>
+    <main className="studio-shell" data-resizing-panel={resizeSession?.panel} data-studio-theme={studioTheme} style={panelStyle}>
       <header className="studio-topbar">
         <div className="studio-brand" aria-label="AnimFlow Studio">
           <span className="studio-brand-mark">AF</span>
@@ -687,6 +795,8 @@ export function Studio() {
             <span>{auth.loading ? "Checking…" : auth.user ? "Cloud" : "Sign in"}</span>
           </button>
           <button aria-expanded={sourceOpen} className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
+          <button aria-expanded={inspectorOpen} className="studio-mobile-action" onClick={() => setInspectorOpen((open) => !open)} type="button">Inspector</button>
+          <button aria-expanded={sceneRailOpen} className="studio-mobile-action" onClick={() => setSceneRailOpen((open) => !open)} type="button">Cues</button>
           <button
             aria-label={`Switch to ${studioTheme === "dark" ? "light" : "dark"} mode`}
             aria-pressed={studioTheme === "light"}
@@ -722,11 +832,13 @@ export function Studio() {
       ) : null}
       {storageError ? <div className="studio-storage-error" role="alert">{storageError}<button onClick={exportSource} type="button">Export source</button></div> : null}
 
-      <div className="studio-workspace" data-source-open={sourceOpen}>
+      <div className="studio-workspace" data-inspector-open={inspectorOpen} data-source-open={sourceOpen}>
         <aside className="studio-toolrail" aria-label="Workspace tools">
           <button className="is-active" type="button"><ToolGlyph label="Canvas" glyph="◇" /></button>
           <button onClick={() => void openProjectLibrary()} type="button"><ToolGlyph label="Projects" glyph="▦" /></button>
           <button aria-label={sourceOpen ? "Hide source" : "Show source"} aria-pressed={sourceOpen} className={sourceOpen ? "is-active" : undefined} onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
+          <button aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"} aria-pressed={inspectorOpen} className={inspectorOpen ? "is-active" : undefined} onClick={() => setInspectorOpen((open) => !open)} type="button"><ToolGlyph label="Inspect" glyph="◎" /></button>
+          <button aria-label={sceneRailOpen ? "Hide scene cues" : "Show scene cues"} aria-pressed={sceneRailOpen} className={sceneRailOpen ? "is-active" : undefined} onClick={() => setSceneRailOpen((open) => !open)} type="button"><ToolGlyph label="Cues" glyph="≋" /></button>
           <span className="studio-toolrail-spacer" />
           <button onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" glyph="?" /></button>
         </aside>
@@ -775,6 +887,18 @@ export function Studio() {
           </section>
         ) : null}
 
+        {sourceOpen ? (
+          <PanelResizer
+            label="Resize source panel"
+            onDoubleClick={() => resetPanelSize("source")}
+            onKeyDown={(event) => resizePanelWithKeyboard("source", event)}
+            onPointerDown={(event) => beginPanelResize("source", event)}
+            orientation="vertical"
+            panel="source"
+            value={panelSizes.source}
+          />
+        ) : null}
+
         <section className="studio-stage" aria-label="Lecture canvas">
           <div className="studio-stage-head">
             <div><span>Canvas</span><strong>{activeScene?.title ?? "Initial state"}</strong></div>
@@ -806,27 +930,57 @@ export function Studio() {
           </div>
         </section>
 
-        <Inspector
-          activeScene={activeScene}
-          blocked={editingBlocked}
-          narration={narration}
-          onAction={(tool) => void addAction(tool)}
-          onNarrationChange={setNarration}
-          onNarrationSave={() => void setSceneNarration()}
-          selected={selectedElements}
-          stale={stale}
-        />
+        {inspectorOpen ? (
+          <PanelResizer
+            label="Resize inspector panel"
+            onDoubleClick={() => resetPanelSize("inspector")}
+            onKeyDown={(event) => resizePanelWithKeyboard("inspector", event)}
+            onPointerDown={(event) => beginPanelResize("inspector", event)}
+            orientation="vertical"
+            panel="inspector"
+            value={panelSizes.inspector}
+          />
+        ) : null}
+
+        {inspectorOpen ? (
+          <Inspector
+            activeScene={activeScene}
+            blocked={editingBlocked}
+            narration={narration}
+            onAction={(tool) => void addAction(tool)}
+            onClose={() => setInspectorOpen(false)}
+            onNarrationChange={setNarration}
+            onNarrationSave={() => void setSceneNarration()}
+            selected={selectedElements}
+            stale={stale}
+          />
+        ) : null}
       </div>
 
-      <SceneRail
-        activeSceneId={activeScene?.id ?? null}
-        blocked={editingBlocked}
-        onAdd={() => void addScene()}
-        onMove={(scene, delta) => void moveScene(scene, delta)}
-        onRemove={(scene) => void removeScene(scene)}
-        onSelect={selectScene}
-        plan={plan}
-      />
+      {sceneRailOpen ? (
+        <PanelResizer
+          label="Resize scene cue rail"
+          onDoubleClick={() => resetPanelSize("cues")}
+          onKeyDown={(event) => resizePanelWithKeyboard("cues", event)}
+          onPointerDown={(event) => beginPanelResize("cues", event)}
+          orientation="horizontal"
+          panel="cues"
+          value={panelSizes.cues}
+        />
+      ) : null}
+
+      {sceneRailOpen ? (
+        <SceneRail
+          activeSceneId={activeScene?.id ?? null}
+          blocked={editingBlocked}
+          onAdd={() => void addScene()}
+          onClose={() => setSceneRailOpen(false)}
+          onMove={(scene, delta) => void moveScene(scene, delta)}
+          onRemove={(scene) => void removeScene(scene)}
+          onSelect={selectScene}
+          plan={plan}
+        />
+      ) : null}
 
       {importOpen ? <MermaidImportDialog busy={busy} onClose={() => setImportOpen(false)} onImport={importMermaid} /> : null}
       {libraryOpen ? (
@@ -1032,11 +1186,41 @@ function PublishDialog({ onClose, state }: { readonly onClose: () => void; reado
   );
 }
 
+function PanelResizer({ label, onDoubleClick, onKeyDown, onPointerDown, orientation, panel, value }: {
+  readonly label: string;
+  readonly onDoubleClick: () => void;
+  readonly onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  readonly onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+  readonly orientation: "horizontal" | "vertical";
+  readonly panel: ResizablePanel;
+  readonly value: number;
+}) {
+  const [min, max] = PANEL_SIZE_LIMITS[panel];
+  return (
+    <div
+      aria-label={label}
+      aria-orientation={orientation}
+      aria-valuemax={max}
+      aria-valuemin={min}
+      aria-valuenow={value}
+      className="studio-panel-resizer"
+      data-panel={panel}
+      onDoubleClick={onDoubleClick}
+      onKeyDown={onKeyDown}
+      onPointerDown={onPointerDown}
+      role="separator"
+      tabIndex={0}
+      title="Drag to resize. Double-click to reset."
+    ><span aria-hidden="true" /></div>
+  );
+}
+
 function Inspector({
   activeScene,
   blocked,
   narration,
   onAction,
+  onClose,
   onNarrationChange,
   onNarrationSave,
   selected,
@@ -1046,6 +1230,7 @@ function Inspector({
   readonly blocked: boolean;
   readonly narration: string;
   readonly onAction: (tool: ActionTool) => void;
+  readonly onClose: () => void;
   readonly onNarrationChange: (value: string) => void;
   readonly onNarrationSave: () => void;
   readonly selected: readonly CompiledElement[];
@@ -1054,7 +1239,10 @@ function Inspector({
   const one = selected.length === 1 ? selected[0] : undefined;
   return (
     <aside className="studio-inspector" aria-label="Action inspector">
-      <div className="studio-inspector-head"><span>Inspector</span><small>{activeScene?.id ?? "no scene"}</small></div>
+      <div className="studio-inspector-head">
+        <span>Inspector</span>
+        <div><small>{activeScene?.id ?? "no scene"}</small><button aria-label="Hide inspector panel" onClick={onClose} title="Hide inspector" type="button">›</button></div>
+      </div>
       <div className="studio-selection-card">
         <span className="studio-kind-chip">{selected.length > 1 ? "GROUP" : one?.kind.toUpperCase() ?? "SELECT"}</span>
         <strong>{selected.length > 1 ? `${selected.length} elements` : one ? elementName(one) : "Choose an element"}</strong>
@@ -1084,10 +1272,11 @@ function Inspector({
   );
 }
 
-function SceneRail({ activeSceneId, blocked, onAdd, onMove, onRemove, onSelect, plan }: {
+function SceneRail({ activeSceneId, blocked, onAdd, onClose, onMove, onRemove, onSelect, plan }: {
   readonly activeSceneId: string | null;
   readonly blocked: boolean;
   readonly onAdd: () => void;
+  readonly onClose: () => void;
   readonly onMove: (scene: CompiledScene, delta: number) => void;
   readonly onRemove: (scene: CompiledScene) => void;
   readonly onSelect: (scene: CompiledScene) => void;
@@ -1095,7 +1284,7 @@ function SceneRail({ activeSceneId, blocked, onAdd, onMove, onRemove, onSelect, 
 }) {
   return (
     <section className="studio-cue-rail" aria-label="Scene cue rail">
-      <div className="studio-rail-label"><span>Scene cues</span><small>{plan?.scenes.length ?? 0} in lesson</small></div>
+      <div className="studio-rail-label"><div><span>Scene cues</span><small>{plan?.scenes.length ?? 0} in lesson</small></div><button aria-label="Hide scene cue rail" onClick={onClose} title="Hide scene cues" type="button">⌄</button></div>
       <div className="studio-scene-list">
         {plan?.scenes.map((scene, index) => (
           <article className={scene.id === activeSceneId ? "studio-scene-card is-active" : "studio-scene-card"} key={scene.id}>
@@ -1208,4 +1397,38 @@ function formatUpdatedAt(updatedAt: number): string {
 
 function slug(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function clampPanelSize(panel: ResizablePanel, value: number): number {
+  const [min, max] = PANEL_SIZE_LIMITS[panel];
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function readPanelLayout(value: string | null): {
+  readonly sourceOpen: boolean;
+  readonly inspectorOpen: boolean;
+  readonly sceneRailOpen: boolean;
+  readonly sizes: PanelSizes;
+} | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as {
+      readonly sourceOpen?: unknown;
+      readonly inspectorOpen?: unknown;
+      readonly sceneRailOpen?: unknown;
+      readonly sizes?: Partial<Record<ResizablePanel, unknown>>;
+    };
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const size = (panel: ResizablePanel) => typeof parsed.sizes?.[panel] === "number"
+      ? clampPanelSize(panel, parsed.sizes[panel])
+      : DEFAULT_PANEL_SIZES[panel];
+    return {
+      sourceOpen: typeof parsed.sourceOpen === "boolean" ? parsed.sourceOpen : true,
+      inspectorOpen: typeof parsed.inspectorOpen === "boolean" ? parsed.inspectorOpen : true,
+      sceneRailOpen: typeof parsed.sceneRailOpen === "boolean" ? parsed.sceneRailOpen : true,
+      sizes: { source: size("source"), inspector: size("inspector"), cues: size("cues") },
+    };
+  } catch {
+    return undefined;
+  }
 }
