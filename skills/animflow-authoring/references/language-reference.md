@@ -70,6 +70,8 @@ action revealPair: sequence {
 
 IDs are unique across the entire document, including graphs, nodes, edges, overlays, stories, scenes, and actions. Run `animflow format --write`, not a custom printer.
 
+Scene actions target element IDs directly: write `show client via fade`, not `show requestFlow.client via fade`. The only valid dotted graph target is the whole-graph wildcard such as `requestFlow.*`. A stagger is an ID-bearing action block, for example `action revealSteps: stagger 200ms { ... }`, and every nested non-`say` statement also has its own action ID.
+
 ## Hybrid layout
 
 - Omit `position` for deterministic automatic rank layout.

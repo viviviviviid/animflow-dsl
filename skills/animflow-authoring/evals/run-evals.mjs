@@ -11,13 +11,20 @@ const cli = join(root, "packages/cli/dist/bin.js");
 const outputPath = process.env.ANIMFLOW_SKILL_EVAL_OUTPUT
   ? join(root, process.env.ANIMFLOW_SKILL_EVAL_OUTPUT)
   : join(root, "artifacts/animflow-skill-eval.json");
-const repetitions = 3;
+const sourceOutputDirectory = process.env.ANIMFLOW_EVAL_SOURCE_DIR
+  ? join(root, process.env.ANIMFLOW_EVAL_SOURCE_DIR)
+  : undefined;
+const repetitions = Number(process.env.ANIMFLOW_EVAL_REPETITIONS ?? 3);
+const persona = process.env.ANIMFLOW_EVAL_PERSONA ?? "general-author";
 const prompts = (await readFile(join(skillDirectory, "evals/prompts.jsonl"), "utf8"))
   .trim()
   .split("\n")
   .map((line) => JSON.parse(line));
 const expected = JSON.parse(await readFile(join(skillDirectory, "evals/expected.json"), "utf8"));
 const externalCommand = process.env.ANIMFLOW_EVAL_COMMAND;
+const externalCommandArgs = process.env.ANIMFLOW_EVAL_COMMAND_ARGS
+  ? JSON.parse(process.env.ANIMFLOW_EVAL_COMMAND_ARGS)
+  : [];
 const mode = externalCommand ? "model" : "fixture";
 const temperature = process.env.ANIMFLOW_EVAL_TEMPERATURE;
 const reasoningEffort = process.env.ANIMFLOW_EVAL_REASONING_EFFORT;
@@ -25,8 +32,12 @@ const concurrency = Number(process.env.ANIMFLOW_EVAL_CONCURRENCY ?? 1);
 
 if (prompts.length !== 10) throw new Error(`Expected 10 eval prompts, received ${prompts.length}.`);
 if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 4) throw new Error("ANIMFLOW_EVAL_CONCURRENCY must be an integer from 1 to 4.");
+if (!Number.isSafeInteger(repetitions) || repetitions < 1 || repetitions > 10) throw new Error("ANIMFLOW_EVAL_REPETITIONS must be an integer from 1 to 10.");
 if (externalCommand && (!process.env.ANIMFLOW_EVAL_MODEL || !process.env.ANIMFLOW_EVAL_MODEL_VERSION || (temperature === undefined && reasoningEffort === undefined))) {
   throw new Error("Model eval requires ANIMFLOW_EVAL_MODEL, ANIMFLOW_EVAL_MODEL_VERSION, and either ANIMFLOW_EVAL_TEMPERATURE or ANIMFLOW_EVAL_REASONING_EFFORT.");
+}
+if (!Array.isArray(externalCommandArgs) || externalCommandArgs.some((argument) => typeof argument !== "string")) {
+  throw new Error("ANIMFLOW_EVAL_COMMAND_ARGS must be a JSON array of strings.");
 }
 
 const temporaryDirectory = await mkdtemp(join(tmpdir(), "animflow-skill-eval-"));
@@ -34,12 +45,11 @@ const jobs = prompts.flatMap((prompt) => Array.from({ length: repetitions }, (_,
 const runs = new Array(jobs.length);
 try {
   let nextJob = 0;
-  let stopped = false;
   const workerResults = await Promise.allSettled(Array.from({ length: concurrency }, async () => {
-    try {
-      while (!stopped && nextJob < jobs.length) {
-        const jobIndex = nextJob++;
-        const { prompt, repetition } = jobs[jobIndex];
+    while (nextJob < jobs.length) {
+      const jobIndex = nextJob++;
+      const { prompt, repetition } = jobs[jobIndex];
+      try {
         const assertion = expected.cases[prompt.id];
         if (!assertion) throw new Error(`Missing semantic assertion for ${prompt.id}.`);
         const source = externalCommand
@@ -48,15 +58,21 @@ try {
         const sourcePath = join(temporaryDirectory, `${prompt.id}-${repetition}.animflow`);
         const artifactPath = join(temporaryDirectory, `${prompt.id}-${repetition}.render-plan.json`);
         await writeFile(sourcePath, source, "utf8");
+        if (sourceOutputDirectory) {
+          await mkdir(sourceOutputDirectory, { recursive: true });
+          await writeFile(join(sourceOutputDirectory, `${prompt.id}-${repetition}.animflow`), source, "utf8");
+        }
 
         const validation = runCli(["validate", sourcePath, "--json"]);
         const compilation = validation.ok
           ? runCli(["compile", sourcePath, "--out", artifactPath, "--json"])
           : { ok: false, report: null };
         let semantic = { ok: false, failures: ["compile failed"] };
+        let quality = { ok: false, failures: ["compile failed"] };
         if (compilation.ok) {
           const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
           semantic = assertSemantics(source, artifact, assertion);
+          quality = assertQuality(artifact);
         }
         runs[jobIndex] = {
           id: prompt.id,
@@ -66,13 +82,25 @@ try {
           compileOk: compilation.ok,
           semanticOk: semantic.ok,
           semanticFailures: semantic.failures,
+          qualityOk: quality.ok,
+          qualityFailures: quality.failures,
           diagnostics: compilation.report?.diagnostics ?? validation.report?.diagnostics ?? [],
         };
-        console.error(`[animflow-skill-eval] ${prompt.id} ${repetition}/${repetitions}: compile=${compilation.ok} semantic=${semantic.ok}`);
+        console.error(`[animflow-skill-eval] ${persona} ${prompt.id} ${repetition}/${repetitions}: compile=${compilation.ok} semantic=${semantic.ok} quality=${quality.ok}`);
+      } catch (error) {
+        runs[jobIndex] = {
+          id: prompt.id,
+          repetition,
+          validateOk: false,
+          compileOk: false,
+          semanticOk: false,
+          semanticFailures: ["generation or evaluation failed"],
+          qualityOk: false,
+          qualityFailures: [error instanceof Error ? error.message : String(error)],
+          diagnostics: [],
+        };
+        console.error(`[animflow-skill-eval] ${persona} ${prompt.id} ${repetition}/${repetitions}: failed=${runs[jobIndex].qualityFailures[0]}`);
       }
-    } catch (error) {
-      stopped = true;
-      throw error;
     }
   }));
   const failedWorker = workerResults.find((result) => result.status === "rejected");
@@ -83,6 +111,7 @@ try {
 
 const compileSuccessRate = runs.filter((run) => run.compileOk).length / runs.length;
 const semanticAssertionRate = runs.filter((run) => run.semanticOk).length / runs.length;
+const qualitySuccessRate = runs.filter((run) => run.qualityOk).length / runs.length;
 const report = {
   schemaVersion: 1,
   recordedAt: new Date().toISOString(),
@@ -93,19 +122,20 @@ const report = {
     temperature: temperature === undefined ? null : Number(temperature),
     reasoningEffort: reasoningEffort ?? null,
     repetitions,
+    persona,
   },
-  thresholds: { compileSuccessRate: 1, semanticAssertionRate: 0.9 },
-  summary: { prompts: prompts.length, runs: runs.length, compileSuccessRate, semanticAssertionRate },
+  thresholds: { compileSuccessRate: 1, semanticAssertionRate: 0.9, qualitySuccessRate: 1 },
+  summary: { prompts: prompts.length, runs: runs.length, compileSuccessRate, semanticAssertionRate, qualitySuccessRate },
   runs,
 };
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 console.log(JSON.stringify({ outputPath, mode, summary: report.summary }, null, 2));
-if (compileSuccessRate < 1 || semanticAssertionRate < 0.9) process.exitCode = 1;
+if (compileSuccessRate < 1 || semanticAssertionRate < 0.9 || qualitySuccessRate < 1) process.exitCode = 1;
 
 function generateWithModel(command, prompt, repetition) {
   return new Promise((resolve, reject) => {
-    const generated = spawn(command, [], { stdio: ["pipe", "pipe", "pipe"] });
+    const generated = spawn(command, externalCommandArgs, { cwd: root, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let outputExceeded = false;
@@ -139,6 +169,7 @@ function generateWithModel(command, prompt, repetition) {
       modelVersion: process.env.ANIMFLOW_EVAL_MODEL_VERSION,
       temperature: temperature === undefined ? null : Number(temperature),
       reasoningEffort: reasoningEffort ?? null,
+      persona,
     })}\n`);
   });
 }
@@ -180,4 +211,50 @@ function assertSemantics(source, artifact, assertion) {
     .filter((kind) => !assertion.allowedActions.includes(kind));
   if (disallowed.length > 0) failures.push(`disallowed actions: ${[...new Set(disallowed)].join(", ")}`);
   return { ok: failures.length === 0, failures };
+}
+
+function assertQuality(artifact) {
+  const narrationTimingToleranceMs = 250;
+  const failures = [];
+  const nodes = artifact.geometry.filter((item) => item.kind === "node");
+  for (let leftIndex = 0; leftIndex < nodes.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < nodes.length; rightIndex += 1) {
+      if (overlapArea(nodes[leftIndex].bounds, nodes[rightIndex].bounds) > 1) {
+        failures.push(`node overlap: ${nodes[leftIndex].id ?? nodes[leftIndex].handle}/${nodes[rightIndex].id ?? nodes[rightIndex].handle}`);
+      }
+    }
+  }
+  for (const edge of artifact.geometry.filter((item) => item.kind === "edge" && item.label)) {
+    for (const node of nodes) {
+      if (overlapArea(edge.label.bounds, node.bounds) > 1) {
+        failures.push(`edge label overlaps node: ${edge.id ?? edge.handle}/${node.id ?? node.handle}`);
+      }
+    }
+  }
+  for (const scene of artifact.scenes) {
+    const narration = scene.from?.narration?.text;
+    if (narration) {
+      const estimatedMs = estimateSpeechDuration(narration);
+      if (scene.durationMs + narrationTimingToleranceMs < estimatedMs) {
+        failures.push(`scene ${scene.id} narration needs about ${estimatedMs}ms but has ${scene.durationMs}ms`);
+      }
+    }
+    for (const draw of scene.tracks.filter((track) => track.kind === "element-number" && track.property === "drawProgress" && track.to === 1)) {
+      const from = scene.from.elements.find((frame) => frame.handle === draw.handle);
+      const reveal = scene.tracks.some((track) => track.kind === "element-number" && track.handle === draw.handle && track.property === "opacity" && track.to > 0);
+      if ((from?.opacity ?? 0) <= 0 && !reveal) failures.push(`scene ${scene.id} draws hidden edge handle ${draw.handle}`);
+    }
+  }
+  return { ok: failures.length === 0, failures };
+}
+
+function overlapArea(left, right) {
+  const width = Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x));
+  const height = Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y));
+  return width * height;
+}
+
+function estimateSpeechDuration(text) {
+  if (/\p{Script=Hangul}/u.test(text)) return 800 + text.replace(/\s/g, "").length * 180;
+  return 800 + text.trim().split(/\s+/).filter(Boolean).length * 400;
 }

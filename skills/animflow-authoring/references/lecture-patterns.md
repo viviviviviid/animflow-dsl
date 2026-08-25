@@ -36,6 +36,7 @@ Use for cache hit/miss, success/failure, or before/after:
 
 - Prefer 3–7 visible concepts per teaching beat.
 - A scene normally has one primary change; a short `sequence` may reveal a tightly coupled pair.
-- Keep narration to roughly one spoken sentence per 2–8 second scene. If the sentence cannot be spoken comfortably, split the scene or shorten it.
+- Keep narration to one comfortable spoken unit per scene. After speech generation, set the scene to at least the measured audio duration plus 800ms; split the scene when that would make one cue feel slow or visually overloaded.
+- Check the first and last 250ms of every cue. A camera move, label, arrowhead, or subtitle must not be clipped during either transition state.
 - Do not pulse or repeatedly highlight every node. Motion should signal causality, state transition, or comparison.
 - The final frame should remain useful while the instructor answers questions.

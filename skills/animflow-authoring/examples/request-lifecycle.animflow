@@ -56,22 +56,22 @@ story requestLesson {
     hide requestFlow.*
     camera fit(requestFlow) padding 40
   }
-  scene context "System context" duration 2s {
+  scene context "System context" duration 5s {
     action revealSystem: show requestFlow.* via fade
     say "An order crosses three service boundaries before it is stored."
   }
-  scene enterGateway "Enter the gateway" duration 2s {
+  scene enterGateway "Enter the gateway" duration 4s {
     action traceClientRequest: draw clientRequest via trace
     action focusGateway: highlight gateway tone accent
     say "The gateway receives and authenticates the request."
   }
-  scene callService "Call the service" duration 2s {
+  scene callService "Call the service" duration 3.5s {
     action clearGateway: clearHighlight gateway
     action traceServiceCall: draw serviceCall via trace
     action focusService: highlight service tone accent
     say "The order service applies business rules."
   }
-  scene persist "Persist the order" duration 2s {
+  scene persist "Persist the order" duration 4.5s {
     action clearService: clearHighlight service
     action tracePersist: draw persistOrder via trace
     action focusDatabase: highlight ordersDb tone accent

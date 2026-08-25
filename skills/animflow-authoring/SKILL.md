@@ -9,13 +9,15 @@ Produce valid native AnimFlow 2.2 source whose teaching sequence and layout are 
 
 ## Required tool loop
 
-1. Resolve `scripts/run-cli.sh` relative to this `SKILL.md` as `<runner>`, then run `<runner> version --json` and `<runner> capabilities --json` once. The runner selects the packaged, installed, or repository CLI. Stop with the compatibility message from [references/compatibility.md](references/compatibility.md) if source 2.2 or flowchart support is unavailable.
+1. If authenticated AnimFlow MCP tools are available, read [references/mcp-workflow.md](references/mcp-workflow.md), call `animflow_capabilities`, and use the returned optimistic cloud version for project edits. Otherwise resolve `scripts/run-cli.sh` relative to this `SKILL.md` as `<runner>`, then run `<runner> version --json` and `<runner> capabilities --json` once. The runner selects the packaged, installed, or repository CLI. Stop with the compatibility message from [references/compatibility.md](references/compatibility.md) if source 2.2 or flowchart support is unavailable.
 2. Extract the audience level, teaching objective, essential concepts, teaching order, and approximate duration. Ask only when a missing choice changes the technical meaning.
 3. Create the smallest useful graph with stable, descriptive IDs. Read [references/language-reference.md](references/language-reference.md) while writing native source.
 4. Divide the explanation into teaching beats, then add one primary visual change and concise narration per scene. Read [references/lecture-patterns.md](references/lecture-patterns.md) for sequencing choices.
-5. Run `<runner> validate <file> --json`. Repair diagnostics by code and range using [references/diagnostics.md](references/diagnostics.md); never hide or delete a concept merely to silence an error.
-6. Run `<runner> format <file> --write`, validate again, then run `<runner> compile <file> --json`. Check scene count, action count, and duration against the request.
-7. Return the `.animflow` source or file plus a short scene outline. Report unsupported requests explicitly instead of approximating them.
+5. Run `<runner> validate <file> --json`. Repair diagnostics by code and range using [references/diagnostics.md](references/diagnostics.md); never hide or delete a concept merely to silence an error. MCP writes also validate server-side, but do not use a rejected write as the normal validation loop.
+6. Run `<runner> format <file> --write`, validate again, then run `<runner> compile <file> --json`. Check scene count, action count, duration, geometry, and visibility against the request.
+7. When using MCP, call `animflow_inspect_source` with the complete candidate and resolve all compile, layout, visibility, and narration findings. Use its `narrationCues` as the scene-ID timing manifest when the host can synthesize or attach TTS audio.
+8. Read the project again immediately before `animflow_put_project` and pass its latest `version` as `expectedVersion`. Never retry a version conflict without re-reading and reconciling the human or agent edit.
+9. Return the `.animflow` source or file plus a short scene outline. Report unsupported requests explicitly instead of approximating them.
 
 Use `scripts/validate-example.sh <file>` relative to this `SKILL.md` when validating a single file directly.
 
@@ -33,7 +35,9 @@ Use `scripts/validate-example.sh <file>` relative to this `SKILL.md` when valida
 - If `import-mermaid` returns `AFCLI004_CAPABILITY_MISMATCH`, explain the unsupported construct and request or produce a supported flowchart input; do not silently drop it.
 - Sibling actions in a scene execute in parallel. When two actions write the same property, such as `clearHighlight gateway` followed by `highlight gateway`, wrap them in an action-ID-bearing `sequence` so the writes are ordered.
 - A scene duration must contain its complete action schedule. Budget nested `sequence` and `stagger` delays plus transitions inside the scene; when `AF501 MODEL_TRACK_OUTSIDE_SCENE` appears, lengthen that scene within the requested total duration or simplify its choreography.
+- `draw` is the causal reveal for an edge: it now makes a hidden edge visible while tracing it. Do not add a competing `show` animation for the same edge at the same time, and verify the compiled final frame has opacity `1` and draw progress `1`.
+- Treat narration duration as a hard lower bound. When an audio duration is available, make the scene at least `audio duration + 800ms` and keep another 400–1200ms for dense camera or multi-step transitions. Without audio, budget at least 400ms per English word or 180ms per Korean non-space character, then validate with generated speech before publishing.
 
 ## Quality check
 
-Before finishing, confirm that the lesson compiles, narration exists when requested, the first scene establishes context, later scenes introduce one main idea at a time, and the final scene leaves the important state visible. Avoid more than three simultaneous visual changes unless comparison is the explicit teaching goal.
+Before finishing, confirm that the lesson compiles, narration exists when requested, no visible node/label/overlay bounds overlap unexpectedly, every traced edge is visible, the camera contains the intended targets, the first scene establishes context, later scenes introduce one main idea at a time, and the final scene leaves the important state visible. Avoid more than three simultaneous visual changes unless comparison is the explicit teaching goal.
