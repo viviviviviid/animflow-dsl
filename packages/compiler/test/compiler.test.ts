@@ -46,6 +46,26 @@ describe("AnimFlow compiler", () => {
     expect(first.value.sourceHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  test("reveals a hidden edge when draw animates it", async () => {
+    const source = (await readFile(fixturePath, "utf8"))
+      .replace("show checkout.*", "show [client, api]");
+    const result = await compileAnimFlow(source);
+
+    expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.ok) return;
+    const edge = result.value.elements.find((element) => element.kind === "edge");
+    expect(edge?.kind).toBe("edge");
+    if (edge?.kind !== "edge") return;
+    const initial = result.value.initial.elements.find((frame) => frame.handle === edge.handle);
+    expect(initial?.opacity).toBe(0);
+    const reveal = result.value.scenes[0]?.tracks.find(
+      (track) => track.kind === "element-number"
+        && track.handle === edge.handle
+        && track.property === "opacity",
+    );
+    expect(reveal).toMatchObject({ from: 0, to: 1, startMs: 0, durationMs: 160 });
+  });
+
   test("moves labels below adjacent nodes when the edge cannot fit the text and arrow", async () => {
     const result = await compileAnimFlow(await readFile(fixturePath, "utf8"));
 

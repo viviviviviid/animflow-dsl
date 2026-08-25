@@ -561,6 +561,20 @@ function applySceneStatement(
     const frame = target ? frameFor(context, state, target) : undefined;
     if (frame?.kind === "edge") {
       const flowEffect = action.flow ?? frame.flowEffect ?? "none";
+      if (frame.opacity < 1) {
+        tracks.push({
+          kind: "element-number",
+          handle: frame.handle,
+          property: "opacity",
+          from: frame.opacity,
+          to: 1,
+          startMs,
+          durationMs: Math.min(durationMs, 160),
+          easing: "easeOut",
+          actionId: currentActionId,
+        });
+        frame.opacity = 1;
+      }
       tracks.push({ kind: "element-flow-effect", handle: frame.handle, property: "flowEffect", from: frame.flowEffect ?? "none", to: flowEffect, startMs, durationMs: 0, easing: "linear", actionId: currentActionId });
       tracks.push({ kind: "element-number", handle: frame.handle, property: "drawProgress", from: frame.drawProgress ?? 0, to: 1, startMs, durationMs, easing: "linear", actionId: currentActionId });
       tracks.push({ kind: "element-number", handle: frame.handle, property: "flowPhase", from: 0, to: 1, startMs, durationMs, easing: "linear", actionId: currentActionId });
