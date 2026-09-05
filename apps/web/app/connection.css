@@ -25,11 +25,11 @@
 }
 
 .studio-account-action:not(.is-signed-in) > span:first-child {
-  background: #d7ff72;
+  background: #c3d2ee;
 }
 
 .studio-overflow-menu {
-  display: none;
+  display: block;
   position: relative;
 }
 
@@ -40,7 +40,8 @@
   cursor: pointer;
   display: inline-flex;
   font-size: 0.76rem;
-  height: 2rem;
+  height: 38px;
+  gap: 10px;
   list-style: none;
   padding: 0 0.65rem;
 }

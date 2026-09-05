@@ -65,6 +65,16 @@ export function DslEditor({
   };
 
   const beforeMount = (monaco: Monaco) => {
+    monaco.editor.defineTheme("animflow-dark", {
+      base: "vs-dark", inherit: true,
+      rules: [{ token: "keyword", foreground: "96B8FF" }, { token: "string", foreground: "A4CFBB" }, { token: "number", foreground: "DEBD8B" }, { token: "comment", foreground: "8997AC" }],
+      colors: { "editor.background": "#141923", "editor.foreground": "#DDE4EF", "editorLineNumber.foreground": "#738299", "editorLineNumber.activeForeground": "#C9D7EE", "editor.lineHighlightBackground": "#1C2433", "editor.selectionBackground": "#314976", "editorIndentGuide.background1": "#283243" },
+    });
+    monaco.editor.defineTheme("animflow-light", {
+      base: "vs", inherit: true,
+      rules: [{ token: "keyword", foreground: "345DC2" }, { token: "string", foreground: "286B57" }, { token: "comment", foreground: "69798C" }],
+      colors: { "editor.background": "#F8FAFD", "editor.foreground": "#25334A", "editor.lineHighlightBackground": "#EDF2FA", "editorLineNumber.foreground": "#7C8799" },
+    });
     if (
       !monaco.languages
         .getLanguages()
@@ -245,12 +255,18 @@ export function DslEditor({
       beforeMount={beforeMount}
       language={language}
       onMount={handleMount}
-      theme={theme === "light" ? "vs" : "vs-dark"}
+      theme={theme === "light" ? "animflow-light" : "animflow-dark"}
       value={value}
       onChange={handleEditorChange}
       options={{
         minimap: { enabled: false },
         fontSize: 14,
+        fontFamily: '"IBM Plex Mono", monospace',
+        lineHeight: 24,
+        padding: { top: 16, bottom: 16 },
+        lineNumbersMinChars: 3,
+        renderLineHighlight: "gutter",
+        bracketPairColorization: { enabled: true },
         lineNumbers: "on",
         quickSuggestions: { other: true, comments: false, strings: false },
         scrollBeyondLastLine: false,

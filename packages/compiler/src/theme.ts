@@ -12,16 +12,26 @@ const fixedColors: Readonly<Record<string, RgbaColor>> = {
 };
 
 export function resolveTheme(name: string, tokens: Iterable<string>): ResolvedTheme {
+  const palette = name === "dark" ? { ...fixedColors,
+    surface: { r: 0.075, g: 0.094, b: 0.133, a: 1 },
+    neutral: { r: 0.80, g: 0.85, b: 0.92, a: 1 },
+    primary: { r: 0.48, g: 0.66, b: 1, a: 1 },
+    accent: { r: 1, g: 0.69, b: 0.42, a: 1 },
+    info: { r: 0.43, g: 0.79, b: 0.89, a: 1 },
+    success: { r: 0.39, g: 0.82, b: 0.64, a: 1 },
+    warning: { r: 0.96, g: 0.81, b: 0.39, a: 1 },
+    danger: { r: 1, g: 0.49, b: 0.56, a: 1 },
+  } : fixedColors;
   const colors: Record<string, RgbaColor> = {};
   for (const value of [...new Set(tokens)].sort()) {
-    colors[themeToken(value)] = fixedColors[value] ?? colorFromToken(value);
+    colors[themeToken(value)] = palette[value] ?? colorFromToken(value);
   }
   return {
     name,
     colors: colors as Readonly<Record<ThemeToken, RgbaColor>>,
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-    fontSize: 16,
-    fontWeight: 500,
+    fontFamily: 'var(--font-display, "Avenir Next"), "Noto Sans KR", sans-serif',
+    fontSize: 18,
+    fontWeight: 600,
   };
 }
 

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { STUDIO_EXAMPLES } from "../data/studio-examples";
+import { exportSource } from "./helpers/source";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -45,7 +46,7 @@ test("switches, duplicates, and deletes local projects without mixing their sour
   await dialog.getByRole("button", { name: "＋ New project" }).click();
   await expect(page.getByRole("textbox", { name: "Lesson title" })).toHaveValue("Untitled lesson");
   await expect(page.getByRole("region", { name: "AnimFlow source" })).toContainText("untitled-lesson.animflow");
-  await expect.poll(() => page.locator(".view-lines").textContent()).toContain("idea");
+  expect(await exportSource(page)).toContain("node idea");
   await expect(page.getByRole("button", { name: "Select node idea" })).toBeVisible();
 
   await page.getByRole("button", { name: "Projects", exact: true }).click();
@@ -60,7 +61,7 @@ test("switches, duplicates, and deletes local projects without mixing their sour
   await original.locator(".studio-project-open").click();
   await expect(page.getByRole("textbox", { name: "Lesson title" })).toHaveValue("Payment signal walkthrough");
   await expect(page.getByRole("region", { name: "AnimFlow source" })).toContainText("payment-signal-walkthrough.animflow");
-  await expect.poll(() => page.locator(".view-lines").textContent()).toContain("client");
+  expect(await exportSource(page)).toContain("node client");
   await expect(page.getByRole("button", { name: "Select node client" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Select node idea" })).toHaveCount(0);
 

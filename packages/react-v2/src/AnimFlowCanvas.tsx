@@ -16,7 +16,9 @@ import type {
   RgbaColor,
   ThemeToken,
 } from "@animflow-dsl/model";
-import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement, type SVGProps } from "react";
+import { pointAtPathProgress } from "@animflow-dsl/model";
+import { useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement, type SVGProps } from "react";
+import { movePathEndpoints } from "./drag-geometry.js";
 
 export interface AnimFlowCanvasProps {
   readonly plan: RenderPlan;
@@ -46,6 +48,8 @@ interface NodeDragState {
   readonly id: string;
   readonly handle: ElementHandle;
   readonly pointerId: number;
+  readonly clientStart: { readonly x: number; readonly y: number };
+  readonly inverse: { readonly a: number; readonly b: number; readonly c: number; readonly d: number };
   readonly start: { readonly x: number; readonly y: number };
   readonly origin: { readonly x: number; readonly y: number };
   readonly current: { readonly x: number; readonly y: number };
@@ -72,11 +76,13 @@ export function AnimFlowCanvas({
   onNodePositionCommit,
 }: AnimFlowCanvasProps): ReactElement {
   const [drag, setDrag] = useState<NodeDragState>();
+  const instanceId = useId().replace(/:/g, "");
   const suppressCanvasClickRef = useRef(false);
   const indexedFrame = indexFrame(frame, plan);
   const geometry = new Map(plan.geometry.map((item) => [item.handle, item]));
   const background = colorFor(plan, plan.canvas.background);
   const viewBox = frame.camera.viewBox;
+  const dragOffset = drag ? { x: drag.current.x - drag.start.x, y: drag.current.y - drag.start.y } : undefined;
 
   return (
     <svg
@@ -97,7 +103,7 @@ export function AnimFlowCanvas({
       }}
       onPointerMove={(event) => {
         if (!drag || event.pointerId !== drag.pointerId) return;
-        const current = svgPoint(event, event.currentTarget);
+        const current = dragPoint(event, drag);
         setDrag({ ...drag, current });
       }}
       onPointerUp={(event) => {
@@ -105,11 +111,11 @@ export function AnimFlowCanvas({
         window.setTimeout(() => {
           suppressCanvasClickRef.current = false;
         }, 0);
-        const current = svgPoint(event, event.currentTarget);
+        const current = dragPoint(event, drag);
         const deltaX = current.x - drag.start.x;
         const deltaY = current.y - drag.start.y;
         setDrag(undefined);
-        if (Math.hypot(deltaX, deltaY) < 2) return;
+        if (Math.hypot(event.clientX - drag.clientStart.x, event.clientY - drag.clientStart.y) < 3) return;
         onNodePositionCommit?.({
           id: drag.id,
           x: drag.origin.x + deltaX,
@@ -122,6 +128,7 @@ export function AnimFlowCanvas({
     >
       <title>{ariaLabel}</title>
       <rect
+        pointerEvents="none"
         fill={rgba(background)}
         height={Math.max(plan.canvas.height, viewBox.y + viewBox.height)}
         width={Math.max(plan.canvas.width, viewBox.x + viewBox.width)}
@@ -131,9 +138,16 @@ export function AnimFlowCanvas({
       <g data-animflow-layer="edges">
         {plan.elements.map((element) => {
           if (element.kind !== "edge") return null;
-          const item = geometry.get(element.handle);
+          let item = geometry.get(element.handle);
+          if (item?.kind === "edge" && drag && dragOffset && (element.from.nodeId === drag.id || element.to.nodeId === drag.id)) {
+            const path = movePathEndpoints(item.path, element.from.nodeId === drag.id ? dragOffset : { x: 0, y: 0 }, element.to.nodeId === drag.id ? dragOffset : { x: 0, y: 0 });
+            const before = pointAtPathProgress(item.path, 0.5);
+            const after = pointAtPathProgress(path, 0.5);
+            const delta = { x: after.x - before.x, y: after.y - before.y };
+            item = { ...item, path, label: item.label ? { ...item.label, baseline: item.label.baseline + delta.y, bounds: { ...item.label.bounds, x: item.label.bounds.x + delta.x, y: item.label.bounds.y + delta.y } } : undefined };
+          }
           return item?.kind === "edge" ? (
-            <Edge key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
+            <Edge key={element.handle} instanceId={instanceId} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
           ) : null;
         })}
       </g>
@@ -144,7 +158,7 @@ export function AnimFlowCanvas({
           return item?.kind === "node" ? (
             <Node
               key={element.handle}
-              dragOffset={drag?.handle === element.handle ? { x: drag.current.x - drag.start.x, y: drag.current.y - drag.start.y } : undefined}
+              dragOffset={drag?.handle === element.handle ? dragOffset : undefined}
               element={element}
               frame={indexedFrame.get(element.handle)!}
               geometry={item}
@@ -152,6 +166,8 @@ export function AnimFlowCanvas({
                 if (event.button !== 0) return;
                 const svg = event.currentTarget.ownerSVGElement;
                 if (!svg) return;
+                const inverse = svg.getScreenCTM()?.inverse();
+                if (!inverse) return;
                 event.stopPropagation();
                 suppressCanvasClickRef.current = true;
                 onElementSelect?.({ id: element.id, kind: "node", additive: event.shiftKey });
@@ -161,6 +177,8 @@ export function AnimFlowCanvas({
                   id: element.id,
                   handle: element.handle,
                   pointerId: event.pointerId,
+                  clientStart: { x: event.clientX, y: event.clientY },
+                  inverse: { a: inverse.a, b: inverse.b, c: inverse.c, d: inverse.d },
                   start,
                   current: start,
                   origin: {
@@ -179,7 +197,10 @@ export function AnimFlowCanvas({
       <g data-animflow-layer="overlays">
         {plan.elements.map((element) => {
           if (element.kind !== "overlay") return null;
-          const item = geometry.get(element.handle);
+          let item = geometry.get(element.handle);
+          if (item?.kind === "overlay" && item.connector && drag && dragOffset && element.anchor.kind === "node" && element.anchor.target.nodeId === drag.id) {
+            item = { ...item, connector: movePathEndpoints(item.connector, dragOffset, { x: 0, y: 0 }) };
+          }
           return item?.kind === "overlay" ? (
             <Overlay key={element.handle} element={element} frame={indexedFrame.get(element.handle)!} geometry={item} onSelect={onElementSelect} plan={plan} selected={selectedElementIds.includes(element.id)} />
           ) : null;
@@ -212,9 +233,9 @@ function Node({
       data-animflow-dragging={dragOffset ? "true" : undefined}
       opacity={frame.opacity}
       transform={`${dragOffset ? `translate(${dragOffset.x} ${dragOffset.y}) ` : ""}${elementTransform(frame, geometry.bounds)}`}
-      {...selectableProps(element, selected, onSelect)}
+      {...selectableProps(element, selected, onSelect, frame.opacity > 0.01)}
       onPointerDown={onDragStart}
-      style={{ cursor: onDragStart ? (dragOffset ? "grabbing" : "grab") : "pointer", outline: "none", touchAction: "none" }}
+      style={{ cursor: onDragStart ? (dragOffset ? "grabbing" : "grab") : onSelect ? "pointer" : undefined, pointerEvents: frame.opacity <= 0.01 ? "none" : undefined, touchAction: onDragStart ? "none" : undefined }}
     >
       {selected ? <path d={path} fill="none" opacity={0.92} stroke="#4c7dff" strokeWidth={6} vectorEffect="non-scaling-stroke" /> : null}
       {frame.highlight.active || frame.highlight.intensity > 0 ? (
@@ -237,9 +258,16 @@ function Node({
         strokeWidth={2}
         vectorEffect="non-scaling-stroke"
       />
-      <Text geometry={geometry.label} color={tone} />
+      <Text geometry={geometry.label} color={ensureContrast(tone, surface, 5)} />
     </g>
   );
+}
+
+/** Keep the pointer's coordinate system stable when selection resizes the canvas. */
+function dragPoint(event: ReactPointerEvent<SVGSVGElement>, drag: NodeDragState) {
+  const dx = event.clientX - drag.clientStart.x;
+  const dy = event.clientY - drag.clientStart.y;
+  return { x: drag.start.x + drag.inverse.a * dx + drag.inverse.c * dy, y: drag.start.y + drag.inverse.b * dx + drag.inverse.d * dy };
 }
 
 function svgPoint(
@@ -255,7 +283,7 @@ function svgPoint(
   return { x: transformed.x, y: transformed.y };
 }
 
-function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItemProps<CompiledEdge, EdgeGeometry>): ReactElement {
+function Edge({ element, geometry, frame, onSelect, plan, selected, instanceId }: RenderItemProps<CompiledEdge, EdgeGeometry> & { readonly instanceId: string }): ReactElement {
   if (frame.kind !== "edge") throw new TypeError(`Handle ${element.handle} must have edge frame state.`);
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const surface = colorFor(plan, plan.canvas.background);
@@ -264,8 +292,8 @@ function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItem
   const highlight = colorFor(plan, frame.highlight.tone);
   const markerOpacity = Math.max(0, Math.min(1, (frame.drawProgress - 0.9) * 10));
   const path = pathData(geometry.path);
-  const markerId = `animflow-marker-${element.handle}`;
-  const maskId = `animflow-draw-mask-${element.handle}`;
+  const markerId = `animflow-marker-${element.handle}-${instanceId}`;
+  const maskId = `animflow-draw-mask-${element.handle}-${instanceId}`;
   const flowEffect = frame.flowEffect ?? element.flowEffect ?? "none";
   const dash = lineDash(flowEffect === "dash" ? "dashed" : element.linePattern);
   const edgeBounds = boundsForEdge(geometry);
@@ -274,7 +302,7 @@ function Edge({ element, geometry, frame, onSelect, plan, selected }: RenderItem
       data-animflow-handle={element.handle}
       opacity={frame.opacity}
       transform={elementTransform(frame, edgeBounds)}
-      {...selectableProps(element, selected, onSelect)}
+      {...selectableProps(element, selected, onSelect, frame.opacity > 0.01)}
     >
       {selected ? <path d={path} fill="none" opacity={0.25} stroke="#4c7dff" strokeWidth={lineWidth + 12} vectorEffect="non-scaling-stroke" /> : null}
       <defs>
@@ -443,12 +471,12 @@ function Overlay({ element, geometry, frame, onSelect, plan, selected }: RenderI
   const surface = colorFor(plan, plan.canvas.background);
   const highlight = colorFor(plan, frame.highlight.tone);
   return (
-    <g data-animflow-handle={element.handle} opacity={frame.opacity} transform={elementTransform(frame, geometry.bounds)} {...selectableProps(element, selected, onSelect)}>
+    <g data-animflow-handle={element.handle} opacity={frame.opacity} transform={elementTransform(frame, geometry.bounds)} {...selectableProps(element, selected, onSelect, frame.opacity > 0.01)}>
       {selected ? <rect fill="none" height={geometry.bounds.height + 8} opacity={0.92} rx={16} stroke="#4c7dff" strokeWidth={5} vectorEffect="non-scaling-stroke" width={geometry.bounds.width + 8} x={geometry.bounds.x - 4} y={geometry.bounds.y - 4} /> : null}
       {geometry.connector ? <path d={pathData(geometry.connector)} fill="none" opacity={0.65} stroke={rgba(tone)} strokeDasharray="3 4" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null}
       {frame.highlight.active || frame.highlight.intensity > 0 ? <rect fill="none" height={geometry.bounds.height} opacity={frame.highlight.intensity * 0.36} rx={14} stroke={rgba(highlight)} strokeWidth={12} vectorEffect="non-scaling-stroke" width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} /> : null}
       <rect fill={mix(surface, tone, 0.06)} height={geometry.bounds.height} rx={element.overlayKind === "badge" ? geometry.bounds.height / 2 : 12} stroke={rgba(tone)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} />
-      <Text geometry={geometry.text} color={tone} inset={16} />
+      <Text geometry={geometry.text} color={ensureContrast(tone, surface, 5)} inset={16} />
     </g>
   );
 }
@@ -532,27 +560,7 @@ function boundsForEdge(geometry: EdgeGeometry): Rect {
 }
 
 function pointOnPath(path: CompiledPath, progress: number): { x: number; y: number } {
-  const move = path.commands.find((command) => command.kind === "move");
-  if (!move || move.kind !== "move") return { x: 0, y: 0 };
-  const drawable = path.commands.filter((command) => command.kind === "line" || command.kind === "cubic");
-  if (drawable.length === 0) return move.to;
-  const scaled = Math.min(0.999999, Math.max(0, progress)) * drawable.length;
-  const index = Math.floor(scaled);
-  const local = scaled - index;
-  const command = drawable[index]!;
-  const previous = index === 0
-    ? move.to
-    : drawable[index - 1]!.kind === "line" || drawable[index - 1]!.kind === "cubic"
-      ? drawable[index - 1]!.to
-      : move.to;
-  if (command.kind === "line") {
-    return { x: previous.x + (command.to.x - previous.x) * local, y: previous.y + (command.to.y - previous.y) * local };
-  }
-  const inverse = 1 - local;
-  return {
-    x: inverse ** 3 * previous.x + 3 * inverse ** 2 * local * command.control1.x + 3 * inverse * local ** 2 * command.control2.x + local ** 3 * command.to.x,
-    y: inverse ** 3 * previous.y + 3 * inverse ** 2 * local * command.control1.y + 3 * inverse * local ** 2 * command.control2.y + local ** 3 * command.to.y,
-  };
+  return pointAtPathProgress(path, progress);
 }
 
 function colorFor(plan: RenderPlan, token: ThemeToken): RgbaColor {
@@ -563,11 +571,13 @@ function selectableProps(
   element: CompiledElement,
   selected: boolean,
   onSelect: ((selection: AnimFlowElementSelection) => void) | undefined,
+  visible: boolean,
 ): SVGProps<SVGGElement> & {
   readonly "data-animflow-id"?: string;
   readonly "data-animflow-selected"?: string;
 } {
   if (!onSelect) return {};
+  if (!visible) return { "aria-hidden": true, "data-animflow-id": element.id, style: { pointerEvents: "none" } };
   const select = (additive: boolean) => onSelect({ id: element.id, kind: element.kind, additive });
   return {
     "aria-label": `Select ${element.kind} ${element.id}`,
@@ -584,7 +594,7 @@ function selectableProps(
       select(event.shiftKey);
     },
     role: "button",
-    style: { cursor: "pointer", outline: "none" },
+    style: { cursor: "pointer" },
     tabIndex: 0,
   };
 }

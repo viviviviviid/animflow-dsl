@@ -29,6 +29,8 @@ import {
 } from "@animflow-dsl/react-v2";
 
 import { V2Player } from "@/components/v2/V2Player";
+import { StudioIcon, type StudioIconName } from "./StudioIcon";
+import { useModalFocus } from "./useModalFocus";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { BLANK_STUDIO_SOURCE, STUDIO_EXAMPLES, type StudioExample } from "@/data/studio-examples";
 import { DEFAULT_V2_SOURCE } from "@/data/v2-default";
@@ -91,6 +93,7 @@ export function Studio() {
   const [seekRequest, setSeekRequest] = useState<{ requestId: number; timeMs: number }>();
   const [stale, setStale] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(true);
+  const [mobilePanel, setMobilePanel] = useState<"canvas" | "source" | "inspector">("canvas");
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [sceneRailOpen, setSceneRailOpen] = useState(true);
   const [panelSizes, setPanelSizes] = useState<PanelSizes>(DEFAULT_PANEL_SIZES);
@@ -193,6 +196,8 @@ export function Studio() {
         const saved = await loadStudioDraft(storedId);
         if (cancelled) return;
         const source = saved?.source ?? DEFAULT_V2_SOURCE;
+        // Switch the title and exportable source together, before worker initialization.
+        setSourceDraft(source);
         if (saved) {
           setTitle(saved.title);
           setCloudVersion(saved.cloudVersion);
@@ -387,6 +392,24 @@ export function Studio() {
     setEditorRange(undefined);
     void clientRef.current?.select(undefined).then(setAuthoring);
   }, []);
+
+  const formatSource = async () => {
+    const client = clientRef.current;
+    if (!client || !authoring || editingBlocked) return;
+    const original = sourceDraft;
+    setBusy(true);
+    try {
+      const formatted = await client.format(original);
+      if (sourceDraftRef.current !== original || clientRef.current !== client) {
+        setNotice("Source changed while formatting. Run Format again on the current draft.");
+        return;
+      }
+      if (formatted === original) { setNotice("Source is already formatted."); return; }
+      if (await applyCommand({ type: "source.replace", baseRevision: authoring.documentRevision, source: formatted })) setNotice("Source formatted. Undo restores the previous formatting.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
+  };
 
   const selectScene = useCallback((scene: CompiledScene) => {
     setEditorRange(undefined);
@@ -764,11 +787,17 @@ export function Studio() {
   } as CSSProperties;
 
   return (
-    <main className="studio-shell" data-resizing-panel={resizeSession?.panel} data-studio-theme={studioTheme} style={panelStyle}>
+    <main className="studio-shell" data-mobile-panel={mobilePanel} data-resizing-panel={resizeSession?.panel} data-studio-theme={studioTheme} style={panelStyle}
+      onClickCapture={(event) => {
+        // Safari does not focus mouse-clicked buttons; remember the modal's opener.
+        const opener = event.target instanceof Element ? event.target.closest('[aria-haspopup="dialog"]') : null;
+        if (opener instanceof HTMLElement) opener.focus({ preventScroll: true });
+      }}
+    >
       <header className="studio-topbar">
         <div className="studio-brand" aria-label="AnimFlow Studio">
-          <span className="studio-brand-mark">AF</span>
-          <span><strong>AnimFlow</strong><small>lecture studio</small></span>
+          <span className="studio-brand-mark"><StudioIcon name="canvas" /></span>
+          <span><strong>AnimFlow</strong><small>Studio</small></span>
         </div>
         <label className="studio-title-field">
           <span>Lesson title</span>
@@ -779,13 +808,14 @@ export function Studio() {
           {!authoring ? "Opening lesson" : errors.length ? `${errors.length} blocking` : stale ? "Stale preview" : "Ready to teach"}
         </div>
         <div className="studio-top-actions">
-          <button disabled={!authoring?.canUndo || busy} onClick={() => void history("undo")} type="button" aria-label="Undo">↶</button>
-          <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo">↷</button>
-          <button className="studio-mobile-action" onClick={() => void openProjectLibrary()} type="button">Projects</button>
-          <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button">Present</button>
-          <button className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
+          <button disabled={!authoring?.canUndo || busy} onClick={() => void history("undo")} type="button" aria-label="Undo"><StudioIcon name="undo" width={17} height={17} /></button>
+          <button disabled={!authoring?.canRedo || busy} onClick={() => void history("redo")} type="button" aria-label="Redo"><StudioIcon name="redo" width={17} height={17} /></button>
+          <button aria-haspopup="dialog" className="studio-mobile-action" onClick={() => void openProjectLibrary()} type="button">Projects</button>
+          <button className="studio-primary-action" disabled={presentationBlocked} onClick={() => void openPresenter()} type="button"><StudioIcon name="play" width={14} height={14} />Present</button>
+          <button aria-haspopup="dialog" className="studio-publish-action" disabled={presentationBlocked} onClick={() => void publishRevision()} type="button">Publish</button>
           <button
             aria-label={auth.user ? "Open cloud account" : "Sign in to cloud projects"}
+            aria-haspopup="dialog"
             className={auth.user ? "studio-account-action is-signed-in" : "studio-account-action"}
             disabled={auth.loading}
             onClick={() => setAccountOpen(true)}
@@ -794,8 +824,6 @@ export function Studio() {
             <span aria-hidden="true">{auth.user ? accountInitial(auth.user.email) : "↥"}</span>
             <span>{auth.loading ? "Checking…" : auth.user ? "Cloud" : "Sign in"}</span>
           </button>
-          <button aria-expanded={sourceOpen} className="studio-mobile-action" onClick={() => setSourceOpen((open) => !open)} type="button">Source</button>
-          <button aria-expanded={inspectorOpen} className="studio-mobile-action" onClick={() => setInspectorOpen((open) => !open)} type="button">Inspector</button>
           <button aria-expanded={sceneRailOpen} className="studio-mobile-action" onClick={() => setSceneRailOpen((open) => !open)} type="button">Cues</button>
           <button
             aria-label={`Switch to ${studioTheme === "dark" ? "light" : "dark"} mode`}
@@ -805,18 +833,14 @@ export function Studio() {
             title={`Use ${studioTheme === "dark" ? "light" : "dark"} Studio`}
             type="button"
           ><span aria-hidden="true">{studioTheme === "dark" ? "☼" : "◐"}</span><span>{studioTheme === "dark" ? "Light" : "Dark"}</span></button>
-          <button className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
-          <label aria-disabled={!authoring} className="studio-file-button studio-desktop-extra">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
-          <button className="studio-import-action studio-desktop-extra" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
-          <button className="studio-export-action studio-desktop-extra" onClick={exportSource} type="button">Export</button>
-          <Link className="studio-legacy-link studio-desktop-extra" href="/legacy">v1</Link>
+          <button aria-haspopup="dialog" className="studio-mobile-action" onClick={() => setHelpOpen(true)} type="button">Help</button>
           <details className="studio-overflow-menu">
-            <summary>More</summary>
+            <summary aria-label="File and workspace menu">More <span aria-hidden="true">⌄</span></summary>
             <div>
-              <label aria-disabled={!authoring} className="studio-file-button">Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
-              <button disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
+              <label aria-disabled={!authoring} className="studio-file-button" onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.currentTarget.querySelector("input")?.click(); } }} role="button" tabIndex={authoring ? 0 : -1}>Open file<input accept=".animflow,.mmd,.mermaid,text/plain" disabled={!authoring} onChange={importFile} type="file" /></label>
+              <button aria-haspopup="dialog" disabled={!authoring} onClick={() => setImportOpen(true)} type="button">Import Mermaid</button>
               <button onClick={exportSource} type="button">Export source</button>
-              <button onClick={() => setHelpOpen(true)} type="button">Workflow help</button>
+              <button aria-haspopup="dialog" onClick={() => setHelpOpen(true)} type="button">Workflow help</button>
               <Link href="/legacy">Open Studio v1</Link>
             </div>
           </details>
@@ -832,24 +856,29 @@ export function Studio() {
       ) : null}
       {storageError ? <div className="studio-storage-error" role="alert">{storageError}<button onClick={exportSource} type="button">Export source</button></div> : null}
 
+      <nav className="studio-mobile-tabs" aria-label="Workspace panels">
+        <button aria-pressed={mobilePanel === "canvas"} onClick={() => setMobilePanel("canvas")} type="button"><StudioIcon name="canvas" />Canvas</button>
+        <button aria-pressed={mobilePanel === "source"} onClick={() => { setSourceOpen(true); setMobilePanel("source"); }} type="button"><StudioIcon name="source" />Source</button>
+        <button aria-pressed={mobilePanel === "inspector"} onClick={() => { setInspectorOpen(true); setMobilePanel("inspector"); }} type="button"><StudioIcon name="inspect" />Inspector</button>
+      </nav>
       <div className="studio-workspace" data-inspector-open={inspectorOpen} data-source-open={sourceOpen}>
         <aside className="studio-toolrail" aria-label="Workspace tools">
-          <button className="is-active" type="button"><ToolGlyph label="Canvas" glyph="◇" /></button>
-          <button onClick={() => void openProjectLibrary()} type="button"><ToolGlyph label="Projects" glyph="▦" /></button>
-          <button aria-label={sourceOpen ? "Hide source" : "Show source"} aria-pressed={sourceOpen} className={sourceOpen ? "is-active" : undefined} onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" glyph="⌁" /></button>
-          <button aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"} aria-pressed={inspectorOpen} className={inspectorOpen ? "is-active" : undefined} onClick={() => setInspectorOpen((open) => !open)} type="button"><ToolGlyph label="Inspect" glyph="◎" /></button>
-          <button aria-label={sceneRailOpen ? "Hide scene cues" : "Show scene cues"} aria-pressed={sceneRailOpen} className={sceneRailOpen ? "is-active" : undefined} onClick={() => setSceneRailOpen((open) => !open)} type="button"><ToolGlyph label="Cues" glyph="≋" /></button>
+          <button aria-label="Focus canvas" aria-pressed={!sourceOpen && !inspectorOpen} className={!sourceOpen && !inspectorOpen ? "is-active" : undefined} onClick={() => { const focused = !sourceOpen && !inspectorOpen; setSourceOpen(focused); setInspectorOpen(focused); }} title="Focus canvas" type="button"><ToolGlyph label="Canvas" icon="canvas" /></button>
+          <button aria-haspopup="dialog" onClick={() => void openProjectLibrary()} type="button"><ToolGlyph label="Projects" icon="projects" /></button>
+          <button aria-label={sourceOpen ? "Hide source" : "Show source"} aria-pressed={sourceOpen} className={sourceOpen ? "is-active" : undefined} onClick={() => setSourceOpen((open) => !open)} type="button"><ToolGlyph label="Source" icon="source" /></button>
+          <button aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"} aria-pressed={inspectorOpen} className={inspectorOpen ? "is-active" : undefined} onClick={() => setInspectorOpen((open) => !open)} type="button"><ToolGlyph label="Inspect" icon="inspect" /></button>
+          <button aria-label={sceneRailOpen ? "Hide scene cues" : "Show scene cues"} aria-pressed={sceneRailOpen} className={sceneRailOpen ? "is-active" : undefined} onClick={() => setSceneRailOpen((open) => !open)} type="button"><ToolGlyph label="Cues" icon="cues" /></button>
           <span className="studio-toolrail-spacer" />
-          <button onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" glyph="?" /></button>
+          <button aria-haspopup="dialog" onClick={() => setHelpOpen(true)} type="button"><ToolGlyph label="Help" icon="help" /></button>
         </aside>
 
         {sourceOpen ? (
           <section className="studio-source-panel" aria-label="AnimFlow source">
             <div className="studio-drawer-head">
-              <div><span>Project DSL</span><strong title={`${slug(title) || "lesson"}.animflow`}>{slug(title) || "lesson"}.animflow</strong></div>
+              <div><strong title={`${slug(title) || "lesson"}.animflow`}>{slug(title) || "lesson"}.animflow</strong></div>
               <div>
-                <span>{draftPending ? "Checking…" : `${sourceDraft.split("\n").length} lines`}</span>
-                <button aria-label="Hide source panel" onClick={() => setSourceOpen(false)} title="Hide source" type="button">‹</button>
+                <button aria-label="Format source" className="studio-format-button" disabled={editingBlocked} onClick={() => void formatSource()} title="Format AnimFlow source" type="button">Format</button>
+                <button aria-label="Hide source panel" onClick={() => { setSourceOpen(false); setMobilePanel("canvas"); }} title="Hide source" type="button">‹</button>
               </div>
             </div>
             <div className="studio-source-grid">
@@ -860,7 +889,7 @@ export function Studio() {
                   diagnostics={previewDiagnostics}
                   hover={hoverSource}
                   onChange={handleSourceChange}
-                  readOnly={writerLease.status !== "writer"}
+                  readOnly={!authoring || writerLease.status !== "writer" || busy}
                   selectionRange={activeRange}
                   theme={studioTheme}
                   value={sourceDraft}
@@ -906,8 +935,8 @@ export function Studio() {
               <span className="studio-drag-hint">Drag nodes to pin</span>
               <span>{plan?.elements.length ?? 0} elements</span>
               <span>{Math.round((activeScene?.durationMs ?? 0) / 100) / 10}s cue</span>
-              <button disabled={editingBlocked || !activeGraphId} onClick={() => void autoArrange()} type="button">Auto-arrange</button>
-              <button onClick={clearSelection} type="button">Clear selection</button>
+              <button disabled={editingBlocked || !activeGraphId} onClick={() => void autoArrange()} type="button"><StudioIcon name="arrange" width={15} height={15} />Auto-arrange</button>
+              {selectedElementIds.length ? <button aria-label="Clear selection" onClick={clearSelection} type="button">Deselect</button> : null}
             </div>
           </div>
           <div className="studio-canvas-wrap">
@@ -948,7 +977,7 @@ export function Studio() {
             blocked={editingBlocked}
             narration={narration}
             onAction={(tool) => void addAction(tool)}
-            onClose={() => setInspectorOpen(false)}
+            onClose={() => { setInspectorOpen(false); setMobilePanel("canvas"); }}
             onNarrationChange={setNarration}
             onNarrationSave={() => void setSceneNarration()}
             selected={selectedElements}
@@ -1029,9 +1058,10 @@ function AccountDialog({ configured, error, onClose, onSignIn, onSignOut, userEm
   readonly onSignOut: () => void;
   readonly userEmail?: string;
 }) {
+  const dialogRef = useModalFocus(onClose);
   return (
     <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div aria-labelledby="account-dialog-title" aria-modal="true" className="studio-modal studio-account-modal" role="dialog">
+      <div ref={dialogRef} aria-labelledby="account-dialog-title" aria-modal="true" className="studio-modal studio-account-modal" role="dialog">
         <div className="studio-modal-head">
           <div><span>Crew access</span><h2 id="account-dialog-title">{userEmail ? "Cloud projects are connected" : "Carry lessons between devices"}</h2></div>
           <button aria-label="Close account dialog" onClick={onClose} type="button">×</button>
@@ -1080,9 +1110,10 @@ function ProjectLibraryDialog({
   readonly onUseExample: (example: StudioExample) => void;
 }) {
   const [deleteCandidate, setDeleteCandidate] = useState<string>();
+  const dialogRef = useModalFocus(onClose);
   return (
     <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div aria-labelledby="project-library-title" aria-modal="true" className="studio-modal studio-library-modal" role="dialog">
+      <div ref={dialogRef} aria-labelledby="project-library-title" aria-modal="true" className="studio-modal studio-library-modal" role="dialog">
         <div className="studio-modal-head">
           <div><span>Local project shelf</span><h2 id="project-library-title">Choose the lesson to direct</h2></div>
           <button aria-label="Close project library" onClick={onClose} type="button">×</button>
@@ -1143,9 +1174,10 @@ function ProjectLibraryDialog({
 }
 
 function HelpDialog({ onClose }: { readonly onClose: () => void }) {
+  const dialogRef = useModalFocus(onClose);
   return (
     <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div aria-labelledby="help-dialog-title" aria-modal="true" className="studio-modal studio-help-modal" role="dialog">
+      <div ref={dialogRef} aria-labelledby="help-dialog-title" aria-modal="true" className="studio-modal studio-help-modal" role="dialog">
         <div className="studio-modal-head">
           <div><span>Three-step workflow</span><h2 id="help-dialog-title">Build the lesson, then teach it</h2></div>
           <button aria-label="Close help dialog" onClick={onClose} type="button">×</button>
@@ -1167,9 +1199,10 @@ function HelpDialog({ onClose }: { readonly onClose: () => void }) {
 }
 
 function PublishDialog({ onClose, state }: { readonly onClose: () => void; readonly state: PublishDialogState }) {
+  const dialogRef = useModalFocus(onClose, state.status !== "publishing");
   return (
     <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && state.status !== "publishing") onClose(); }}>
-      <div aria-labelledby="publish-dialog-title" aria-modal="true" className="studio-modal publish-modal" role="dialog">
+      <div ref={dialogRef} aria-labelledby="publish-dialog-title" aria-modal="true" className="studio-modal publish-modal" role="dialog">
         <div className="studio-modal-head"><div><span>Immutable revision</span><h2 id="publish-dialog-title">{state.status === "publishing" ? "Publishing…" : state.status === "error" ? "Publish stopped" : "Your lesson is public"}</h2></div>{state.status !== "publishing" ? <button aria-label="Close publish dialog" onClick={onClose} type="button">×</button> : null}</div>
         {state.status === "publishing" ? <p>The server is formatting and compiling this revision in an isolated worker.</p> : null}
         {state.status === "error" ? <><p role="alert">{state.message}</p><div className="studio-modal-actions"><button onClick={onClose} type="button">Close</button></div></> : null}
@@ -1252,16 +1285,16 @@ function Inspector({
       <section className="studio-inspector-section">
         <div className="studio-section-label"><span>Add action</span><small>{activeScene?.title}</small></div>
         <div className="studio-action-grid">
-          <ActionButton disabled={blocked || selected.length === 0} glyph="↗" label="Reveal" onClick={() => onAction("reveal")} />
-          <ActionButton disabled={blocked || selected.length === 0} glyph="◎" label="Focus" onClick={() => onAction("focus")} />
-          <ActionButton disabled={blocked || selected.length !== 1 || one?.kind !== "edge"} glyph="⟿" label="Trace" onClick={() => onAction("trace")} />
-          <ActionButton disabled={blocked || selected.length === 0} glyph="◌" label="Hide" onClick={() => onAction("hide")} />
-          <ActionButton disabled={blocked || selected.length === 0} glyph="⌗" label="Camera" onClick={() => onAction("camera")} />
+          <ActionButton disabled={blocked || selected.length === 0} icon="reveal" label="Reveal" onClick={() => onAction("reveal")} />
+          <ActionButton disabled={blocked || selected.length === 0} icon="focus" label="Focus" onClick={() => onAction("focus")} />
+          <ActionButton disabled={blocked || selected.length !== 1 || one?.kind !== "edge"} icon="trace" label="Trace" onClick={() => onAction("trace")} />
+          <ActionButton disabled={blocked || selected.length === 0} icon="hide" label="Hide" onClick={() => onAction("hide")} />
+          <ActionButton disabled={blocked || selected.length === 0} icon="camera" label="Camera" onClick={() => onAction("camera")} />
         </div>
       </section>
       <section className="studio-inspector-section studio-narration">
-        <div className="studio-section-label"><span>Narration</span><small>speaker cue</small></div>
-        <textarea disabled={blocked} onChange={(event) => onNarrationChange(event.target.value)} placeholder="What should the audience understand in this cue?" value={narration} />
+        <div className="studio-section-label"><label htmlFor="scene-narration">Narration</label><small>speaker cue</small></div>
+        <textarea id="scene-narration" aria-label="What should the audience understand in this cue?" disabled={blocked} onChange={(event) => onNarrationChange(event.target.value)} placeholder="What should the audience understand in this cue?" value={narration} />
         <button disabled={blocked} onClick={onNarrationSave} type="button">Set narration</button>
       </section>
       <section className="studio-inspector-section studio-shortcuts">
@@ -1288,7 +1321,7 @@ function SceneRail({ activeSceneId, blocked, onAdd, onClose, onMove, onRemove, o
       <div className="studio-scene-list">
         {plan?.scenes.map((scene, index) => (
           <article className={scene.id === activeSceneId ? "studio-scene-card is-active" : "studio-scene-card"} key={scene.id}>
-            <button className="studio-scene-main" onClick={() => onSelect(scene)} type="button">
+            <button aria-current={scene.id === activeSceneId ? "step" : undefined} className="studio-scene-main" onClick={() => onSelect(scene)} type="button">
               <span className="studio-scene-number">{String(index + 1).padStart(2, "0")}</span>
               <span className="studio-scene-thumb"><SceneThumbnail plan={plan} scene={scene} /></span>
               <span className="studio-scene-copy"><strong>{scene.title}</strong><small>{formatDuration(scene.durationMs)} · {scene.tracks.length} tracks</small></span>
@@ -1318,9 +1351,10 @@ function SceneThumbnail({ plan, scene }: { readonly plan: RenderPlan; readonly s
 
 function MermaidImportDialog({ busy, onClose, onImport }: { readonly busy: boolean; readonly onClose: () => void; readonly onImport: (source: string) => Promise<void> }) {
   const [source, setSource] = useState("flowchart LR\n  Client --> API\n  API --> Database");
+  const dialogRef = useModalFocus(onClose);
   return (
     <div className="studio-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div aria-labelledby="mermaid-dialog-title" aria-modal="true" className="studio-modal" role="dialog">
+      <div ref={dialogRef} aria-labelledby="mermaid-dialog-title" aria-modal="true" className="studio-modal" role="dialog">
         <div className="studio-modal-head"><div><span>Strict importer</span><h2 id="mermaid-dialog-title">Bring in a Mermaid flowchart</h2></div><button aria-label="Close import dialog" onClick={onClose} type="button">×</button></div>
         <p>Flowchart nodes, directed edges, labels, and basic shapes become stable AnimFlow IDs. Unsupported Mermaid features are reported instead of approximated.</p>
         <textarea aria-label="Mermaid source" onChange={(event) => setSource(event.target.value)} spellCheck={false} value={source} />
@@ -1330,12 +1364,12 @@ function MermaidImportDialog({ busy, onClose, onImport }: { readonly busy: boole
   );
 }
 
-function ActionButton({ disabled, glyph, label, onClick }: { readonly disabled: boolean; readonly glyph: string; readonly label: string; readonly onClick: () => void }) {
-  return <button disabled={disabled} onClick={onClick} type="button"><span>{glyph}</span><strong>{label}</strong></button>;
+function ActionButton({ disabled, icon, label, onClick }: { readonly disabled: boolean; readonly icon: StudioIconName; readonly label: string; readonly onClick: () => void }) {
+  return <button disabled={disabled} onClick={onClick} type="button"><StudioIcon name={icon} /><strong>{label}</strong></button>;
 }
 
-function ToolGlyph({ glyph, label }: { readonly glyph: string; readonly label: string }) {
-  return <><span aria-hidden="true">{glyph}</span><small>{label}</small></>;
+function ToolGlyph({ icon, label }: { readonly icon: StudioIconName; readonly label: string }) {
+  return <><StudioIcon name={icon} /><small>{label}</small></>;
 }
 
 function actionForTool(

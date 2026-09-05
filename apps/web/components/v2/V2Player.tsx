@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StudioIcon } from "@/components/studio/StudioIcon";
 import {
   createBrowserCompileClient,
   type BrowserCompileClient,
@@ -49,6 +50,9 @@ export function V2Player({
   const [compiling, setCompiling] = useState(true);
   const [client, setClient] = useState<BrowserCompileClient | null>(null);
   const [stale, setStale] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panRef = useRef<{ pointerId: number; clientX: number; clientY: number; x: number; y: number; scale: number } | undefined>(undefined);
   const controllerRef = useRef<PlaybackController | null>(null);
   const currentSceneIdRef = useRef<string | null>(null);
   const planRef = useRef<RenderPlan | null>(null);
@@ -78,7 +82,8 @@ export function V2Player({
         setStale(planRef.current !== null);
         return;
       }
-      const controller = createPlayback(result.plan);
+      const previousPlayback = controllerRef.current?.snapshot();
+      const controller = createPlayback(result.plan, { speed: previousPlayback?.speed, loop: previousPlayback?.loop });
       const currentScene = result.plan.scenes.find(
         (scene) => scene.id === currentSceneIdRef.current,
       );
@@ -111,9 +116,14 @@ export function V2Player({
 
   useEffect(() => {
     currentSceneIdRef.current = playback?.frame.sceneId ?? null;
-    playbackTimeRef.current = playback?.timeMs ?? null;
     onSceneChange?.(playback?.frame.sceneId ?? null);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, [onSceneChange, playback?.frame.sceneId]);
+
+  useEffect(() => {
+    playbackTimeRef.current = playback?.timeMs ?? null;
+  }, [playback?.timeMs]);
 
   useEffect(() => {
     if (!seekRequest || !controllerRef.current) return;
@@ -149,13 +159,39 @@ export function V2Player({
     return <Status error message="Fix the diagnostics to produce a render plan." />;
   }
 
+  const view = playback.frame.camera.viewBox;
+  const previewFrame = zoom === 1 && pan.x === 0 && pan.y === 0 ? playback.frame : {
+    ...playback.frame,
+    camera: { ...playback.frame.camera, viewBox: { x: view.x + pan.x + (view.width - view.width / zoom) / 2, y: view.y + pan.y + (view.height - view.height / zoom) / 2, width: view.width / zoom, height: view.height / zoom } },
+  };
+
   return (
     <div className="v2-player">
-      <div className="v2-canvas-stage">
+      <div className="v2-canvas-stage"
+        onPointerDown={(event) => {
+          if (event.button !== 0 || !(event.target instanceof Element) || event.target.closest('button, [data-animflow-handle]')) return;
+          const svg = event.currentTarget.querySelector(".v2-canvas-surface svg") as SVGSVGElement | null;
+          const matrix = svg?.getScreenCTM();
+          if (!matrix) return;
+          panRef.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, x: pan.x, y: pan.y, scale: matrix.a };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const start = panRef.current;
+          if (!start || start.pointerId !== event.pointerId) return;
+          setPan({ x: start.x - (event.clientX - start.clientX) / start.scale, y: start.y - (event.clientY - start.clientY) / start.scale });
+        }}
+        onPointerUp={(event) => {
+          const start = panRef.current;
+          if (start && Math.hypot(event.clientX - start.clientX, event.clientY - start.clientY) < 3) onSelectionClear?.();
+          panRef.current = undefined;
+        }}
+        onPointerCancel={() => { panRef.current = undefined; }}
+      >
         <div className="v2-canvas-surface">
           <AnimFlowCanvas
             ariaLabel="AnimFlow lecture canvas"
-            frame={playback.frame}
+            frame={previewFrame}
             onElementSelect={stale ? undefined : onElementSelect}
             onSelectionClear={stale ? undefined : onSelectionClear}
             onNodePositionCommit={stale ? undefined : onNodePositionCommit}
@@ -171,12 +207,14 @@ export function V2Player({
             Stale preview
           </div>
         ) : null}
-        {playback.frame.narration ? (
-          <div className="v2-narration">
-            {playback.frame.narration.text}
-          </div>
-        ) : null}
+        <div className="v2-viewport-tools" role="group" aria-label="Canvas view">
+          <button aria-label="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} type="button"><StudioIcon name="minus" width={16} height={16} /></button>
+          <span aria-live="polite">{Math.round(zoom * 100)}%</span>
+          <button aria-label="Zoom in" disabled={zoom >= 3} onClick={() => setZoom((value) => Math.min(3, value + 0.25))} type="button"><StudioIcon name="plus" width={16} height={16} /></button>
+          <button aria-label="Fit canvas" title="Reset zoom and pan. Drag the background to pan." onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} type="button"><StudioIcon name="fit" width={16} height={16} /><span>Fit</span></button>
+        </div>
       </div>
+      {playback.frame.narration ? <div className="v2-narration"><span>Narration</span><p>{playback.frame.narration.text}</p></div> : null}
       <div className="v2-controls">
         <PlaybackControls
           durationMs={plan.durationMs}

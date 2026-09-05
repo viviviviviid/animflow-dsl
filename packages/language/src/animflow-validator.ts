@@ -119,6 +119,14 @@ export class AnimFlowValidator {
     this.checkVersion(document, accept);
     this.checkUniqueIds(document, accept);
     this.checkCanvas(document.canvas, accept);
+    for (const node of AstUtils.streamAst(document)) {
+      const property = node.$type.endsWith("ToneProperty") || node.$type === "CanvasBackgroundProperty" ? "value" : isHighlightStatement(node) ? "tone" : undefined;
+      if (!property) continue;
+      const token = (node as unknown as Record<string, unknown>)[property];
+      if (typeof token === "string" && token.startsWith("hex_") && !/^hex_(?:[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$/.test(token)) {
+        accept("error", "Literal colors require hex_ followed by exactly 6 (RGB) or 8 (RGBA) hexadecimal digits.", { node, property, code: code.invalidColor });
+      }
+    }
 
     for (const graph of document.graphs) {
       if (graph.layout) this.checkLayout(graph.layout, accept);
@@ -145,6 +153,10 @@ export class AnimFlowValidator {
 
     for (const scene of document.story.scenes ?? []) {
       this.checkScene(scene, accept);
+    }
+    const totalMs = document.story.scenes.reduce((sum, scene) => sum + durationMs(scene.duration), 0);
+    if (!Number.isFinite(totalMs) || totalMs > Number.MAX_SAFE_INTEGER) {
+      accept("error", "Story duration must fit within the safe millisecond timeline range.", { node: document.story, property: "name", code: code.invalidNumber });
     }
   }
 
@@ -306,8 +318,8 @@ export class AnimFlowValidator {
   }
 
   private checkScene(scene: Scene, accept: ValidationAcceptor): void {
-    if (!isFiniteGreaterThanZero(scene.duration.value)) {
-      accept("error", "Scene duration must be greater than zero.", {
+    if (!isFiniteGreaterThanZero(scene.duration.value) || !isFiniteGreaterThanZero(durationMs(scene.duration)) || durationMs(scene.duration) > Number.MAX_SAFE_INTEGER) {
+      accept("error", "Scene duration must be positive and fit within the safe millisecond timeline range.", {
         node: scene.duration,
         property: "value",
         code: code.invalidNumber,
@@ -342,9 +354,9 @@ export class AnimFlowValidator {
         });
       } else if (
         isStaggerStatement(action) &&
-        !isFiniteNonNegative(action.interval.value)
+        (!isFiniteNonNegative(action.interval.value) || !isFiniteNonNegative(durationMs(action.interval)) || durationMs(action.interval) > Number.MAX_SAFE_INTEGER)
       ) {
-        accept("error", "Stagger interval must not be negative.", {
+          accept("error", "Stagger interval must be non-negative and fit within the safe millisecond timeline range.", {
           node: action.interval,
           property: "value",
           code: code.invalidNumber,
@@ -398,6 +410,16 @@ export class AnimFlowValidator {
   }
 
   private checkTarget(target: TargetSet, accept: ValidationAcceptor): void {
+    if (isElementListTarget(target)) {
+      const seen = new Set<Element>();
+      for (let index = 0; index < target.elements.length; index += 1) {
+        const element = target.elements[index]!.ref;
+        if (!element) continue;
+        if (seen.has(element)) accept("error", `Target \"${element.name}\" is listed more than once. Each element may appear only once in a target list.`, { node: target, property: "elements", index, code: code.invalidTarget });
+        seen.add(element);
+      }
+      return;
+    }
     if (!isNamedTarget(target)) return;
     const resolved = target.target.ref;
     if (!resolved) return;
@@ -610,9 +632,7 @@ export class AnimFlowValidator {
       .replace(/^ClearHighlight$/, "clearHighlight")
       .replace(/^./, (character) => character.toLowerCase());
     const used = new Set(
-      statements
-        .filter(isActionStatement)
-        .map((candidate) => candidate.name),
+      [document.story.name, ...document.graphs.map((graph) => graph.name), ...document.graphs.flatMap((graph) => graph.members.map((member) => member.name)), ...document.overlays.map((overlay) => overlay.name), ...document.story.scenes.map((scene) => scene.name), ...statements.filter(isActionStatement).map((candidate) => candidate.name)],
     );
     const base = `${verb}${ordinal}`;
     let candidate = base;

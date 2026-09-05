@@ -87,9 +87,9 @@ Tone values are identifiers:
 - Built-ins: `surface`, `neutral`, `primary`, `accent`, `info`, `success`, `warning`, `danger`.
 - Literal RGB: `hex_2F6FED`.
 - Literal RGBA: `hex_2F6FEDCC`.
-- Any other identifier is converted to a deterministic color.
+- Any other identifier is converted to a deterministic color. The `hex_` prefix is reserved: malformed RGB/RGBA literals fail with `AF306` rather than becoming a named color.
 
-`theme` names the resolved theme but does not load remote assets or arbitrary CSS.
+`theme dark` resolves a dark canvas and a contrasting palette. `light`, `signalDesk`, and other theme names use the default light palette. Themes do not load remote assets or arbitrary CSS. The Studio interface theme is separate from the document's canvas theme.
 
 ## Canvas
 
@@ -129,6 +129,8 @@ graph checkout {
 
 Each setting may appear at most once. Geometry is compiled before playback and does not depend on DOM measurement.
 
+Feedback cycles retain every connection while distributing nodes across ranks. Orthogonal routes use port directions and obstacle-aware detours; unobstructed curves retain their cubic shape. Explicit `straight` routes remain direct. Pinned nodes can overlap or block every exit, so move those nodes or use Optimize layout when manual placement leaves no clear route.
+
 ## Nodes
 
 ```animflow
@@ -145,6 +147,8 @@ All properties are optional and may appear at most once.
 Shapes: `rectangle`, `rounded`, `pill`, `diamond`, `circle`, `database`, `document`, `parallelogram`.
 
 Defaults: `shape rounded`, `tone neutral`.
+
+Labels preserve explicit `\n` line breaks and wrap long text using deterministic character widths, including wider CJK characters. The shape grows with the wrapped label.
 
 `position x <number> y <number>` stores the node center in canvas coordinates. Without `pin`, the position is a preferred coordinate and the deterministic layout may move the node along the secondary axis to maintain `nodeGap`. `pin` keeps the coordinate exact and requires `position`. Nodes without a position use automatic rank layout. These properties require source v2.2.
 
@@ -176,6 +180,8 @@ edge request: client.e -> api.w {
 | `flow` | `none`, `particles`, `dash`, `glow`, `wave`, `arrow`, `lightning` | `none` |
 
 `draw edgeId via trace flow effect` can override the compiled flow effect for that scene. Parallel edges remain independently targetable because animation refers to edge IDs, never `A->B` endpoint strings.
+
+Connections using the same endpoint ports receive separate lanes. Self-connections receive visible loops, and camera fitting includes connection routes and labels. Edge labels and animated particles use distance along the path, rather than equal time per segment.
 
 ## Overlays
 
@@ -214,7 +220,7 @@ story main {
 
 Initial state supports `show`, `hide`, and camera statements without transitions. A graph target requires `.*` except when a plain graph is used by `camera fit`.
 
-Durations require `ms` or `s`, for example `800ms`, `1.2s`. Scene duration must be greater than zero.
+Durations require `ms` or `s`, for example `800ms`, `1.2s`. Scene duration must be greater than zero. Converted milliseconds, stagger intervals, and the total story duration must remain finite and within JavaScript's safe numeric range (`Number.MAX_SAFE_INTEGER`).
 
 ## Targets
 
@@ -226,6 +232,8 @@ Durations require `ms` or `s`, for example `800ms`, `1.2s`. Scene duration must 
 | `checkout` | graph itself; only valid for `camera fit` |
 
 Only graphs support `.*`. `camera focus` requires exactly one element, not a graph or multi-target list.
+
+An explicit list cannot repeat the same element. For example, `[api, api]` fails with `AF305` at the duplicate reference instead of scheduling the same animation twice.
 
 ## Scene statements
 
@@ -285,7 +293,7 @@ action frameActors: camera fit([client, api]) padding 80
 action focusApi: camera focus(api) padding 96
 ```
 
-Padding defaults to 40 and cannot be negative. Camera is part of `FrameState`; the host and renderer do not maintain a second viewBox state.
+Padding defaults to 40 and cannot be negative. Story camera motion is part of `FrameState`. Studio additionally offers temporary preview zoom and background dragging; these do not modify the document or published playback. Fit restores the story camera, and changing scenes resets the preview view.
 
 ### Narration
 
@@ -342,6 +350,8 @@ Compilation returns either a complete immutable `RenderPlan` or diagnostics. Eve
 | `AF7xx` | reserved plugin contracts |
 
 The editor uses the same Langium grammar and validation rules as compilation. Monaco markers and quick fixes therefore match compiler failures and CLI JSON, while completion, hover, and go-to-definition resolve through the same typed AST and linker.
+
+Studio's **Format** command formats valid source through the authoring worker and records one undoable source replacement. Editing is paused during that command so typing cannot race the replacement. Quick fixes that insert action IDs avoid collisions with every document-wide identifier.
 
 ## Runtime contract
 

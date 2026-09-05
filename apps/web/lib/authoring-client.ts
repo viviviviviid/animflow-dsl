@@ -64,6 +64,12 @@ export class StudioAuthoringClient {
     return this.send({ type: "import-mermaid", source });
   }
 
+  public async format(source: string): Promise<string> {
+    const response = await this.send({ type: "format", source });
+    if (response.formattedSource === undefined) throw new Error("The formatter returned no source.");
+    return response.formattedSource;
+  }
+
   public async complete(
     source: string,
     position: { readonly line: number; readonly character: number },

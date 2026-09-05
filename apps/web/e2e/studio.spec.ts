@@ -39,13 +39,13 @@ test("adds an action, reorders its cue, and previews it with one undo history", 
 
   await page.getByRole("button", { name: "Select node client" }).click();
   await expect(page.getByRole("complementary", { name: "Action inspector" })).toContainText("Client");
-  await page.getByRole("button", { name: "◎ Focus" }).click();
+  await page.getByRole("button", { name: "Focus", exact: true }).click();
 
   await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
   await expect(page.getByRole("status")).toContainText("Saved tx-");
   await page.getByRole("button", { name: /02 Authorize payment thumbnail/ }).click();
   await page.getByRole("button", { name: "Select node client" }).click();
-  await page.getByRole("button", { name: "⌗ Camera" }).click();
+  await page.getByRole("button", { name: "Camera", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Saved tx-2");
   await expect(page.locator(".studio-stage-head strong")).toHaveText("Authorize payment");
   await page.getByRole("button", { name: "Move Reveal the actors later" }).click();
@@ -118,7 +118,7 @@ test("keeps the last valid preview while an invalid draft is repaired", async ({
   });
 
   await expect(page.getByText("Stale preview", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "↗ Reveal" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Reveal", exact: true })).toBeDisabled();
   await expect(page.getByRole("slider", { name: "Animation time" })).toBeEnabled();
 
   await page.locator('input[type="file"]').first().setInputFiles({

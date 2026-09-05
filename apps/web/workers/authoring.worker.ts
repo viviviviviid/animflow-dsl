@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { AuthoringSession } from "@animflow-dsl/authoring";
-import { completeAnimFlow, defineAnimFlow, hoverAnimFlow } from "@animflow-dsl/language";
+import { completeAnimFlow, defineAnimFlow, formatAnimFlow, hoverAnimFlow } from "@animflow-dsl/language";
 import { importMermaidFlowchart } from "@animflow-dsl/migrate";
 
 import type {
@@ -29,6 +29,16 @@ async function handle(request: StudioAuthoringRequest): Promise<void> {
       return;
     }
     if (!session) throw new Error("Authoring session is not initialized.");
+
+    if (request.type === "format") {
+      const formatted = await formatAnimFlow(request.source);
+      if (!formatted.ok) {
+        respond({ type: "error", requestId: request.requestId, message: formatted.diagnostics[0].message, diagnostics: formatted.diagnostics });
+      } else {
+        respond({ type: "result", requestId: request.requestId, state: snapshot(session), formattedSource: formatted.value.source });
+      }
+      return;
+    }
 
     if (request.type === "complete") {
       const completions = await completeAnimFlow(request.source, request.position);

@@ -16,6 +16,8 @@ import type {
   Vec2,
 } from "@animflow-dsl/model";
 import type { FlowDirection } from "@animflow-dsl/language";
+import { flattenPath, pointAtPathProgress } from "@animflow-dsl/model";
+import { portDirection, routeConnection } from "./routing.js";
 
 export interface GraphLayoutInput {
   readonly id: string;
@@ -59,13 +61,19 @@ export function compileGeometry(
       );
     }
     const labelBounds: Rect[] = [];
+    const routeBounds: Rect[] = [];
     const occupied = placements.map((placement) => placement.bounds);
     for (const edge of graph.edges) {
       const fromBounds = nodeBounds.get(edge.from.nodeId);
       const toBounds = nodeBounds.get(edge.to.nodeId);
       if (!fromBounds || !toBounds) continue;
-      const geometry = edgeGeometry(edge, fromBounds, toBounds, occupied, theme);
+      const siblings = graph.edges.filter((candidate) => candidate.from.nodeId === edge.from.nodeId && candidate.to.nodeId === edge.to.nodeId && candidate.from.port === edge.from.port && candidate.to.port === edge.to.port);
+      const lane = siblings.length > 1 ? (siblings.indexOf(edge) - (siblings.length - 1) / 2) * 36 : 0;
+      const fromNode = graph.nodes.find((node) => node.id === edge.from.nodeId)!;
+      const toNode = graph.nodes.find((node) => node.id === edge.to.nodeId)!;
+      const geometry = edgeGeometry(edge, fromBounds, toBounds, occupied, theme, placements.map((placement) => placement.bounds), fromNode.shape, toNode.shape, lane);
       geometryByHandle.set(edge.handle, geometry);
+      routeBounds.push(boundsForGeometry(geometry));
       if (geometry.label) {
         labelBounds.push(geometry.label.bounds);
         occupied.push(geometry.label.bounds);
@@ -74,6 +82,7 @@ export function compileGeometry(
     const bounds = unionRects([
       ...placements.map((placement) => placement.bounds),
       ...labelBounds,
+      ...routeBounds,
     ]);
     graphBounds.set(graph.id, bounds);
     graphOffsetY = bounds.y + bounds.height + 120;
@@ -218,7 +227,38 @@ function computeRanks(graph: GraphLayoutInput): Map<string, number> {
   const rank = new Map(graph.nodes.map((node) => [node.id as string, 0]));
   const indegree = new Map(graph.nodes.map((node) => [node.id as string, 0]));
   const outgoing = new Map<string, CompiledEdge[]>();
+  // Remove only DFS feedback edges from ranking; render every original edge.
+  // This keeps strongly connected flows readable without moving unrelated DAG ranks.
+  const allOutgoing = new Map<string, CompiledEdge[]>();
   for (const edge of graph.edges) {
+    const group = allOutgoing.get(edge.from.nodeId) ?? [];
+    group.push(edge);
+    allOutgoing.set(edge.from.nodeId, group);
+  }
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const feedback = new Set<CompiledEdge>();
+  for (const root of graph.nodes) {
+    if (visited.has(root.id)) continue;
+    const stack = [{ id: String(root.id), next: 0 }];
+    visiting.add(root.id);
+    while (stack.length) {
+      const entry = stack[stack.length - 1]!;
+      const edge = allOutgoing.get(entry.id)?.[entry.next++];
+      if (!edge) {
+        visiting.delete(entry.id);
+        visited.add(entry.id);
+        stack.pop();
+      } else if (visiting.has(edge.to.nodeId)) {
+        feedback.add(edge);
+      } else if (!visited.has(edge.to.nodeId)) {
+        visiting.add(edge.to.nodeId);
+        stack.push({ id: edge.to.nodeId, next: 0 });
+      }
+    }
+  }
+  for (const edge of graph.edges) {
+    if (feedback.has(edge)) continue;
     indegree.set(edge.to.nodeId, (indegree.get(edge.to.nodeId) ?? 0) + 1);
     const edges = outgoing.get(edge.from.nodeId) ?? [];
     edges.push(edge);
@@ -241,8 +281,14 @@ function computeRanks(graph: GraphLayoutInput): Map<string, number> {
 }
 
 function measureNode(node: CompiledNode, theme: ResolvedTheme): { width: number; height: number } {
-  const width = Math.max(140, Math.min(320, node.label.length * theme.fontSize * 0.62 + 48));
-  return { width: round(width), height: node.shape === "circle" ? width : 72 };
+  const lines = wrapText(node.label, 24);
+  const textWidth = Math.max(...lines.map(textUnits), 1) * theme.fontSize * 0.62;
+  const textHeight = lines.length * theme.fontSize * 1.28;
+  const width = Math.max(140, textWidth + 48);
+  const height = Math.max(72, textHeight + 36);
+  if (node.shape === "diamond") return { width: Math.ceil(Math.max(160, textWidth * 1.6 + 64)), height: Math.ceil(Math.max(96, textHeight * 2 + 40)) };
+  if (node.shape === "circle") return { width: Math.ceil(Math.max(width, height) * 1.1), height: Math.ceil(Math.max(width, height) * 1.1) };
+  return { width: Math.ceil(width), height: Math.ceil(height) };
 }
 
 function nodeGeometry(node: CompiledNode, bounds: Rect, theme: ResolvedTheme): NodeGeometry {
@@ -251,7 +297,7 @@ function nodeGeometry(node: CompiledNode, bounds: Rect, theme: ResolvedTheme): N
     handle: node.handle,
     bounds,
     outline: outlineFor(node.shape, bounds),
-    label: textGeometry(node.label, bounds, theme),
+    label: textGeometry(node.label, bounds, theme, wrapText(node.label, 24)),
   };
 }
 
@@ -261,11 +307,15 @@ function edgeGeometry(
   toBounds: Rect,
   occupied: readonly Rect[],
   theme: ResolvedTheme,
+  obstacles: readonly Rect[],
+  fromShape: CompiledNode["shape"],
+  toShape: CompiledNode["shape"],
+  lane: number,
 ): EdgeGeometry {
-  const start = portPoint(fromBounds, edge.from.port, center(toBounds));
-  const end = portPoint(toBounds, edge.to.port, center(fromBounds));
-  const path = route(edge.routing, start, end);
-  const middle = pathPoint(path, 0.5);
+  const start = shapePortPoint(fromBounds, edge.from.port, center(toBounds), fromShape);
+  const end = shapePortPoint(toBounds, edge.to.port, center(fromBounds), toShape);
+  const path = routeConnection(edge.routing, start, end, portDirection(fromBounds, edge.from.port, center(toBounds)), portDirection(toBounds, edge.to.port, center(fromBounds)), obstacles, lane, edge.from.nodeId === edge.to.nodeId);
+  const middle = pointAtPathProgress(path, 0.5);
   return {
     kind: "edge",
     handle: edge.handle,
@@ -294,7 +344,7 @@ function edgeLabelGeometry(
     label,
     Math.max(8, Math.floor((maximumWidth - horizontalPadding) / characterWidth)),
   );
-  const longestLine = Math.max(1, ...lines.map((line) => line.length));
+  const longestLine = Math.max(1, ...lines.map(textUnits));
   const width = round(Math.min(maximumWidth, longestLine * characterWidth + horizontalPadding));
   const height = round(Math.max(24, lines.length * theme.fontSize * 1.28 + 8));
   const markerCount = edge.arrow === "both" ? 2 : edge.arrow === "none" ? 0 : 1;
@@ -553,26 +603,47 @@ function closedPath(
 }
 
 function wrapText(text: string, maximumCharacters: number): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [""];
   const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const segments = word.length > maximumCharacters
-      ? word.match(new RegExp(`.{1,${maximumCharacters}}`, "g")) ?? [word]
-      : [word];
-    for (const segment of segments) {
-      const candidate = current ? `${current} ${segment}` : segment;
-      if (candidate.length > maximumCharacters && current) {
-        lines.push(current);
-        current = segment;
-      } else {
-        current = candidate;
+  for (const paragraph of text.split(/\r?\n/)) {
+    let current = "";
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    for (const word of words) {
+      if (current && textUnits(`${current} ${word}`) > maximumCharacters) {
+        lines.push(current); current = "";
+      }
+      if (textUnits(word) <= maximumCharacters) { current += `${current ? " " : ""}${word}`; continue; }
+      // Iterate code points rather than UTF-16 units; never split a surrogate pair.
+      for (const character of word) {
+        if (current && textUnits(current + character) > maximumCharacters) { lines.push(current); current = ""; }
+        current += character;
       }
     }
+    lines.push(current);
   }
-  if (current) lines.push(current);
   return lines;
+}
+
+function textUnits(text: string): number {
+  return [...text].reduce((sum, character) => sum + (/\p{Mark}|\u200d|\ufe0f/u.test(character) ? 0 : /[^\u0000-\u024f]/u.test(character) ? 1.65 : 1), 0);
+}
+
+function shapePortPoint(bounds: Rect, port: PortName, toward: Vec2, shape: CompiledNode["shape"]): Vec2 {
+  if (shape !== "parallelogram" && shape !== "document" && shape !== "database") return portPoint(bounds, port, toward);
+  const origin = center(bounds);
+  const direction = portDirection(bounds, port, toward);
+  const points = flattenPath(outlineFor(shape, bounds));
+  let extent = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const a = points[index - 1]!;
+    const b = points[index]!;
+    const secondaryDelta = direction.x ? b.y - a.y : b.x - a.x;
+    if (Math.abs(secondaryDelta) < 0.0001) continue;
+    const t = (direction.x ? origin.y - a.y : origin.x - a.x) / secondaryDelta;
+    if (t < 0 || t > 1) continue;
+    const distance = direction.x ? (a.x + (b.x - a.x) * t - origin.x) * direction.x : (a.y + (b.y - a.y) * t - origin.y) * direction.y;
+    extent = Math.max(extent, distance);
+  }
+  return { x: round(origin.x + direction.x * extent), y: round(origin.y + direction.y * extent) };
 }
 
 export function portPoint(bounds: Rect, port: PortName, toward: Vec2): Vec2 {
@@ -595,7 +666,7 @@ export function boundsForGeometry(item: ElementGeometry): Rect {
     if (command.kind === "cubic") return [command.control1, command.control2, command.to];
     return [command.to];
   });
-  return boundsOfPoints(points);
+  return unionRects([boundsOfPoints(points), ...(item.label ? [item.label.bounds] : [])]);
 }
 
 export function unionRects(rects: readonly Rect[]): Rect {
@@ -618,14 +689,6 @@ function boundsOfPoints(points: readonly Vec2[]): Rect {
 
 function center(bounds: Rect): Vec2 {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-}
-
-function pathPoint(path: CompiledPath, ratio: number): Vec2 {
-  const points = path.commands.flatMap((command) => command.kind === "close" ? [] : [command.to]);
-  if (points.length < 2) return points[0] ?? { x: 0, y: 0 };
-  const start = points[0]!;
-  const end = points[points.length - 1]!;
-  return { x: round(start.x + (end.x - start.x) * ratio), y: round(start.y + (end.y - start.y) * ratio) };
 }
 
 function sampledPathLength(commands: CompiledPath["commands"]): number {

@@ -34,6 +34,7 @@ export type StudioAuthoringRequest =
   | { readonly type: "redo"; readonly requestId: number; readonly request: HistoryRequest }
   | { readonly type: "select"; readonly requestId: number; readonly id?: string }
   | { readonly type: "import-mermaid"; readonly requestId: number; readonly source: string }
+  | { readonly type: "format"; readonly requestId: number; readonly source: string }
   | { readonly type: "complete"; readonly requestId: number; readonly source: string; readonly position: LanguagePosition }
   | { readonly type: "define"; readonly requestId: number; readonly source: string; readonly position: LanguagePosition }
   | { readonly type: "hover"; readonly requestId: number; readonly source: string; readonly position: LanguagePosition };
@@ -47,6 +48,7 @@ export type StudioAuthoringResponse =
       readonly completions?: readonly AnimFlowCompletion[];
       readonly definitions?: readonly AnimFlowDefinition[];
       readonly hover?: AnimFlowHover;
+      readonly formattedSource?: string;
     }
   | {
       readonly type: "error";
