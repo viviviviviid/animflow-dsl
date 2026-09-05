@@ -91,6 +91,7 @@ async function collectVisualIssues(
   scene: string,
   theme: "dark" | "light",
 ): Promise<VisualIssue[]> {
+  await page.evaluate(() => document.fonts.ready);
   return page.locator('.v2-canvas-surface svg[role="img"]').evaluate((svg, context) => {
     const threshold = 12;
     const root = svg.getBoundingClientRect();

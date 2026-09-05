@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./diagram-fonts.css";
 import "./connection.css";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 

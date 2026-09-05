@@ -19,7 +19,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@animflow-dsl/model": "workspace:*"
+    "@animflow-dsl/model": "workspace:*",
+    "roughjs": "4.6.6"
   },
   "peerDependencies": {
     "react": "^18.0.0",

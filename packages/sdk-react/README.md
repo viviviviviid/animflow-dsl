@@ -23,6 +23,7 @@ export function Lesson({ source }: { source: string }) {
 - `source` defaults to native AnimFlow 2.2 source and is compiled off the main thread; AnimFlow 2 and 2.1 are accepted as compatibility inputs.
 - Version 0.1 accepts exactly one story. `story` is an assertion, not a selector; a mismatch renders an error and calls `onDiagnostic`.
 - The default render is deterministic and contains no network access beyond loading `worker.js` from beside the installed SDK module.
+- Diagrams use seeded pencil strokes and open arrowheads. To match Studio's lettering, self-host Excalifont (Latin/Greek/Cyrillic) and Gaegu (Korean) with `@font-face`; include their OFL notices. The SDK never fetches fonts and falls back to installed fonts when these families are unavailable.
 - `controls={false}` hides transport UI without changing playback semantics.
 - SSR emits a stable placeholder. Compilation begins after hydration; use `ssrPlaceholder` to replace its content.
 - `workerUrl` lets a host copy the shipped worker to a CSP-approved self-hosted URL. The worker must remain from the exact same SDK version or the protocol handshake stops playback.

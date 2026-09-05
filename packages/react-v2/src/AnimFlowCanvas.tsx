@@ -17,8 +17,9 @@ import type {
   ThemeToken,
 } from "@animflow-dsl/model";
 import { pointAtPathProgress } from "@animflow-dsl/model";
-import { useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement, type SVGProps } from "react";
+import { useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement, type SVGProps } from "react";
 import { movePathEndpoints } from "./drag-geometry.js";
+import { roundedRectPath, sketchPath } from "./sketch.js";
 
 export interface AnimFlowCanvasProps {
   readonly plan: RenderPlan;
@@ -87,6 +88,7 @@ export function AnimFlowCanvas({
   return (
     <svg
       aria-label={ariaLabel}
+      data-animflow-appearance="sketch"
       className={className}
       preserveAspectRatio="xMidYMid meet"
       role="img"
@@ -227,6 +229,7 @@ function Node({
   const surface = colorFor(plan, plan.canvas.background);
   const highlight = colorFor(plan, frame.highlight.tone);
   const path = pathData(geometry.outline);
+  const outline = useMemo(() => sketchPath(path, element.id), [path, element.id]);
   return (
     <g
       data-animflow-handle={element.handle}
@@ -252,10 +255,18 @@ function Node({
       ) : null}
       <path
         d={path}
-        fill={mix(surface, tone, 0.08)}
-        stroke={rgba(tone)}
+        fill={mix(surface, tone, 0.13)}
+      />
+      <path
+        aria-hidden="true"
+        data-animflow-sketch="node"
+        d={outline}
+        fill="none"
+        pointerEvents="none"
+        stroke={rgba(ensureContrast(tone, surface, 4))}
+        strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.65}
         vectorEffect="non-scaling-stroke"
       />
       <Text geometry={geometry.label} color={ensureContrast(tone, surface, 5)} />
@@ -288,10 +299,11 @@ function Edge({ element, geometry, frame, onSelect, plan, selected, instanceId }
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const surface = colorFor(plan, plan.canvas.background);
   const edgeTone = ensureContrast(tone, surface, 3.2);
-  const lineWidth = Math.max(3.25, element.lineWidth + 0.75);
+  const lineWidth = Math.max(2, element.lineWidth);
   const highlight = colorFor(plan, frame.highlight.tone);
   const markerOpacity = Math.max(0, Math.min(1, (frame.drawProgress - 0.9) * 10));
   const path = pathData(geometry.path);
+  const line = useMemo(() => sketchPath(path, element.id, true), [path, element.id]);
   const markerId = `animflow-marker-${element.handle}-${instanceId}`;
   const maskId = `animflow-draw-mask-${element.handle}-${instanceId}`;
   const flowEffect = frame.flowEffect ?? element.flowEffect ?? "none";
@@ -306,8 +318,8 @@ function Edge({ element, geometry, frame, onSelect, plan, selected, instanceId }
     >
       {selected ? <path d={path} fill="none" opacity={0.25} stroke="#4c7dff" strokeWidth={lineWidth + 12} vectorEffect="non-scaling-stroke" /> : null}
       <defs>
-        <marker id={markerId} markerHeight={4.25} markerUnits="strokeWidth" markerWidth={4.25} orient="auto-start-reverse" refX={9} refY={5} viewBox="0 0 10 10">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill={rgba(edgeTone)} opacity={markerOpacity} />
+        <marker id={markerId} markerHeight={6} markerUnits="strokeWidth" markerWidth={6} orient="auto-start-reverse" refX={10} refY={5} viewBox="-2 -2 14 14">
+          <path d="M 1 0.5 Q 4.8 2.8 10 5 Q 5.2 7 1 9.5" fill="none" opacity={markerOpacity} stroke={rgba(edgeTone)} strokeWidth={1.15} strokeLinecap="round" strokeLinejoin="round" />
         </marker>
         <mask
           height={edgeBounds.height + 48}
@@ -344,11 +356,28 @@ function Edge({ element, geometry, frame, onSelect, plan, selected, instanceId }
         vectorEffect="non-scaling-stroke"
       />
       <path
-        data-animflow-edge-line="true"
+        data-animflow-edge-hit="true"
         d={path}
         fill="none"
+        stroke="transparent"
+        strokeWidth={Math.max(16, lineWidth + 10)}
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        aria-hidden="true"
+        d={path}
+        fill="none"
+        stroke="none"
+        strokeWidth={lineWidth}
         markerEnd={element.arrow === "end" || element.arrow === "both" ? `url(#${markerId})` : undefined}
         markerStart={element.arrow === "start" || element.arrow === "both" ? `url(#${markerId})` : undefined}
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        data-animflow-edge-line="true"
+        data-animflow-sketch="edge"
+        d={line}
+        fill="none"
         mask={`url(#${maskId})`}
         pathLength={1}
         stroke={rgba(edgeTone)}
@@ -428,9 +457,13 @@ function FlowDecoration({
     return (
       <path
         aria-hidden="true"
-        d="M -10 -7 L 8 0 L -10 7 Z"
+        d="M -8 -6 Q -1 -3 8 0 Q 0 3 -8 6"
         data-animflow-flow="arrow"
-        fill={rgba(color)}
+        fill="none"
+        stroke={rgba(color)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
         opacity={Math.sin(Math.min(1, frame.flowPhase) * Math.PI)}
         transform={`translate(${point.x} ${point.y}) rotate(${angle})`}
       />
@@ -470,12 +503,18 @@ function Overlay({ element, geometry, frame, onSelect, plan, selected }: RenderI
   const tone = frame.resolvedColor ?? colorFor(plan, element.tone);
   const surface = colorFor(plan, plan.canvas.background);
   const highlight = colorFor(plan, frame.highlight.tone);
+  const { x, y, width, height } = geometry.bounds;
+  const path = roundedRectPath(x, y, width, height, element.overlayKind === "badge" ? height / 2 : 8);
+  const outline = useMemo(() => sketchPath(path, element.id), [path, element.id]);
+  const connectorPath = geometry.connector ? pathData(geometry.connector) : "";
+  const connector = useMemo(() => connectorPath ? sketchPath(connectorPath, `${element.id}-connector`, true) : "", [connectorPath, element.id]);
   return (
     <g data-animflow-handle={element.handle} opacity={frame.opacity} transform={elementTransform(frame, geometry.bounds)} {...selectableProps(element, selected, onSelect, frame.opacity > 0.01)}>
       {selected ? <rect fill="none" height={geometry.bounds.height + 8} opacity={0.92} rx={16} stroke="#4c7dff" strokeWidth={5} vectorEffect="non-scaling-stroke" width={geometry.bounds.width + 8} x={geometry.bounds.x - 4} y={geometry.bounds.y - 4} /> : null}
-      {geometry.connector ? <path d={pathData(geometry.connector)} fill="none" opacity={0.65} stroke={rgba(tone)} strokeDasharray="3 4" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null}
+      {connector ? <path d={connector} data-animflow-sketch="connector" fill="none" opacity={0.65} stroke={rgba(tone)} strokeDasharray="3 4" strokeLinecap="round" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null}
       {frame.highlight.active || frame.highlight.intensity > 0 ? <rect fill="none" height={geometry.bounds.height} opacity={frame.highlight.intensity * 0.36} rx={14} stroke={rgba(highlight)} strokeWidth={12} vectorEffect="non-scaling-stroke" width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} /> : null}
-      <rect fill={mix(surface, tone, 0.06)} height={geometry.bounds.height} rx={element.overlayKind === "badge" ? geometry.bounds.height / 2 : 12} stroke={rgba(tone)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" width={geometry.bounds.width} x={geometry.bounds.x} y={geometry.bounds.y} />
+      <rect fill={mix(surface, tone, 0.10)} height={height} rx={element.overlayKind === "badge" ? height / 2 : 8} width={width} x={x} y={y} />
+      <path aria-hidden="true" data-animflow-sketch="overlay" d={outline} fill="none" pointerEvents="none" stroke={rgba(ensureContrast(tone, surface, 4))} strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
       <Text geometry={geometry.text} color={ensureContrast(tone, surface, 5)} inset={16} />
     </g>
   );

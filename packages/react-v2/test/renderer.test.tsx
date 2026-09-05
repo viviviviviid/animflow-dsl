@@ -48,10 +48,10 @@ describe("AnimFlowCanvas", () => {
     );
 
     expect(markup).toContain('data-animflow-edge-line="true"');
-    expect(markup).toContain('stroke-width="3.25"');
+    expect(markup).toContain('data-animflow-sketch="edge"');
     expect(markup).toContain('data-animflow-edge-label="true"');
     expect(markup).toContain('markerUnits="strokeWidth"');
-    expect(markup).toContain('markerWidth="4.25"');
+    expect(markup).toContain('markerWidth="6"');
     expect(markup).toContain('paint-order="stroke"');
     expect(markup).not.toMatch(/data-animflow-edge-label="true"[^>]*><rect/);
   });
@@ -61,6 +61,34 @@ describe("AnimFlowCanvas", () => {
     expect(() =>
       renderToStaticMarkup(<AnimFlowCanvas frame={invalidFrame} plan={plan} />),
     ).toThrow("Frame is missing");
+  });
+
+  test("keeps pencil strokes identical across playback frames and SSR renders", () => {
+    const strokesAt = (time: number) => {
+      const markup = renderToStaticMarkup(<AnimFlowCanvas frame={sample(plan, time)} plan={plan} />);
+      return [...markup.matchAll(/data-animflow-sketch="([^"]+)" d="([^"]+)"/g)].map((match) => [match[1], match[2]]);
+    };
+    const initial = strokesAt(0);
+    expect(initial.length).toBeGreaterThanOrEqual(4);
+    expect(initial.map(([kind]) => kind)).toContain("edge");
+    expect(initial).toEqual(strokesAt(750));
+    expect(initial).toEqual(strokesAt(plan.durationMs));
+    expect(initial).toEqual(strokesAt(0));
+  });
+
+  test("keeps arrowheads on the exact route and fades them in with the trace", () => {
+    const markup = renderToStaticMarkup(<AnimFlowCanvas frame={sample(plan, 0)} plan={plan} onElementSelect={() => undefined} />);
+    // A rough path contains multiple subpaths: markers belong on the original
+    // compiler route, otherwise every pencil segment would get an arrowhead.
+    const strokes = [...markup.matchAll(/<path[^>]*data-animflow-sketch="edge"[^>]*>/g)];
+    expect(strokes.length).toBeGreaterThan(0);
+    for (const [stroke] of strokes) {
+      expect(stroke).not.toMatch(/marker-(start|end)=/);
+      expect(stroke).toContain('mask="url(');
+    }
+    expect(markup).toMatch(/<path[^>]*stroke="none"[^>]*marker-end="url\(/);
+    expect(markup).toMatch(/<marker[^>]*><path[^>]*fill="none"[^>]*opacity="0"/);
+    expect(markup).toContain('data-animflow-edge-hit="true"');
   });
 
   test("marks selected elements and exposes keyboard-selectable SVG controls", () => {

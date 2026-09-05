@@ -1,8 +1,8 @@
 import { themeToken, type ResolvedTheme, type RgbaColor, type ThemeToken } from "@animflow-dsl/model";
 
 const fixedColors: Readonly<Record<string, RgbaColor>> = {
-  surface: { r: 0.98, g: 0.98, b: 0.99, a: 1 },
-  neutral: { r: 0.24, g: 0.27, b: 0.34, a: 1 },
+  surface: { r: 1, g: 0.996, b: 0.984, a: 1 },
+  neutral: { r: 0.16, g: 0.17, b: 0.19, a: 1 },
   primary: { r: 0.16, g: 0.42, b: 0.88, a: 1 },
   accent: { r: 0.96, g: 0.48, b: 0.18, a: 1 },
   info: { r: 0.08, g: 0.65, b: 0.76, a: 1 },
@@ -29,9 +29,9 @@ export function resolveTheme(name: string, tokens: Iterable<string>): ResolvedTh
   return {
     name,
     colors: colors as Readonly<Record<ThemeToken, RgbaColor>>,
-    fontFamily: 'var(--font-display, "Avenir Next"), "Noto Sans KR", sans-serif',
-    fontSize: 18,
-    fontWeight: 600,
+    fontFamily: '"Excalifont", "Gaegu", "Segoe Print", "Noto Sans KR", sans-serif',
+    fontSize: 20,
+    fontWeight: 400,
   };
 }
 

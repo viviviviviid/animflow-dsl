@@ -211,11 +211,12 @@ test("persists light mode and keeps labeled arrows legible", async ({ page }) =>
   await expect.poll(() => page.evaluate(() => localStorage.getItem("animflow-studio-theme"))).toBe("light");
 
   const edge = page.locator('[data-animflow-edge-line="true"]').first();
-  await expect(edge).toHaveAttribute("stroke-width", "3.25");
+  await expect(edge).toHaveAttribute("stroke-width", "2");
+  await expect(edge).toHaveAttribute("data-animflow-sketch", "edge");
   const label = page.locator('[data-animflow-edge-label="true"]').first();
   await expect(label).toHaveAttribute("paint-order", "stroke");
   await expect(label.locator("rect")).toHaveCount(0);
-  await expect(page.locator('marker[markerUnits="strokeWidth"]').first()).toHaveAttribute("markerWidth", "4.25");
+  await expect(page.locator('marker[markerUnits="strokeWidth"]').first()).toHaveAttribute("markerWidth", "6");
 
   await page.reload();
   await expect(shell).toHaveAttribute("data-studio-theme", "light");
